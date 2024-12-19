@@ -6,11 +6,19 @@ Summary of a command.
 
 More information about a command. Don't repeat the summary. 
 
-# flags.name.summary
+# flags.sourcepath.summary
 
 Description of a flag.
 
-# flags.name.description
+# flags.sourcepath.description
+
+More information about a flag. Don't repeat the summary. 
+
+# flags.dryrun.summary
+
+Description of a flag.
+
+# flags.dryrun.description
 
 More information about a flag. Don't repeat the summary. 
 
