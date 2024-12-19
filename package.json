@@ -47,6 +47,19 @@
     "topics": {
       "hello": {
         "description": "Commands to say hello."
+      },
+      "rflib": {
+        "description": "description for rflib",
+        "subtopics": {
+          "logging": {
+            "description": "description for rflib.logging",
+            "subtopics": {
+              "apex": {
+                "description": "description for rflib.logging.apex"
+              }
+            }
+          }
+        }
       }
     },
     "flexibleTaxonomy": true
