@@ -1,21 +1,27 @@
 import { execCmd, TestSession } from '@salesforce/cli-plugins-testkit';
 import { expect } from 'chai';
+import { HelloWorldResult } from '../../../../../src/commands/hello/world.js';
 
-describe('rflib logging apex instrument NUTs', () => {
-  let session: TestSession;
+let testSession: TestSession;
 
-  before(async () => {
-    session = await TestSession.create({ devhubAuthStrategy: 'NONE' });
+describe('hello world NUTs', () => {
+  before('prepare session', async () => {
+    testSession = await TestSession.create();
   });
 
   after(async () => {
-    await session?.clean();
+    await testSession?.clean();
   });
 
-  it('should display provided name', () => {
-    const name = 'World';
-    const command = `rflib logging apex instrument --name ${name}`;
-    const output = execCmd(command, { ensureExitCode: 0 }).shellOutput.stdout;
-    expect(output).to.contain(name);
+  it('should say hello to the world', () => {
+    const result = execCmd<HelloWorldResult>('hello world --json', { ensureExitCode: 0 }).jsonOutput?.result;
+    expect(result?.name).to.equal('World');
+  });
+
+  it('should say hello to a given person', () => {
+    const result = execCmd<HelloWorldResult>('hello world --name Astro --json', {
+      ensureExitCode: 0,
+    }).jsonOutput?.result;
+    expect(result?.name).to.equal('Astro');
   });
 });

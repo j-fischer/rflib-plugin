@@ -1,9 +1,9 @@
 import { TestContext } from '@salesforce/core/testSetup';
 import { expect } from 'chai';
 import { stubSfCommandUx } from '@salesforce/sf-plugins-core';
-import RflibLoggingApexInstrument from '../../../../../src/commands/rflib/logging/apex/instrument.js';
+import World from '../../../../../src/commands/hello/world.js';
 
-describe('rflib logging apex instrument', () => {
+describe('hello world', () => {
   const $$ = new TestContext();
   let sfCommandStubs: ReturnType<typeof stubSfCommandUx>;
 
@@ -15,26 +15,31 @@ describe('rflib logging apex instrument', () => {
     $$.restore();
   });
 
-  it('runs hello', async () => {
-    await RflibLoggingApexInstrument.run([]);
+  it('runs hello world', async () => {
+    await World.run([]);
     const output = sfCommandStubs.log
       .getCalls()
       .flatMap((c) => c.args)
       .join('\n');
-    expect(output).to.include('hello world');
+    expect(output).to.include('Hello World');
   });
 
-  it('runs hello with --json and no provided name', async () => {
-    const result = await RflibLoggingApexInstrument.run([]);
-    expect(result.path).to.equal('src/commands/rflib/logging/apex/instrument.ts');
+  it('runs hello world with --json and no provided name', async () => {
+    const result = await World.run([]);
+    expect(result.name).to.equal('World');
   });
 
   it('runs hello world --name Astro', async () => {
-    await RflibLoggingApexInstrument.run(['--name', 'Astro']);
+    await World.run(['--name', 'Astro']);
     const output = sfCommandStubs.log
       .getCalls()
       .flatMap((c) => c.args)
       .join('\n');
-    expect(output).to.include('hello Astro');
+    expect(output).to.include('Hello Astro');
+  });
+
+  it('runs hello world --name Astro --json', async () => {
+    const result = await World.run(['--name', 'Astro', '--json']);
+    expect(result.name).to.equal('Astro');
   });
 });
