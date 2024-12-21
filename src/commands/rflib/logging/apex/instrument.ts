@@ -76,13 +76,18 @@ export default class RflibLoggingApexInstrument extends SfCommand<RflibLoggingAp
     let content = await fs.promises.readFile(filePath, 'utf8');
     const originalContent = content;
 
-    // Add logger declaration
+    // Check for existing class-level logger
+    const hasClassLevelLogger = /\bprivate\s+static\s+(?:final\s+)?rflib_Logger\b/.test(content);
+
+    // Add logger declaration if none exists at class level
     const className = path.basename(filePath, '.cls');
     const loggerDeclaration = `private static final rflib_Logger LOGGER = rflib_LoggerUtil.getFactory().createLogger('${className}');`;
     
-    // Insert logger declaration after class definition
-    const classRegex = /\bclass\s+\w+\s*{/;
-    content = content.replace(classRegex, `$&\n    ${loggerDeclaration}`);
+    // Insert logger declaration after class definition only if no class-level logger exists
+    if (!hasClassLevelLogger) {
+        const classRegex = /\bclass\s+\w+\s*{/;
+        content = content.replace(classRegex, `$&\n    ${loggerDeclaration}`);
+    }
 
     // Process methods
     const methodRegex = /(@AuraEnabled\s*[\s\S]*?)?\b(public|private|protected|global)\s+(static\s+)?\w+\s+(\w+)\s*\(([\s\S]*?)\)\s*{/g;
