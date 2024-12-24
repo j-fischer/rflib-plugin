@@ -103,6 +103,7 @@ export default class RflibLoggingApexInstrument extends SfCommand<RflibLoggingAp
 
       // Process methods
       const methodRegex = /(@AuraEnabled\s*[\s\S]*?)?\b(public|private|protected|global)\s+(static\s+)?\w+\s+(\w+)\s*\(([\s\S]*?)\)\s*{/g;
+      const genericArgsRegex = /<[^>]+>/g;
       content = content.replace(methodRegex, (
         match: string,
         auraEnabled: string | undefined,
@@ -111,20 +112,21 @@ export default class RflibLoggingApexInstrument extends SfCommand<RflibLoggingAp
         methodName: string,
         args: string
       ) => {
-        // Ensure args is a string before splitting
         const argsStr = args || '';
-        const parameters = argsStr.split(',').map(param => param.trim());
+        const parameters = argsStr.replaceAll(genericArgsRegex, '').split(',').map(param => param.trim());
 
         // Safe parameter name extraction
         const logArgs = parameters.length > 0 && parameters[0] !== ''
           ? `, new Object[] { ${parameters.map(p => {
             const parts = p.split(' ');
+            // Remove Map type declarations
             return parts.length > 1 ? parts[1] : parts[0];
           }).join(', ')} }`
           : '';
 
         let newMethod = match + '\n';
-        newMethod += `        LOGGER.info('${methodName}(${parameters.map(() => '{0}').join(', ')})'${logArgs});\n`;
+        newMethod += `        LOGGER.info('${methodName}(${parameters.map((_, index) =>
+          `{${index}}`).join(', ')})'${logArgs});\n`;
 
         return newMethod;
       });
