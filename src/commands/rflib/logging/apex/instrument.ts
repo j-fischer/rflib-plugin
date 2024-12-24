@@ -48,7 +48,7 @@ export default class RflibLoggingApexInstrument extends SfCommand<RflibLoggingAp
     const isDryRun = flags.dryrun;
 
     this.log(`Scanning Apex classes in ${sourcePath}...`);
-    
+
     await this.processDirectory(sourcePath, isDryRun);
 
     const duration = Date.now() - startTime;
@@ -67,11 +67,11 @@ export default class RflibLoggingApexInstrument extends SfCommand<RflibLoggingAp
   private async processDirectory(dirPath: string, isDryRun: boolean): Promise<void> {
     this.logger.debug(`Processing directory: ${dirPath}`);
     const files = await fs.promises.readdir(dirPath);
-    
+
     for (const file of files) {
       const filePath = path.join(dirPath, file);
       const stat = await fs.promises.stat(filePath);
-      
+
       if (stat.isDirectory()) {
         await this.processDirectory(filePath, isDryRun);
       } else if (file.endsWith('.cls') && !file.endsWith('Test.cls')) {
@@ -94,11 +94,11 @@ export default class RflibLoggingApexInstrument extends SfCommand<RflibLoggingAp
 
       // Add logger declaration if none exists at class level
       const loggerDeclaration = `private static final rflib_Logger LOGGER = rflib_LoggerUtil.getFactory().createLogger('${className}');`;
-      
+
       // Insert logger declaration after class definition only if no class-level logger exists
       if (!hasClassLevelLogger) {
-          const classRegex = /\bclass\s+\w+\s*{/;
-          content = content.replace(classRegex, `$&\n    ${loggerDeclaration}`);
+        const classRegex = /\bclass\s+\w+\s*{/;
+        content = content.replace(classRegex, `$&\n    ${loggerDeclaration}`);
       }
 
       // Process methods
@@ -114,17 +114,17 @@ export default class RflibLoggingApexInstrument extends SfCommand<RflibLoggingAp
         // Ensure args is a string before splitting
         const argsStr = args || '';
         const parameters = argsStr.split(',').map(param => param.trim());
-        
+
         // Safe parameter name extraction
-        const logArgs = parameters.length > 0 && parameters[0] !== '' 
+        const logArgs = parameters.length > 0 && parameters[0] !== ''
           ? `, new Object[] { ${parameters.map(p => {
-              const parts = p.split(' ');
-              return parts.length > 1 ? parts[1] : parts[0];
-            }).join(', ')} }`
+            const parts = p.split(' ');
+            return parts.length > 1 ? parts[1] : parts[0];
+          }).join(', ')} }`
           : '';
 
         let newMethod = match + '\n';
-        
+
         if (auraEnabled) {
           newMethod += `        try {\n`;
           newMethod += `            LOGGER.info('${methodName}(${parameters.map(() => '{0}').join(', ')})'${logArgs});\n`;
@@ -141,11 +141,11 @@ export default class RflibLoggingApexInstrument extends SfCommand<RflibLoggingAp
         if (!match.includes('try {')) {
           return match;
         }
-        
+
         // Extract method name
         const methodNameMatch = match.match(/\b\w+\s*\(/);
         const methodName = methodNameMatch ? methodNameMatch[0].replace('(', '') : 'unknown';
-        
+
         return match.replace(/}(?!\s*catch)$/, `
           } catch (Exception ex) {
               LOGGER.error('An error occurred in ${methodName}()', ex);
@@ -159,7 +159,7 @@ export default class RflibLoggingApexInstrument extends SfCommand<RflibLoggingAp
         // Find the method name from the containing method
         const methodNameMatch = content.substring(0, content.indexOf(match)).match(/\b\w+\s*\([^)]*\)\s*{[^}]*$/);
         const methodName = methodNameMatch ? methodNameMatch[0].split('(')[0].trim() : 'unknown';
-        
+
         return `${match}\n            LOGGER.error('An error occurred in ${methodName}()', ${exceptionVar.trim()});`;
       });
 
