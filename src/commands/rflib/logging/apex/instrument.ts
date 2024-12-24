@@ -14,6 +14,7 @@ const messages = Messages.loadMessages('rflib-plugin', 'rflib.logging.apex.instr
 export type RflibLoggingApexInstrumentResult = {
   processedFiles: number;
   modifiedFiles: number;
+  formattedFiles: number;
 };
 
 export default class RflibLoggingApexInstrument extends SfCommand<RflibLoggingApexInstrumentResult> {
@@ -40,6 +41,7 @@ export default class RflibLoggingApexInstrument extends SfCommand<RflibLoggingAp
 
   private processedFiles = 0;
   private modifiedFiles = 0;
+  private formattedFiles = 0;
 
   private readonly prettierConfig: prettier.Options = {
     parser: 'apex',
@@ -134,10 +136,12 @@ export default class RflibLoggingApexInstrument extends SfCommand<RflibLoggingAp
     this.log(`\nInstrumentation complete.`);
     this.log(`Processed files: ${this.processedFiles}`);
     this.log(`Modified files: ${this.modifiedFiles}`);
+    this.log(`Formatted files: ${this.formattedFiles}`);
 
     return {
       processedFiles: this.processedFiles,
-      modifiedFiles: this.modifiedFiles
+      modifiedFiles: this.modifiedFiles,
+      formattedFiles: this.formattedFiles
     };
   }
 
@@ -177,6 +181,8 @@ export default class RflibLoggingApexInstrument extends SfCommand<RflibLoggingAp
           try {
             const formattedContent = await prettier.format(content, this.prettierConfig);
             await fs.promises.writeFile(filePath, formattedContent);
+
+            this.formattedFiles++;
             this.logger.info(`Modified and formatted: ${filePath}`);
           } catch (error) {
             if (error instanceof Error) {
