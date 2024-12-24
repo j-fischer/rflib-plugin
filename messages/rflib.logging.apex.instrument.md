@@ -34,16 +34,13 @@ When enabled, formats the modified Apex files using prettier-plugin-apex after a
 # examples
 
 - Add logging statements to all Apex classes in a directory:
-```sh-session
+
 $ sf rflib logging apex instrument --sourcepath force-app/main/default/classes
-```
 
 - Preview changes without modifying files:
-```sh-session
+
 $ sf rflib logging apex instrument --sourcepath force-app/main/default/classes --dryrun
-```
 
 - Add logging statements and format code:
-```sh-session
+
 $ sf rflib logging apex instrument --sourcepath force-app/main/default/classes --prettier
-```
