@@ -146,7 +146,7 @@ export default class RflibLoggingApexInstrument extends SfCommand<RflibLoggingAp
       });
 
       // Add error logging to existing catch blocks
-      const catchRegex = /catch\s*\(([\w\s]+)\)\s*{/g;
+      const catchRegex = /catch\s*\(\s*\w+\s+(\w+)\s*\)\s*{/g;
       content = content.replace(catchRegex, (match, exceptionVar: string) => {
         // Find the method name from the containing method
         const methodNameMatch = content.substring(0, content.indexOf(match)).match(/\b\w+\s*\([^)]*\)\s*{[^}]*$/);
