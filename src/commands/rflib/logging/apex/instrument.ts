@@ -11,6 +11,13 @@ import * as prettier from 'prettier';
 Messages.importMessagesDirectoryFromMetaUrl(import.meta.url)
 const messages = Messages.loadMessages('rflib-plugin', 'rflib.logging.apex.instrument');
 
+const methodRegex = /(@AuraEnabled\s*[\s\S]*?)?\b(public|private|protected|global)\s+(static\s+)?(?:(\w+(?:\s*<(?:[^<>]|<[^<>]*>)*>)?)|void)\s+(\w+)\s*\(([\s\S]*?)\)\s*{/g;
+const classRegex = /\bclass\s+\w+\s*{/;
+const classLevelLoggerRegex = /\bprivate\s+(?:static\s+)?(?:final\s+)?rflib_Logger\s+(\w+)\b/;
+const genericArgsRegex = /<[^>]+>/g;
+const catchRegex = /catch\s*\(\s*\w+\s+(\w+)\s*\)\s*{/g;
+const testSetupRegex = /@TestSetup\s+((public|private|protected|global)s+)?(?:static\s+)?void\s+(\w+)\s*\([^)]*\)\s*{/g;
+
 export type RflibLoggingApexInstrumentResult = {
   processedFiles: number;
   modifiedFiles: number;
@@ -59,7 +66,6 @@ export default class RflibLoggingApexInstrument extends SfCommand<RflibLoggingAp
   };
 
   private static detectExistingLogger(content: string): { exists: boolean; loggerVariableName: string } {
-    const classLevelLoggerRegex = /\bprivate\s+(?:static\s+)?(?:final\s+)?rflib_Logger\s+(\w+)\b/;
     const match = content.match(classLevelLoggerRegex);
     return {
       exists: classLevelLoggerRegex.test(content),
@@ -70,7 +76,7 @@ export default class RflibLoggingApexInstrument extends SfCommand<RflibLoggingAp
   private static addLoggerDeclaration(content: string, className: string): string {
     const { exists, loggerVariableName } = RflibLoggingApexInstrument.detectExistingLogger(content);
     if (!exists) {
-      const classRegex = /\bclass\s+\w+\s*{/;
+
       const loggerDeclaration = `private static final rflib_Logger ${loggerVariableName} = rflib_LoggerUtil.getFactory().createLogger('${className}');`;
       return content.replace(classRegex, `$&\n    ${loggerDeclaration}`);
     }
@@ -78,7 +84,6 @@ export default class RflibLoggingApexInstrument extends SfCommand<RflibLoggingAp
   }
 
   private static processParameters(args: string): { paramList: string[]; logArgs: string } {
-    const genericArgsRegex = /<[^>]+>/g;
     const parameters = args ? args.replaceAll(genericArgsRegex, '').split(',').map(param => param.trim()) : [];
     const logArgs = parameters.length > 0 && parameters[0] !== ''
       ? `, new Object[] { ${parameters.map(p => {
@@ -90,35 +95,38 @@ export default class RflibLoggingApexInstrument extends SfCommand<RflibLoggingAp
   }
 
   private static processMethodDeclarations(content: string, loggerName: string): string {
-    const methodRegex = /(@AuraEnabled\s*[\s\S]*?)?\b(public|private|protected|global)\s+(static\s+)?\w+\s+(\w+)\s*\(([\s\S]*?)\)\s*{/g;
 
     return content.replace(methodRegex, (
       match: string,
       auraEnabled: string | undefined,
       access: string,
       isStatic: string | undefined,
+      returnType: string,
       methodName: string,
       args: string
     ) => {
       const { paramList, logArgs } = RflibLoggingApexInstrument.processParameters(args);
-
       let newMethod = match + '\n';
       newMethod += `        ${loggerName}.info('${methodName}(${paramList.map((_, i) => `{${i}}`).join(', ')})'${logArgs});\n`;
-
       return newMethod;
     });
   }
 
   private static processCatchBlocks(content: string, loggerName: string): string {
-    const catchRegex = /catch\s*\(\s*\w+\s+(\w+)\s*\)\s*{/g;
+    return content.replace(catchRegex, (match: string, exceptionVar: string, offset: number) => {
+      // Get content before catch block
+      const contentBeforeCatch = content.substring(0, offset);
 
-    return content.replace(catchRegex, (
-      match: string,
-      exceptionVar: string
-    ) => {
-      // Find the method name from the containing method
-      const methodNameMatch = content.substring(0, content.indexOf(match)).match(/\b\w+\s*\([^)]*\)\s*{[^}]*$/);
-      const methodName = methodNameMatch ? methodNameMatch[0].split('(')[0].trim() : 'unknown';
+      // Find all method declarations before this catch block
+      const methodMatches = [...contentBeforeCatch.matchAll(methodRegex)];
+
+      // Get last method match (closest to catch block)
+      const lastMethodMatch = methodMatches[methodMatches.length - 1];
+
+      // Extract method name from match or use 'unknown'
+      const methodName = lastMethodMatch
+        ? lastMethodMatch[5] // Group 4 contains method name in methodRegex
+        : 'unknown';
 
       return `${match}\n            ${loggerName}.error('An error occurred in ${methodName}()', ${exceptionVar.trim()});`;
     });
@@ -176,9 +184,6 @@ export default class RflibLoggingApexInstrument extends SfCommand<RflibLoggingAp
     this.logger.debug(`Processing test file: ${filePath}`);
     let content = await fs.promises.readFile(filePath, 'utf8');
     const originalContent = content;
-
-    // Find @TestSetup method
-    const testSetupRegex = /@TestSetup\s+((public|private|protected|global)s+)?(?:static\s+)?void\s+(\w+)\s*\([^)]*\)\s*{/g;
 
     content = content.replace(testSetupRegex, (match) => `${match}\n        rflib_TestUtil.prepareLoggerForUnitTests();`);
 
