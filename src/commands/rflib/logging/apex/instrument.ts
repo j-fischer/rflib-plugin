@@ -133,9 +133,11 @@ export default class RflibLoggingApexInstrument extends SfCommand<RflibLoggingAp
     const isDryRun = flags.dryrun;
     const usePrettier = flags.prettier;
 
-    this.log(`Scanning Apex classes in ${sourcePath}...`);
+    this.log(`Scanning Apex classes in ${sourcePath} and sub directories`);
 
+    this.spinner.start('Running...');
     await this.processDirectory(sourcePath, isDryRun, usePrettier);
+    this.spinner.stop();
 
     const duration = Date.now() - startTime;
     this.logger.debug(`Completed instrumentation in ${duration}ms`);
