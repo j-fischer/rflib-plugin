@@ -90,12 +90,15 @@ export default class RflibLoggingApexInstrument extends SfCommand<RflibLoggingAp
       const originalContent = content;
 
       // Check for existing class-level logger
-      const hasClassLevelLogger = /\bprivate\s+static\s+(?:final\s+)?rflib_Logger\b/.test(content);
-
-      // Add logger declaration if none exists at class level
-      const loggerDeclaration = `private static final rflib_Logger LOGGER = rflib_LoggerUtil.getFactory().createLogger('${className}');`;
+      const classLevelLoggerRegex = /\bprivate\s+(?:static\s+)?(?:final\s+)?rflib_Logger\s+(\w+)\b/
 
       // Insert logger declaration after class definition only if no class-level logger exists
+      const classLevelLoggerMatch = content.match(classLevelLoggerRegex);
+      const loggerVariableName = classLevelLoggerMatch ? classLevelLoggerMatch[1] : 'LOGGER';
+
+      // Add logger declaration if none exists at class level
+      const hasClassLevelLogger = classLevelLoggerRegex.test(content);
+      const loggerDeclaration = `private static final rflib_Logger LOGGER = rflib_LoggerUtil.getFactory().createLogger('${className}');`;
       if (!hasClassLevelLogger) {
         const classRegex = /\bclass\s+\w+\s*{/;
         content = content.replace(classRegex, `$&\n    ${loggerDeclaration}`);
@@ -125,28 +128,10 @@ export default class RflibLoggingApexInstrument extends SfCommand<RflibLoggingAp
           : '';
 
         let newMethod = match + '\n';
-        newMethod += `        LOGGER.info('${methodName}(${parameters.map((_, index) =>
+        newMethod += `        ${loggerVariableName}.info('${methodName}(${parameters.map((_, index) =>
           `{${index}}`).join(', ')})'${logArgs});\n`;
 
         return newMethod;
-      });
-
-      // Add catch blocks for @AuraEnabled methods
-      const auraMethodRegex = /@AuraEnabled[\s\S]*?{[\s\S]*?}/g;
-      content = content.replace(auraMethodRegex, (match) => {
-        if (!match.includes('try {')) {
-          return match;
-        }
-
-        // Extract method name
-        const methodNameMatch = match.match(/\b\w+\s*\(/);
-        const methodName = methodNameMatch ? methodNameMatch[0].replace('(', '') : 'unknown';
-
-        return match.replace(/}(?!\s*catch)$/, `
-          } catch (Exception ex) {
-              LOGGER.error('An error occurred in ${methodName}()', ex);
-              throw ex;
-          }`);
       });
 
       // Add error logging to existing catch blocks
