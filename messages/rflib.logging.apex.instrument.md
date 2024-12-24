@@ -5,6 +5,7 @@ Instrument Apex classes with RFLIB logging statements automatically.
 # description
 
 Analyzes Apex classes and adds RFLIB logging statements for method entry and error handling. Adds class-level logger initialization if not already present. 
+For Apex Test classes, the `@TestSetup` method will be updated to include `rflib_TestUtil.prepareLoggerForUnitTests();` to avoid test failures caused by the logging framework.
 
 # flags.sourcepath.summary
 

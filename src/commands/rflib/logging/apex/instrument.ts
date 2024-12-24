@@ -162,8 +162,31 @@ export default class RflibLoggingApexInstrument extends SfCommand<RflibLoggingAp
 
       if (stat.isDirectory()) {
         await this.processDirectory(filePath, isDryRun, usePrettier);
-      } else if (file.endsWith('.cls') && !file.endsWith('Test.cls')) {
+      } else if (file.endsWith('Test.cls')) {
+        await this.processTestFile(filePath, isDryRun);
+      } else if (file.endsWith('.cls')) {
         await this.instrumentApexClass(filePath, isDryRun, usePrettier);
+      }
+    }
+  }
+
+  private async processTestFile(filePath: string, isDryRun: boolean): Promise<void> {
+    this.logger.debug(`Processing test file: ${filePath}`);
+    let content = await fs.promises.readFile(filePath, 'utf8');
+    const originalContent = content;
+
+    // Find @TestSetup method
+    const testSetupRegex = /@TestSetup\s+((public|private|protected|global)s+)?(?:static\s+)?void\s+(\w+)\s*\([^)]*\)\s*{/g;
+
+    content = content.replace(testSetupRegex, (match) => `${match}\n        rflib_TestUtil.prepareLoggerForUnitTests();`);
+
+    if (content !== originalContent) {
+      this.modifiedFiles++;
+      if (!isDryRun) {
+        await fs.promises.writeFile(filePath, content);
+        this.logger.info(`Modified test file: ${filePath}`);
+      } else {
+        this.logger.info(`Would modify test file: ${filePath}`);
       }
     }
   }
