@@ -124,13 +124,7 @@ export default class RflibLoggingApexInstrument extends SfCommand<RflibLoggingAp
           : '';
 
         let newMethod = match + '\n';
-
-        if (auraEnabled) {
-          newMethod += `        try {\n`;
-          newMethod += `            LOGGER.info('${methodName}(${parameters.map(() => '{0}').join(', ')})'${logArgs});\n`;
-        } else {
-          newMethod += `        LOGGER.info('${methodName}(${parameters.map(() => '{0}').join(', ')})'${logArgs});\n`;
-        }
+        newMethod += `        LOGGER.info('${methodName}(${parameters.map(() => '{0}').join(', ')})'${logArgs});\n`;
 
         return newMethod;
       });
