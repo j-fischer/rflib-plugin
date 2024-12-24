@@ -5,6 +5,8 @@ import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { SfCommand, Flags } from '@salesforce/sf-plugins-core';
 import { Messages, Logger } from '@salesforce/core';
+// eslint-disable-next-line import/no-extraneous-dependencies
+import * as prettier from 'prettier';
 
 Messages.importMessagesDirectoryFromMetaUrl(import.meta.url)
 const messages = Messages.loadMessages('rflib-plugin', 'rflib.logging.apex.instrument');
@@ -38,6 +40,15 @@ export default class RflibLoggingApexInstrument extends SfCommand<RflibLoggingAp
 
   private processedFiles = 0;
   private modifiedFiles = 0;
+
+  private readonly prettierConfig: prettier.Options = {
+    parser: 'apex',
+    plugins: ['prettier-plugin-apex'],
+    printWidth: 120,
+    tabWidth: 4,
+    useTabs: false,
+    singleQuote: true
+  };
 
   public async run(): Promise<RflibLoggingApexInstrumentResult> {
     this.logger = await Logger.child(this.ctor.name);
@@ -147,10 +158,21 @@ export default class RflibLoggingApexInstrument extends SfCommand<RflibLoggingAp
       if (content !== originalContent) {
         this.modifiedFiles++;
         if (!isDryRun) {
-          await fs.promises.writeFile(filePath, content);
-          this.logger.info(`Modified class: ${className}`);
+          try {
+            const formattedContent = await prettier.format(content, this.prettierConfig);
+            await fs.promises.writeFile(filePath, formattedContent);
+            this.logger.info(`Modified and formatted: ${filePath}`);
+          } catch (error) {
+            if (error instanceof Error) {
+              this.logger.warn(`Failed to format ${filePath}: ${error.message}`);
+            } else {
+              this.logger.warn(`Failed to format ${filePath}: ${String(error)}`);
+            }
+            await fs.promises.writeFile(filePath, content);
+            this.logger.info(`Modified without formatting: ${filePath}`);
+          }
         } else {
-          this.logger.info(`Would modify class: ${className}`);
+          this.logger.info(`Would modify: ${filePath}`);
         }
       }
     } catch (error) {
