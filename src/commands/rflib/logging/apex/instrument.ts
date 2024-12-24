@@ -102,7 +102,7 @@ export default class RflibLoggingApexInstrument extends SfCommand<RflibLoggingAp
   }
 
   private static processCatchBlocks(content: string, loggerName: string): string {
-    const catchRegex = /catch\s*\(([\s\S]*?)\)\s*{/g;
+    const catchRegex = /catch\s*\(\s*\w+\s+(\w+)\s*\)\s*{/g;
 
     return content.replace(catchRegex, (
       match: string,
