@@ -35,6 +35,12 @@ export default class RflibLoggingApexInstrument extends SfCommand<RflibLoggingAp
       char: 'd',
       default: false,
     }),
+    prettier: Flags.boolean({
+      summary: messages.getMessage('flags.prettier.summary'),
+      description: messages.getMessage('flags.prettier.description'),
+      char: 'p',
+      default: false,
+    }),
   };
 
   private logger!: Logger;
@@ -125,10 +131,11 @@ export default class RflibLoggingApexInstrument extends SfCommand<RflibLoggingAp
     const { flags } = await this.parse(RflibLoggingApexInstrument);
     const sourcePath = flags.sourcepath;
     const isDryRun = flags.dryrun;
+    const usePrettier = flags.prettier;
 
     this.log(`Scanning Apex classes in ${sourcePath}...`);
 
-    await this.processDirectory(sourcePath, isDryRun);
+    await this.processDirectory(sourcePath, isDryRun, usePrettier);
 
     const duration = Date.now() - startTime;
     this.logger.debug(`Completed instrumentation in ${duration}ms`);
@@ -145,7 +152,7 @@ export default class RflibLoggingApexInstrument extends SfCommand<RflibLoggingAp
     };
   }
 
-  private async processDirectory(dirPath: string, isDryRun: boolean): Promise<void> {
+  private async processDirectory(dirPath: string, isDryRun: boolean, usePrettier: boolean): Promise<void> {
     this.logger.debug(`Processing directory: ${dirPath}`);
     const files = await fs.promises.readdir(dirPath);
 
@@ -154,14 +161,14 @@ export default class RflibLoggingApexInstrument extends SfCommand<RflibLoggingAp
       const stat = await fs.promises.stat(filePath);
 
       if (stat.isDirectory()) {
-        await this.processDirectory(filePath, isDryRun);
+        await this.processDirectory(filePath, isDryRun, usePrettier);
       } else if (file.endsWith('.cls') && !file.endsWith('Test.cls')) {
-        await this.instrumentApexClass(filePath, isDryRun);
+        await this.instrumentApexClass(filePath, isDryRun, usePrettier);
       }
     }
   }
 
-  private async instrumentApexClass(filePath: string, isDryRun: boolean): Promise<void> {
+  private async instrumentApexClass(filePath: string, isDryRun: boolean, usePrettier: boolean): Promise<void> {
     const className = path.basename(filePath, '.cls');
     this.logger.debug(`Processing class: ${className}`);
 
@@ -179,11 +186,18 @@ export default class RflibLoggingApexInstrument extends SfCommand<RflibLoggingAp
         this.modifiedFiles++;
         if (!isDryRun) {
           try {
-            const formattedContent = await prettier.format(content, this.prettierConfig);
-            await fs.promises.writeFile(filePath, formattedContent);
+            const finalContent = usePrettier ?
+              await prettier.format(content, this.prettierConfig) :
+              content;
 
-            this.formattedFiles++;
-            this.logger.info(`Modified and formatted: ${filePath}`);
+            await fs.promises.writeFile(filePath, finalContent);
+
+            if (usePrettier) {
+              this.formattedFiles++;
+              this.logger.info(`Modified and formatted: ${filePath}`);
+            } else {
+              this.logger.info(`Modified: ${filePath}`);
+            }
           } catch (error) {
             if (error instanceof Error) {
               this.logger.warn(`Failed to format ${filePath}: ${error.message}`);

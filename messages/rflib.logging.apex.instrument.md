@@ -22,6 +22,14 @@ Description of a flag.
 
 More information about a flag. Don't repeat the summary. 
 
+# flags.prettier.summary
+
+Description of a flag.
+
+# flags.prettier.description
+
+More information about a flag. Don't repeat the summary. 
+
 # examples
 
 - <%= config.bin %> <%= command.id %>
