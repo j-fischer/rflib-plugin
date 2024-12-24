@@ -18,6 +18,11 @@ const genericArgsRegex = /<[^>]+>/g;
 const catchRegex = /catch\s*\(\s*\w+\s+(\w+)\s*\)\s*{/g;
 const testSetupRegex = /@TestSetup\s+((public|private|protected|global)s+)?(?:static\s+)?void\s+(\w+)\s*\([^)]*\)\s*{/g;
 
+const PRIMITIVE_TYPES = new Set([
+  'STRING', 'INTEGER', 'LONG', 'DECIMAL', 'DOUBLE',
+  'BOOLEAN', 'DATE', 'DATETIME', 'TIME', 'ID'
+]);
+
 export type RflibLoggingApexInstrumentResult = {
   processedFiles: number;
   modifiedFiles: number;
@@ -65,6 +70,13 @@ export default class RflibLoggingApexInstrument extends SfCommand<RflibLoggingAp
     singleQuote: true
   };
 
+  private static isComplexType(paramType: string): boolean {
+    return paramType.includes('<') ||
+      paramType.includes('[') ||
+      paramType === 'Object' ||
+      !PRIMITIVE_TYPES.has(paramType.toUpperCase());
+  }
+
   private static detectExistingLogger(content: string): { exists: boolean; loggerVariableName: string } {
     const match = content.match(classLevelLoggerRegex);
     return {
@@ -85,12 +97,19 @@ export default class RflibLoggingApexInstrument extends SfCommand<RflibLoggingAp
 
   private static processParameters(args: string): { paramList: string[]; logArgs: string } {
     const parameters = args ? args.replaceAll(genericArgsRegex, '').split(',').map(param => param.trim()) : [];
+
     const logArgs = parameters.length > 0 && parameters[0] !== ''
       ? `, new Object[] { ${parameters.map(p => {
         const parts = p.split(' ');
-        return parts.length > 1 ? parts[1] : parts[0];
+        const paramType = parts[0];
+        const paramName = parts.length > 1 ? parts[1] : parts[0];
+
+        return this.isComplexType(paramType)
+          ? `JSON.serialize(${paramName})`
+          : paramName;
       }).join(', ')} }`
       : '';
+
     return { paramList: parameters, logArgs };
   }
 
