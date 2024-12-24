@@ -50,6 +50,72 @@ export default class RflibLoggingApexInstrument extends SfCommand<RflibLoggingAp
     singleQuote: true
   };
 
+  private static detectExistingLogger(content: string): { exists: boolean; loggerVariableName: string } {
+    const classLevelLoggerRegex = /\bprivate\s+(?:static\s+)?(?:final\s+)?rflib_Logger\s+(\w+)\b/;
+    const match = content.match(classLevelLoggerRegex);
+    return {
+      exists: classLevelLoggerRegex.test(content),
+      loggerVariableName: match ? match[1] : 'LOGGER'
+    };
+  }
+
+  private static addLoggerDeclaration(content: string, className: string): string {
+    const { exists, loggerVariableName } = RflibLoggingApexInstrument.detectExistingLogger(content);
+    if (!exists) {
+      const classRegex = /\bclass\s+\w+\s*{/;
+      const loggerDeclaration = `private static final rflib_Logger ${loggerVariableName} = rflib_LoggerUtil.getFactory().createLogger('${className}');`;
+      return content.replace(classRegex, `$&\n    ${loggerDeclaration}`);
+    }
+    return content;
+  }
+
+  private static processParameters(args: string): { paramList: string[]; logArgs: string } {
+    const genericArgsRegex = /<[^>]+>/g;
+    const parameters = args ? args.replaceAll(genericArgsRegex, '').split(',').map(param => param.trim()) : [];
+    const logArgs = parameters.length > 0 && parameters[0] !== ''
+      ? `, new Object[] { ${parameters.map(p => {
+        const parts = p.split(' ');
+        return parts.length > 1 ? parts[1] : parts[0];
+      }).join(', ')} }`
+      : '';
+    return { paramList: parameters, logArgs };
+  }
+
+  private static processMethodDeclarations(content: string, loggerName: string): string {
+    const methodRegex = /(@AuraEnabled\s*[\s\S]*?)?\b(public|private|protected|global)\s+(static\s+)?\w+\s+(\w+)\s*\(([\s\S]*?)\)\s*{/g;
+
+    return content.replace(methodRegex, (
+      match: string,
+      auraEnabled: string | undefined,
+      access: string,
+      isStatic: string | undefined,
+      methodName: string,
+      args: string
+    ) => {
+      const { paramList, logArgs } = RflibLoggingApexInstrument.processParameters(args);
+
+      let newMethod = match + '\n';
+      newMethod += `        ${loggerName}.info('${methodName}(${paramList.map((_, i) => `{${i}}`).join(', ')})'${logArgs});\n`;
+
+      return newMethod;
+    });
+  }
+
+  private static processCatchBlocks(content: string, loggerName: string): string {
+    const catchRegex = /catch\s*\(([\s\S]*?)\)\s*{/g;
+
+    return content.replace(catchRegex, (
+      match: string,
+      exceptionVar: string
+    ) => {
+      // Find the method name from the containing method
+      const methodNameMatch = content.substring(0, content.indexOf(match)).match(/\b\w+\s*\([^)]*\)\s*{[^}]*$/);
+      const methodName = methodNameMatch ? methodNameMatch[0].split('(')[0].trim() : 'unknown';
+
+      return `${match}\n            ${loggerName}.error('An error occurred in ${methodName}()', ${exceptionVar.trim()});`;
+    });
+  }
+
   public async run(): Promise<RflibLoggingApexInstrumentResult> {
     this.logger = await Logger.child(this.ctor.name);
     const startTime = Date.now();
@@ -100,60 +166,10 @@ export default class RflibLoggingApexInstrument extends SfCommand<RflibLoggingAp
       let content = await fs.promises.readFile(filePath, 'utf8');
       const originalContent = content;
 
-      // Check for existing class-level logger
-      const classLevelLoggerRegex = /\bprivate\s+(?:static\s+)?(?:final\s+)?rflib_Logger\s+(\w+)\b/
-
-      // Insert logger declaration after class definition only if no class-level logger exists
-      const classLevelLoggerMatch = content.match(classLevelLoggerRegex);
-      const loggerVariableName = classLevelLoggerMatch ? classLevelLoggerMatch[1] : 'LOGGER';
-
-      // Add logger declaration if none exists at class level
-      const hasClassLevelLogger = classLevelLoggerRegex.test(content);
-      const loggerDeclaration = `private static final rflib_Logger LOGGER = rflib_LoggerUtil.getFactory().createLogger('${className}');`;
-      if (!hasClassLevelLogger) {
-        const classRegex = /\bclass\s+\w+\s*{/;
-        content = content.replace(classRegex, `$&\n    ${loggerDeclaration}`);
-      }
-
-      // Process methods
-      const methodRegex = /(@AuraEnabled\s*[\s\S]*?)?\b(public|private|protected|global)\s+(static\s+)?\w+\s+(\w+)\s*\(([\s\S]*?)\)\s*{/g;
-      const genericArgsRegex = /<[^>]+>/g;
-      content = content.replace(methodRegex, (
-        match: string,
-        auraEnabled: string | undefined,
-        access: string,
-        isStatic: string | undefined,
-        methodName: string,
-        args: string
-      ) => {
-        const argsStr = args || '';
-        const parameters = argsStr.replaceAll(genericArgsRegex, '').split(',').map(param => param.trim());
-
-        // Safe parameter name extraction
-        const logArgs = parameters.length > 0 && parameters[0] !== ''
-          ? `, new Object[] { ${parameters.map(p => {
-            const parts = p.split(' ');
-            // Remove Map type declarations
-            return parts.length > 1 ? parts[1] : parts[0];
-          }).join(', ')} }`
-          : '';
-
-        let newMethod = match + '\n';
-        newMethod += `        ${loggerVariableName}.info('${methodName}(${parameters.map((_, index) =>
-          `{${index}}`).join(', ')})'${logArgs});\n`;
-
-        return newMethod;
-      });
-
-      // Add error logging to existing catch blocks
-      const catchRegex = /catch\s*\(\s*\w+\s+(\w+)\s*\)\s*{/g;
-      content = content.replace(catchRegex, (match, exceptionVar: string) => {
-        // Find the method name from the containing method
-        const methodNameMatch = content.substring(0, content.indexOf(match)).match(/\b\w+\s*\([^)]*\)\s*{[^}]*$/);
-        const methodName = methodNameMatch ? methodNameMatch[0].split('(')[0].trim() : 'unknown';
-
-        return `${match}\n            LOGGER.error('An error occurred in ${methodName}()', ${exceptionVar.trim()});`;
-      });
+      const { loggerVariableName } = RflibLoggingApexInstrument.detectExistingLogger(content);
+      content = RflibLoggingApexInstrument.addLoggerDeclaration(content, className);
+      content = RflibLoggingApexInstrument.processMethodDeclarations(content, loggerVariableName);
+      content = RflibLoggingApexInstrument.processCatchBlocks(content, loggerVariableName);
 
       if (content !== originalContent) {
         this.modifiedFiles++;
