@@ -58,6 +58,9 @@
             "subtopics": {
               "apex": {
                 "description": "description for rflib.logging.apex"
+              },
+              "lwc": {
+                "description": "description for rflib.logging.lwc"
               }
             }
           }
