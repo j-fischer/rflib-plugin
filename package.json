@@ -47,9 +47,6 @@
       "@oclif/plugin-help"
     ],
     "topics": {
-      "hello": {
-        "description": "Commands to say hello."
-      },
       "rflib": {
         "description": "description for rflib",
         "subtopics": {
