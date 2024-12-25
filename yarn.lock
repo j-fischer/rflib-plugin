@@ -1848,7 +1848,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@oclif/core@npm:^4, @oclif/core@npm:^4.0.34, @oclif/core@npm:^4.0.37":
+"@oclif/core@npm:^4, @oclif/core@npm:^4.0.34":
   version: 4.1.1
   resolution: "@oclif/core@npm:4.1.1"
   dependencies:
@@ -1874,6 +1874,32 @@ __metadata:
   languageName: node
   linkType: hard
 
+"@oclif/core@npm:^4.2.0":
+  version: 4.2.0
+  resolution: "@oclif/core@npm:4.2.0"
+  dependencies:
+    ansi-escapes: "npm:^4.3.2"
+    ansis: "npm:^3.3.2"
+    clean-stack: "npm:^3.0.1"
+    cli-spinners: "npm:^2.9.2"
+    debug: "npm:^4.4.0"
+    ejs: "npm:^3.1.10"
+    get-package-type: "npm:^0.1.0"
+    globby: "npm:^11.1.0"
+    indent-string: "npm:^4.0.0"
+    is-wsl: "npm:^2.2.0"
+    lilconfig: "npm:^3.1.3"
+    minimatch: "npm:^9.0.5"
+    semver: "npm:^7.6.3"
+    string-width: "npm:^4.2.3"
+    supports-color: "npm:^8"
+    widest-line: "npm:^3.1.0"
+    wordwrap: "npm:^1.0.0"
+    wrap-ansi: "npm:^7.0.0"
+  checksum: 10c0/fa65bf21616051b651e837e677a8db8e904f0c15e548b19c03c76375bd63308c8831d1d64fb8aa43251a99146bcc52831971c44a510b1ae0591929f7652d0d86
+  languageName: node
+  linkType: hard
+
 "@oclif/plugin-command-snapshot@npm:^5.1.9":
   version: 5.2.23
   resolution: "@oclif/plugin-command-snapshot@npm:5.2.23"
@@ -1891,16 +1917,16 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@oclif/plugin-help@npm:^6.2.17":
-  version: 6.2.19
-  resolution: "@oclif/plugin-help@npm:6.2.19"
+"@oclif/plugin-help@npm:^6.2.20":
+  version: 6.2.20
+  resolution: "@oclif/plugin-help@npm:6.2.20"
   dependencies:
     "@oclif/core": "npm:^4"
-  checksum: 10c0/305eb8229322e471d780431c70ea7bbe825d4b0bcd1399379d942ab06bd4d3841baca8df0b51e12af1553cf2a04ddb906fbbd3d34e12f4aab4374b8b49860c2a
+  checksum: 10c0/f40b868707a37e78208db718000cbd752eb848aaa02b7ecf246ce8236c83f441256a879b1cf46629e1dc77e7f7247d9ac757b8c7baa8a84a0d5d2240d51f9bd8
   languageName: node
   linkType: hard
 
-"@oclif/plugin-not-found@npm:^3.2.30":
+"@oclif/plugin-not-found@npm:^3.2.31":
   version: 3.2.31
   resolution: "@oclif/plugin-not-found@npm:3.2.31"
   dependencies:
@@ -1912,7 +1938,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@oclif/plugin-warn-if-update-available@npm:^3.1.21":
+"@oclif/plugin-warn-if-update-available@npm:^3.1.28":
   version: 3.1.28
   resolution: "@oclif/plugin-warn-if-update-available@npm:3.1.28"
   dependencies:
@@ -8558,19 +8584,19 @@ __metadata:
   languageName: node
   linkType: hard
 
-"oclif@npm:^4.14.0":
-  version: 4.17.0
-  resolution: "oclif@npm:4.17.0"
+"oclif@npm:^4.17.4":
+  version: 4.17.4
+  resolution: "oclif@npm:4.17.4"
   dependencies:
     "@aws-sdk/client-cloudfront": "npm:^3.699.0"
     "@aws-sdk/client-s3": "npm:^3.712.0"
     "@inquirer/confirm": "npm:^3.1.22"
     "@inquirer/input": "npm:^2.2.4"
     "@inquirer/select": "npm:^2.5.0"
-    "@oclif/core": "npm:^4.0.37"
-    "@oclif/plugin-help": "npm:^6.2.17"
-    "@oclif/plugin-not-found": "npm:^3.2.30"
-    "@oclif/plugin-warn-if-update-available": "npm:^3.1.21"
+    "@oclif/core": "npm:^4.2.0"
+    "@oclif/plugin-help": "npm:^6.2.20"
+    "@oclif/plugin-not-found": "npm:^3.2.31"
+    "@oclif/plugin-warn-if-update-available": "npm:^3.1.28"
     async-retry: "npm:^1.3.3"
     chalk: "npm:^4"
     change-case: "npm:^4"
@@ -8588,7 +8614,7 @@ __metadata:
     validate-npm-package-name: "npm:^5.0.1"
   bin:
     oclif: bin/run.js
-  checksum: 10c0/4716ea81cda0ecb8a36de6cfb873a7530155b04b5882f732a8d68e0707e1006ff4dc557889308a734a242dc247a626950b3bae6592c35ad61dc83690a512f0db
+  checksum: 10c0/7b2f8212dad1846b73af28ad7966f5200830ebc2f6f834ee156f117e8cace27035739585f5c5140fdf6de14e2e0d6d0e0bfacf55b9390d3654169f1c8767880e
   languageName: node
   linkType: hard
 
@@ -9584,7 +9610,7 @@ __metadata:
     "@salesforce/sf-plugins-core": "npm:^12"
     eslint-plugin-sf-plugin: "npm:^1.18.6"
     husky: "npm:^8.0.0"
-    oclif: "npm:^4.14.0"
+    oclif: "npm:^4.17.4"
     prettier: "npm:^3.4.2"
     prettier-plugin-apex: "npm:^2.2.2"
     ts-node: "npm:^10.9.2"
