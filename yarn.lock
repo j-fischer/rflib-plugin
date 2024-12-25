@@ -1848,33 +1848,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@oclif/core@npm:^4, @oclif/core@npm:^4.0.34":
-  version: 4.1.1
-  resolution: "@oclif/core@npm:4.1.1"
-  dependencies:
-    ansi-escapes: "npm:^4.3.2"
-    ansis: "npm:^3.3.2"
-    clean-stack: "npm:^3.0.1"
-    cli-spinners: "npm:^2.9.2"
-    debug: "npm:^4.4.0"
-    ejs: "npm:^3.1.10"
-    get-package-type: "npm:^0.1.0"
-    globby: "npm:^11.1.0"
-    indent-string: "npm:^4.0.0"
-    is-wsl: "npm:^2.2.0"
-    lilconfig: "npm:^3.1.3"
-    minimatch: "npm:^9.0.5"
-    semver: "npm:^7.6.3"
-    string-width: "npm:^4.2.3"
-    supports-color: "npm:^8"
-    widest-line: "npm:^3.1.0"
-    wordwrap: "npm:^1.0.0"
-    wrap-ansi: "npm:^7.0.0"
-  checksum: 10c0/6625aea5772b6dab803982fee1651227fd80a2e2cc883e3a45d4abdc83d57d6e33e363a8fc3afc9a7396faff6ce3a6880c989acd3096f8c637d4a17134992dc2
-  languageName: node
-  linkType: hard
-
-"@oclif/core@npm:^4.2.0":
+"@oclif/core@npm:^4, @oclif/core@npm:^4.0.34, @oclif/core@npm:^4.2.0":
   version: 4.2.0
   resolution: "@oclif/core@npm:4.2.0"
   dependencies:
