@@ -12,11 +12,12 @@ Messages.importMessagesDirectoryFromMetaUrl(import.meta.url);
 const messages = Messages.loadMessages('rflib-plugin', 'rflib.logging.lwc.instrument');
 
 const importRegex = /import\s*{\s*createLogger\s*}\s*from\s*['"]c\/rflibLogger['"]/;
-const loggerRegex = /const\s+(\w+)\s*=\s*createLogger\s*\(['"]([\w-]+)['"]\)/;
-const methodRegex = /(?:async\s+)?(\w+)\s*\((.*?)\)\s*{/g;
+const loggerRegex = /const\s+(\w+)\s*=\\s*createLogger\s*\(['"]([\w-]+)['"]\)/;
+const methodRegex = /(?:async\s+)?(?!(?:if|switch|case|while|for)\b)(\b\w+)\s*\((.*?)\)\s*{/g;
 const catchBlockRegex = /catch\s*\(([^)]*)\)\s*{/g;
 const promiseCatchRegex = /\.catch\s*\(\s*(?:async\s+)?\(?([^)]*)\)?\s*=>\s*{/g;
 const exportDefaultRegex = /export\s+default\s+class\s+(\w+)/;
+const ifStatementRegex = /if\s*\((.*?)\)\s*{([\s\S]*?)}|if\s*\((.*?)\)\s*([^{\n].*?)(?=\n|$)/g;
 
 export type RflibLoggingLwcInstrumentResult = {
   processedFiles: number;
@@ -93,29 +94,55 @@ export default class RflibLoggingLwcInstrument extends SfCommand<RflibLoggingLwc
     return modified;
   }
 
-  private static processMethodLogging(content: string, loggerName: string): string {
-    return content.replace(methodRegex, (match: string, methodName: string, args: string) => {
-      const parameters = args.split(',').map(p => p.trim()).filter(p => p);
-      const logArgs = parameters.length > 0
-        ? `, { ${parameters.map(p => `${p}: ${p}`).join(', ')} }`
-        : '';
+  private static findEnclosingMethod(content: string, position: number): string {
+    const beforeCatch = content.substring(0, position);
+    const methods = [...beforeCatch.matchAll(methodRegex)].reverse();
+    const closestMethod = methods[0];
+    return closestMethod ? closestMethod[1] : 'unknown';
+  }
 
-      return `${match}\n        ${loggerName}.info('${methodName}()'${logArgs});`;
+  private static processIfStatements(content: string, loggerName: string): string {
+    return content.replace(ifStatementRegex, (match, blockCondition, blockBody, lineCondition, lineBody) => {
+      const condition = typeof blockCondition === 'string' ? blockCondition : (typeof lineCondition === 'string' ? lineCondition : '');
+      const trimmedCondition = condition.trim();
+      const logStatement = `${loggerName}.debug(\`if (${trimmedCondition})\`);`;
+
+      if (blockBody) {
+        // Multi-line block
+        return `if (${condition}) {\n        ${logStatement}${blockBody}}`;
+      } else {
+        // Single line statement
+        return `if (${condition}) {\n        ${logStatement}\n        ${lineBody}\n    }`;
+      }
     });
   }
 
+  private static processMethodLogging(content: string, loggerName: string): string {
+    // First handle methods
+    let modified = content.replace(methodRegex, (match: string, methodName: string, args: string) => {
+      const parameters = args.split(',').map(p => p.trim()).filter(p => p);
+      const placeholders = parameters.map((_, i) => `{${i}}`).join(', ');
+      const logArgs = parameters.length > 0 ? `, ${parameters.join(', ')}` : '';
+
+      return `${match}\n        ${loggerName}.info('${methodName}(${placeholders})'${logArgs});`;
+    });
+
+    // Then handle if statements
+    modified = this.processIfStatements(modified, loggerName);
+
+    return modified;
+  }
+
   private static processCatchBlocks(content: string, loggerName: string): string {
-    let modified = content.replace(catchBlockRegex, (match: string, exceptionVar: string) => {
-      const methodMatch = content.substring(0, content.indexOf(match)).match(methodRegex);
-      const methodName = methodMatch ? methodMatch[1] : 'unknown';
+    let modified = content.replace(catchBlockRegex, (match: string, exceptionVar: string, offset: number) => {
+      const methodName = this.findEnclosingMethod(content, offset);
       const errorVar = exceptionVar.trim().split(' ')[0] || 'e';
 
       return `${match}\n        ${loggerName}.error('An error occurred in function ${methodName}()', ${errorVar});`;
     });
 
-    modified = modified.replace(promiseCatchRegex, (match: string, param: string) => {
-      const methodMatch = content.substring(0, content.indexOf(match)).match(methodRegex);
-      const methodName = methodMatch ? methodMatch[1] : 'unknown';
+    modified = modified.replace(promiseCatchRegex, (match: string, param: string, offset: number) => {
+      const methodName = this.findEnclosingMethod(content, offset);
       const errorVar = param.trim().split(' ')[0] || 'e';
 
       return `${match}\n        ${loggerName}.error('An error occurred in function ${methodName}()', ${errorVar});`;
@@ -131,6 +158,11 @@ export default class RflibLoggingLwcInstrument extends SfCommand<RflibLoggingLwc
     this.log(`Scanning LWC components in ${flags.sourcepath}...`);
 
     await this.processDirectory(flags.sourcepath, flags.dryrun, flags.prettier);
+
+    this.log(`\nInstrumentation complete.`);
+    this.log(`Processed files: ${this.processedFiles}`);
+    this.log(`Modified files: ${this.modifiedFiles}`);
+    this.log(`Formatted files: ${this.formattedFiles}`);
 
     return {
       processedFiles: this.processedFiles,
