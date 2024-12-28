@@ -1874,12 +1874,12 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@oclif/plugin-command-snapshot@npm:^5.1.9":
-  version: 5.2.23
-  resolution: "@oclif/plugin-command-snapshot@npm:5.2.23"
+"@oclif/plugin-command-snapshot@npm:^5.2.24":
+  version: 5.2.24
+  resolution: "@oclif/plugin-command-snapshot@npm:5.2.24"
   dependencies:
     "@oclif/core": "npm:^4"
-    ansis: "npm:^3.3.2"
+    ansis: "npm:^3.5.2"
     globby: "npm:^14.0.2"
     just-diff: "npm:^5.2.0"
     lodash.difference: "npm:^4.5.0"
@@ -1887,7 +1887,7 @@ __metadata:
     lodash.sortby: "npm:^4.7.0"
     semver: "npm:^7.6.3"
     ts-json-schema-generator: "npm:^1.5.1"
-  checksum: 10c0/33a6a2b343c937ed697cb8dacd229678c3f436e2c80a312c6f9f04c38ba3fa565f3562b44d09fa9541fe388e2b1f11fd2d5c2bb48413cd60eaf6fd0b35f20366
+  checksum: 10c0/51e316fdaadaab4456935a629edff8f301825cc34c4e981b3b4c22e918f19fd4dbb92c67debee4522293816968585d13f385df6b103e63fd0ef83ddf7ddd4caa
   languageName: node
   linkType: hard
 
@@ -3499,6 +3499,13 @@ __metadata:
   version: 3.4.0
   resolution: "ansis@npm:3.4.0"
   checksum: 10c0/e2e5324fcdfed83e96c0b3e9a15d44acce9819404fe87b2bb4ff453e0822a85aee49f3626c2ff430dd9ab5cbb0b7d55801f89dd67599bb7eca0e765519994446
+  languageName: node
+  linkType: hard
+
+"ansis@npm:^3.5.2":
+  version: 3.5.2
+  resolution: "ansis@npm:3.5.2"
+  checksum: 10c0/2433dec4298874b66480e435f11029da004f91ec953eb3076601f8140899c2b158d58a29ed77343006eedbb04459b150a01f1a5715e38d03fab1285bb6d21523
   languageName: node
   linkType: hard
 
@@ -9577,7 +9584,7 @@ __metadata:
   dependencies:
     "@commitlint/cli": "npm:^19.6.1"
     "@oclif/core": "npm:^4"
-    "@oclif/plugin-command-snapshot": "npm:^5.1.9"
+    "@oclif/plugin-command-snapshot": "npm:^5.2.24"
     "@salesforce/cli-plugins-testkit": "npm:^5.3.10"
     "@salesforce/core": "npm:^8"
     "@salesforce/dev-scripts": "npm:^10"
