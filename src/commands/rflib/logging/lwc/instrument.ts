@@ -18,6 +18,7 @@ const catchBlockRegex = /catch\s*\(([^)]*)\)\s*{/g;
 const promiseCatchRegex = /\.catch\s*\(\s*(?:async\s+)?\(?([^)]*)\)?\s*=>\s*{/g;
 const exportDefaultRegex = /export\s+default\s+class\s+(\w+)/;
 const ifStatementRegex = /if\s*\((.*?)\)\s*{([\s\S]*?)}|if\s*\((.*?)\)\s*([^{\n].*?)(?=\n|$)/g;
+const elseRegex = /}\s*else\s*{([\s\S]*?)}|}\s*else\s+([^{\n].*?)(?=\n|$)/g;
 
 export type RflibLoggingLwcInstrumentResult = {
   processedFiles: number;
@@ -102,19 +103,33 @@ export default class RflibLoggingLwcInstrument extends SfCommand<RflibLoggingLwc
   }
 
   private static processIfStatements(content: string, loggerName: string): string {
-    return content.replace(ifStatementRegex, (match, blockCondition, blockBody, lineCondition, lineBody) => {
+    let lastCondition = '';
+
+    // First process if statements and store conditions
+    let modified = content.replace(ifStatementRegex, (match, blockCondition, blockBody, lineCondition, lineBody) => {
       const condition = typeof blockCondition === 'string' ? blockCondition : (typeof lineCondition === 'string' ? lineCondition : '');
-      const trimmedCondition = condition.trim();
-      const logStatement = `${loggerName}.debug(\`if (${trimmedCondition})\`);`;
+      lastCondition = condition.trim();
+      const logStatement = `${loggerName}.debug(\`if (${lastCondition})\`);`;
 
       if (blockBody) {
-        // Multi-line block
         return `if (${condition}) {\n        ${logStatement}${blockBody}}`;
       } else {
-        // Single line statement
         return `if (${condition}) {\n        ${logStatement}\n        ${lineBody}\n    }`;
       }
     });
+
+    // Then process else blocks using stored condition
+    modified = modified.replace(elseRegex, (match, blockBody, lineBody) => {
+      const logStatement = `${loggerName}.debug(\`else for if (${lastCondition})\`);`;
+
+      if (blockBody) {
+        return `} else {\n        ${logStatement}${blockBody}}`;
+      } else {
+        return `} else {\n        ${logStatement}\n        ${lineBody}\n    }`;
+      }
+    });
+
+    return modified;
   }
 
   private static processMethodLogging(content: string, loggerName: string): string {
