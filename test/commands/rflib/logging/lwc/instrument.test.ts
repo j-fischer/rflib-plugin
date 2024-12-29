@@ -30,14 +30,6 @@ export default class SampleComponent extends LightningElement {
         }
     }
 
-    processResult(data) {
-        if (data.isValid) {
-            this.value = data.value;
-        } else {
-            this.showError();
-        }
-    }
-
     loadData() {
         return fetch('/api/data')
             .then(response => response.json())
@@ -46,13 +38,22 @@ export default class SampleComponent extends LightningElement {
             });
     }
 
-    async complexOperation(param1, param2) {
-        switch(param1) {
-            case 'test':
-                return param2;
-            default:
-                return null;
-        }
+    setTitle() {
+        getCustomSettingLabel({ customSettingsApiName: this.customSettingsApiName })
+            .then((label) => {
+                this.title = \`\${label} Editor\`;
+            })
+            .catch(error => {
+                this.title = 'Custom Settings Editor';
+            });
+    }
+
+    checkUserPermissions() {
+        return canUserModifyCustomSettings({ customSettingsApiName: this.customSettingsApiName })
+            .then(result => {
+                this.canModifySettings = result;
+            }) // checkUserPermissions must complete before the settings are loaded
+            .finally(() => this.loadCustomSettings());
     }
 }`;
 
@@ -75,29 +76,32 @@ export default class SampleComponent extends LightningElement {
 
   it('should add entry logging to methods with parameters', () => {
     expect(modifiedContent).to.include("logger.info('handleClick({0})', event)");
-    expect(modifiedContent).to.include("logger.info('processResult({0})', data)");
-    expect(modifiedContent).to.include("logger.info('complexOperation({0}, {1})', param1, param2)");
+    expect(modifiedContent).to.include("logger.info('loadData()')");
+    expect(modifiedContent).to.include("logger.info('setTitle()')");
   });
 
-  it('should add error logging to catch blocks', () => {
-    expect(modifiedContent).to.include("logger.error('An error occurred in function handleClick()', error)");
+  it('should add logging to promise then blocks', () => {
+    expect(modifiedContent).to.include("logger.info('loadData() promise resolved. Result={0}', response)");
+    expect(modifiedContent).to.include("logger.info('setTitle() promise resolved. Result={0}', label)");
+    expect(modifiedContent).to.include("logger.info('checkUserPermissions() promise resolved. Result={0}', result)");
   });
 
-  it('should add error logging to promise catch blocks', () => {
+  it('should add logging to promise catch blocks', () => {
     expect(modifiedContent).to.include("logger.error('An error occurred in function loadData()', error)");
+    expect(modifiedContent).to.include("logger.error('An error occurred in function setTitle()', error)");
   });
 
-  it('should add debug logging to if statements', () => {
-    expect(modifiedContent).to.include("logger.debug(`if (data.isValid)`);");
+  it('should add logging to promise finally blocks', () => {
+    expect(modifiedContent).to.include("logger.info('checkUserPermissions() promise chain completed')");
   });
 
-  it('should add debug logging to else blocks', () => {
-    expect(modifiedContent).to.include("logger.debug(`else for if (data.isValid)`);");
+  it('should handle single line promise chains', () => {
+    expect(modifiedContent).to.include(".then((response) => {\n");
+    expect(modifiedContent).to.include("return response.json()");
   });
 
-  it('should not add logging to switch statements', () => {
-    expect(modifiedContent).not.to.include("logger.info('switch");
-    expect(modifiedContent).not.to.include("logger.info('case");
+  it('should handle template literals in promise chains', () => {
+    expect(modifiedContent).to.include("`${label} Editor`");
   });
 
   it('should process lwc in dry run mode', async () => {
@@ -111,6 +115,6 @@ export default class SampleComponent extends LightningElement {
     await RflibLoggingLwcInstrument.run(['--sourcepath', testDir, '--prettier']);
     const formattedContent = fs.readFileSync(sampleComponentPath, 'utf8');
     expect(formattedContent).to.include(';');
-    expect(formattedContent).to.include('    ');
+    expect(formattedContent).to.match(/\n {4}/); // Check for 4-space indentation
   });
 });

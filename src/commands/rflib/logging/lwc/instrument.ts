@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/prefer-nullish-coalescing */
 /* eslint-disable no-await-in-loop */
 /* eslint-disable @typescript-eslint/quotes */
 /* eslint-disable sf-plugin/no-missing-messages */
@@ -14,11 +15,10 @@ const messages = Messages.loadMessages('rflib-plugin', 'rflib.logging.lwc.instru
 const importRegex = /import\s*{\s*createLogger\s*}\s*from\s*['"]c\/rflibLogger['"]/;
 const loggerRegex = /const\s+(\w+)\s*=\\s*createLogger\s*\(['"]([\w-]+)['"]\)/;
 const methodRegex = /(?:async\s+)?(?!(?:if|switch|case|while|for)\b)(\b\w+)\s*\((.*?)\)\s*{/g;
-const catchBlockRegex = /catch\s*\(([^)]*)\)\s*{/g;
-const promiseCatchRegex = /\.catch\s*\(\s*(?:async\s+)?\(?([^)]*)\)?\s*=>\s*{/g;
 const exportDefaultRegex = /export\s+default\s+class\s+(\w+)/;
 const ifStatementRegex = /if\s*\((.*?)\)\s*{([\s\S]*?)}|if\s*\((.*?)\)\s*([^{\n].*?)(?=\n|$)/g;
 const elseRegex = /}\s*else\s*{([\s\S]*?)}|}\s*else\s+([^{\n].*?)(?=\n|$)/g;
+const promiseChainRegex = /\.(then|catch|finally)\s*\(\s*(?:async\s+)?(?:\(?([^)]*)\)?)?\s*=>\s*(?:\{((?:[^{}]|`[^`]*`)*?)\}|([^{;]*(?:\([^)]*\))*)(?=(?:\)\))|\)|\.))/g;
 
 export type RflibLoggingLwcInstrumentResult = {
   processedFiles: number;
@@ -148,22 +148,45 @@ export default class RflibLoggingLwcInstrument extends SfCommand<RflibLoggingLwc
     return modified;
   }
 
-  private static processCatchBlocks(content: string, loggerName: string): string {
-    let modified = content.replace(catchBlockRegex, (match: string, exceptionVar: string, offset: number) => {
+  private static processPromiseChains(content: string, loggerName: string): string {
+    return content.replace(promiseChainRegex, (match, type, param, blockBody, singleLineBody, offset: number) => {
       const methodName = this.findEnclosingMethod(content, offset);
-      const errorVar = exceptionVar.trim().split(' ')[0] || 'e';
+      const paramName = typeof param === 'string' ? param.trim() : (type === 'then' ? 'result' : 'error');
+      const indentation = match.match(/\n\s*/)?.[0] || '\n        ';
 
-      return `${match}\n        ${loggerName}.error('An error occurred in function ${methodName}()', ${errorVar});`;
+      let logStatement;
+      switch (type) {
+        case 'then':
+          logStatement = `${loggerName}.info('${methodName}() promise resolved. Result={0}', ${paramName});`;
+          break;
+        case 'catch':
+          logStatement = `${loggerName}.error('An error occurred in function ${methodName}()', ${paramName});`;
+          break;
+        case 'finally':
+          logStatement = `${loggerName}.info('${methodName}() promise chain completed');`;
+          break;
+        default:
+          logStatement = '';
+      }
+
+      if (singleLineBody) {
+        let trimmedSingleLineBody = (singleLineBody as string).trim();
+        if (trimmedSingleLineBody.split(')').length > trimmedSingleLineBody.split('(').length) {
+          trimmedSingleLineBody = trimmedSingleLineBody.slice(0, -1);
+        }
+
+        return `.${type}((${paramName}) => {
+            ${logStatement}
+            return ${trimmedSingleLineBody};
+        }`;
+      }
+
+      if (blockBody) {
+        return `.${type}((${paramName}) => {${indentation}${logStatement}${indentation}${blockBody}}`;
+      }
+
+      return match;
     });
-
-    modified = modified.replace(promiseCatchRegex, (match: string, param: string, offset: number) => {
-      const methodName = this.findEnclosingMethod(content, offset);
-      const errorVar = param.trim().split(' ')[0] || 'e';
-
-      return `${match}\n        ${loggerName}.error('An error occurred in function ${methodName}()', ${errorVar});`;
-    });
-
-    return modified;
   }
 
   public async run(): Promise<RflibLoggingLwcInstrumentResult> {
@@ -213,7 +236,7 @@ export default class RflibLoggingLwcInstrument extends SfCommand<RflibLoggingLwc
       const { loggerName } = RflibLoggingLwcInstrument.detectExistingLogger(content);
       content = RflibLoggingLwcInstrument.addImportAndLogger(content, componentName);
       content = RflibLoggingLwcInstrument.processMethodLogging(content, loggerName);
-      content = RflibLoggingLwcInstrument.processCatchBlocks(content, loggerName);
+      content = RflibLoggingLwcInstrument.processPromiseChains(content, loggerName);
 
       if (content !== originalContent) {
         this.modifiedFiles++;
