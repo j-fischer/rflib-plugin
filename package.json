@@ -85,7 +85,8 @@
     "prepare": "husky install"
   },
   "publishConfig": {
-    "access": "public"
+    "access": "public",
+    "registry": "https://registry.npmjs.org/"
   },
   "wireit": {
     "build": {
