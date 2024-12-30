@@ -13,12 +13,13 @@ Messages.importMessagesDirectoryFromMetaUrl(import.meta.url);
 const messages = Messages.loadMessages('rflib-plugin', 'rflib.logging.lwc.instrument');
 
 const importRegex = /import\s*{\s*createLogger\s*}\s*from\s*['"]c\/rflibLogger['"]/;
-const loggerRegex = /const\s+(\w+)\s*=\\s*createLogger\s*\(['"]([\w-]+)['"]\)/;
-const methodRegex = /(?:async\s+)?(?!(?:if|switch|case|while|for)\b)(\b\w+)\s*\((.*?)\)\s*{/g;
+const loggerRegex = /const\s+(\w+)\s*=\s*createLogger\s*\(['"]([\w-]+)['"]\)/;
+const methodRegex = /(?:async\s+)?(?!(?:if|switch|case|while|for|catch)\b)(\b\w+)\s*\((.*?)\)\s*{/g;
 const exportDefaultRegex = /export\s+default\s+class\s+(\w+)/;
 const ifStatementRegex = /if\s*\((.*?)\)\s*{([\s\S]*?)}|if\s*\((.*?)\)\s*([^{\n].*?)(?=\n|$)/g;
 const elseRegex = /}\s*else\s*{([\s\S]*?)}|}\s*else\s+([^{\n].*?)(?=\n|$)/g;
 const promiseChainRegex = /\.(then|catch|finally)\s*\(\s*(?:async\s+)?(?:\(?([^)]*)\)?)?\s*=>\s*(?:\{((?:[^{}]|`[^`]*`)*?)\}|([^{;]*(?:\([^)]*\))*)(?=(?:\)\))|\)|\.))/g;
+const tryCatchBlockRegex = /try\s*{[\s\S]*?}\s*catch\s*\(([^)]*)\)\s*{/g;
 
 export type RflibLoggingLwcInstrumentResult = {
   processedFiles: number;
@@ -189,6 +190,18 @@ export default class RflibLoggingLwcInstrument extends SfCommand<RflibLoggingLwc
     });
   }
 
+  private static processTryCatchBlocks(content: string, loggerName: string): string {
+    return content.replace(tryCatchBlockRegex, (match: string, exceptionVar: string, offset: number) => {
+      const methodName = this.findEnclosingMethod(content, offset);
+      const errorVar = exceptionVar.trim().split(' ')[0] || 'error';
+
+      return match.replace(/catch\s*\(([^)]*)\)\s*{/,
+        `catch(${exceptionVar}) {
+            ${loggerName}.error('An error occurred in function ${methodName}()', ${errorVar});`
+      );
+    });
+  }
+
   public async run(): Promise<RflibLoggingLwcInstrumentResult> {
     this.logger = await Logger.child(this.ctor.name);
     const { flags } = await this.parse(RflibLoggingLwcInstrument);
@@ -236,6 +249,7 @@ export default class RflibLoggingLwcInstrument extends SfCommand<RflibLoggingLwc
       const { loggerName } = RflibLoggingLwcInstrument.detectExistingLogger(content);
       content = RflibLoggingLwcInstrument.addImportAndLogger(content, componentName);
       content = RflibLoggingLwcInstrument.processMethodLogging(content, loggerName);
+      content = RflibLoggingLwcInstrument.processTryCatchBlocks(content, loggerName);
       content = RflibLoggingLwcInstrument.processPromiseChains(content, loggerName);
 
       if (content !== originalContent) {
