@@ -8,10 +8,11 @@ import { Messages, Logger } from '@salesforce/core';
 // eslint-disable-next-line import/no-extraneous-dependencies
 import * as prettier from 'prettier';
 
-Messages.importMessagesDirectoryFromMetaUrl(import.meta.url)
+Messages.importMessagesDirectoryFromMetaUrl(import.meta.url);
 const messages = Messages.loadMessages('rflib-plugin', 'rflib.logging.apex.instrument');
 
-const methodRegex = /(@AuraEnabled\s*[\s\S]*?)?\b(public|private|protected|global)\s+(static\s+)?(?:(\w+(?:\s*<(?:[^<>]|<[^<>]*>)*>)?)|void)\s+(\w+)\s*\(([\s\S]*?)\)\s*{/g;
+const methodRegex =
+  /(@AuraEnabled\s*[\s\S]*?)?\b(public|private|protected|global)\s+(static\s+)?(?:(\w+(?:\s*<(?:[^<>]|<[^<>]*>)*>)?)|void)\s+(\w+)\s*\(([\s\S]*?)\)\s*{/g;
 const classRegex = /\bclass\s+\w+\s*{/;
 const classLevelLoggerRegex = /\bprivate\s+(?:static\s+)?(?:final\s+)?rflib_Logger\s+(\w+)\b/;
 const genericArgsRegex = /<[^>]+>/g;
@@ -19,8 +20,16 @@ const catchRegex = /catch\s*\(\s*\w+\s+(\w+)\s*\)\s*{/g;
 const testSetupRegex = /@TestSetup\s+((public|private|protected|global)s+)?(?:static\s+)?void\s+(\w+)\s*\([^)]*\)\s*{/g;
 
 const PRIMITIVE_TYPES = new Set([
-  'STRING', 'INTEGER', 'LONG', 'DECIMAL', 'DOUBLE',
-  'BOOLEAN', 'DATE', 'DATETIME', 'TIME', 'ID'
+  'STRING',
+  'INTEGER',
+  'LONG',
+  'DECIMAL',
+  'DOUBLE',
+  'BOOLEAN',
+  'DATE',
+  'DATETIME',
+  'TIME',
+  'ID',
 ]);
 
 export type RflibLoggingApexInstrumentResult = {
@@ -67,28 +76,29 @@ export default class RflibLoggingApexInstrument extends SfCommand<RflibLoggingAp
     printWidth: 120,
     tabWidth: 4,
     useTabs: false,
-    singleQuote: true
+    singleQuote: true,
   };
 
   private static isComplexType(paramType: string): boolean {
-    return paramType.includes('<') ||
+    return (
+      paramType.includes('<') ||
       paramType.includes('[') ||
       paramType === 'Object' ||
-      !PRIMITIVE_TYPES.has(paramType.toUpperCase());
+      !PRIMITIVE_TYPES.has(paramType.toUpperCase())
+    );
   }
 
   private static detectExistingLogger(content: string): { exists: boolean; loggerVariableName: string } {
     const match = content.match(classLevelLoggerRegex);
     return {
       exists: classLevelLoggerRegex.test(content),
-      loggerVariableName: match ? match[1] : 'LOGGER'
+      loggerVariableName: match ? match[1] : 'LOGGER',
     };
   }
 
   private static addLoggerDeclaration(content: string, className: string): string {
     const { exists, loggerVariableName } = RflibLoggingApexInstrument.detectExistingLogger(content);
     if (!exists) {
-
       const loggerDeclaration = `private static final rflib_Logger ${loggerVariableName} = rflib_LoggerUtil.getFactory().createLogger('${className}');`;
       return content.replace(classRegex, `$&\n    ${loggerDeclaration}`);
     }
@@ -96,39 +106,47 @@ export default class RflibLoggingApexInstrument extends SfCommand<RflibLoggingAp
   }
 
   private static processParameters(args: string): { paramList: string[]; logArgs: string } {
-    const parameters = args ? args.replaceAll(genericArgsRegex, '').split(',').map(param => param.trim()) : [];
+    const parameters = args
+      ? args
+          .replaceAll(genericArgsRegex, '')
+          .split(',')
+          .map((param) => param.trim())
+      : [];
 
-    const logArgs = parameters.length > 0 && parameters[0] !== ''
-      ? `, new Object[] { ${parameters.map(p => {
-        const parts = p.split(' ');
-        const paramType = parts[0];
-        const paramName = parts.length > 1 ? parts[1] : parts[0];
+    const logArgs =
+      parameters.length > 0 && parameters[0] !== ''
+        ? `, new Object[] { ${parameters
+            .map((p) => {
+              const parts = p.split(' ');
+              const paramType = parts[0];
+              const paramName = parts.length > 1 ? parts[1] : parts[0];
 
-        return this.isComplexType(paramType)
-          ? `JSON.serialize(${paramName})`
-          : paramName;
-      }).join(', ')} }`
-      : '';
+              return this.isComplexType(paramType) ? `JSON.serialize(${paramName})` : paramName;
+            })
+            .join(', ')} }`
+        : '';
 
     return { paramList: parameters, logArgs };
   }
 
   private static processMethodDeclarations(content: string, loggerName: string): string {
-
-    return content.replace(methodRegex, (
-      match: string,
-      auraEnabled: string | undefined,
-      access: string,
-      isStatic: string | undefined,
-      returnType: string,
-      methodName: string,
-      args: string
-    ) => {
-      const { paramList, logArgs } = RflibLoggingApexInstrument.processParameters(args);
-      let newMethod = match + '\n';
-      newMethod += `        ${loggerName}.info('${methodName}(${paramList.map((_, i) => `{${i}}`).join(', ')})'${logArgs});\n`;
-      return newMethod;
-    });
+    return content.replace(
+      methodRegex,
+      (
+        match: string,
+        auraEnabled: string | undefined,
+        access: string,
+        isStatic: string | undefined,
+        returnType: string,
+        methodName: string,
+        args: string,
+      ) => {
+        const { paramList, logArgs } = RflibLoggingApexInstrument.processParameters(args);
+        let newMethod = match + '\n';
+        newMethod += `        ${loggerName}.info('${methodName}(${paramList.map((_, i) => `{${i}}`).join(', ')})'${logArgs});\n`;
+        return newMethod;
+      },
+    );
   }
 
   private static processCatchBlocks(content: string, loggerName: string): string {
@@ -177,7 +195,7 @@ export default class RflibLoggingApexInstrument extends SfCommand<RflibLoggingAp
     return {
       processedFiles: this.processedFiles,
       modifiedFiles: this.modifiedFiles,
-      formattedFiles: this.formattedFiles
+      formattedFiles: this.formattedFiles,
     };
   }
 
@@ -204,7 +222,10 @@ export default class RflibLoggingApexInstrument extends SfCommand<RflibLoggingAp
     let content = await fs.promises.readFile(filePath, 'utf8');
     const originalContent = content;
 
-    content = content.replace(testSetupRegex, (match) => `${match}\n        rflib_TestUtil.prepareLoggerForUnitTests();`);
+    content = content.replace(
+      testSetupRegex,
+      (match) => `${match}\n        rflib_TestUtil.prepareLoggerForUnitTests();`,
+    );
 
     if (content !== originalContent) {
       this.modifiedFiles++;
@@ -235,9 +256,7 @@ export default class RflibLoggingApexInstrument extends SfCommand<RflibLoggingAp
         this.modifiedFiles++;
         if (!isDryRun) {
           try {
-            const finalContent = usePrettier ?
-              await prettier.format(content, this.prettierConfig) :
-              content;
+            const finalContent = usePrettier ? await prettier.format(content, this.prettierConfig) : content;
 
             await fs.promises.writeFile(filePath, finalContent);
 

@@ -29,8 +29,8 @@ describe('rflib logging apex instrument NUTs', () => {
       'rflib logging apex instrument --sourcepath force-app/main/default/classes --dryrun --json',
       {
         ensureExitCode: 0,
-        cwd: testSession.dir
-      }
+        cwd: testSession.dir,
+      },
     ).jsonOutput?.result;
 
     expect(result?.processedFiles).to.equal(1);

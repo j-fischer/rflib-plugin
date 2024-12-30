@@ -55,6 +55,9 @@
             "subtopics": {
               "apex": {
                 "description": "description for rflib.logging.apex"
+              },
+              "lwc": {
+                "description": "description for rflib.logging.lwc"
               }
             }
           }
@@ -76,13 +79,14 @@
     "postpack": "sf-clean --ignore-signing-artifacts",
     "prepack": "sf-prepack",
     "test": "wireit",
-    "test:nuts": "nyc mocha \"**/*.nut.ts\" --slow 4500 --timeout 600000 --parallel",
+    "test:nuts": "wireit",
     "test:only": "wireit",
     "version": "oclif readme",
     "prepare": "husky install"
   },
   "publishConfig": {
-    "access": "public"
+    "access": "public",
+    "registry": "https://registry.npmjs.org/"
   },
   "wireit": {
     "build": {
@@ -184,6 +188,12 @@
         "schemas"
       ],
       "output": []
+    },
+    "test:nuts": {
+      "command": "nyc mocha \"test/**/*.nut.ts\" --slow 4500 --timeout 600000",
+      "dependencies": [
+        "compile"
+      ]
     },
     "link-check": {
       "command": "node -e \"process.exit(process.env.CI ? 0 : 1)\" || linkinator \"**/*.md\" --skip \"CHANGELOG.md|node_modules|test/|confluence.internal.salesforce.com|my.salesforce.com|%s\" --markdown --retry --directory-listing --verbosity error",

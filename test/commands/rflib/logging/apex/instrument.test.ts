@@ -24,10 +24,7 @@ describe('rflib logging apex instrument', () => {
 
     // Copy sample class to test directory
     sampleClassPath = path.join(testDir, 'SampleApexClass.cls');
-    originalContent = fs.readFileSync(
-      path.join(__dirname, 'sample', 'SampleApexClass.cls'),
-      'utf8'
-    );
+    originalContent = fs.readFileSync(path.join(__dirname, 'sample', 'SampleApexClass.cls'), 'utf8');
     fs.writeFileSync(sampleClassPath, originalContent);
 
     // Run command once for all tests
@@ -41,22 +38,18 @@ describe('rflib logging apex instrument', () => {
 
   it('should add class level logger declaration', () => {
     expect(modifiedContent).to.include(
-      'private static final rflib_Logger LOGGER = rflib_LoggerUtil.getFactory().createLogger(\'SampleApexClass\');'
+      "private static final rflib_Logger LOGGER = rflib_LoggerUtil.getFactory().createLogger('SampleApexClass');",
     );
   });
 
   it('should add entry logging to methods with parameters', () => {
+    expect(modifiedContent).to.include("LOGGER.info('getRecords({0}, {1})', new Object[] { filter, limit });");
     expect(modifiedContent).to.include(
-      'LOGGER.info(\'getRecords({0}, {1})\', new Object[] { filter, limit });'
-    );
-    expect(modifiedContent).to.include(
-      'LOGGER.info(\'processRecord({0}, {1})\', new Object[] { JSON.serialize(record), JSON.serialize(userMap) });'
+      "LOGGER.info('processRecord({0}, {1})', new Object[] { JSON.serialize(record), JSON.serialize(userMap) });",
     );
   });
 
   it('should add error logging to catch blocks', () => {
-    expect(modifiedContent).to.include(
-      'LOGGER.error(\'An error occurred in processRecord()\', ex);'
-    );
+    expect(modifiedContent).to.include("LOGGER.error('An error occurred in processRecord()', ex);");
   });
 });
