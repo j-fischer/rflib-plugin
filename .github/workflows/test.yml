@@ -17,6 +17,3 @@ jobs:
       fail-fast: false
     with:
       os: ${{ matrix.os }}
-      setup: |
-        chmod +x ./bin/run.js
-        chmod +x ./bin/dev.js
