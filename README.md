@@ -1,15 +1,13 @@
 # RFLIB Plugin for Salesforce CLI
 
-[![NPM](https://img.shields.io/npm/v/rflib-plugin.svg?label=rflib-plugin)](https://www.npmjs.com/package/rflib-plugin) [![Downloads/week](https://img.shields.io/npm/dw/rflib-plugin.svg)](https://npmjs.org/package/rflib-plugin) [![License](https://img.shields.io/badge/License-BSD%203--Clause-brightgreen.svg)](https://raw.githubusercontent.com/salesforcecli/rflib-plugin/main/LICENSE.txt)
+[![NPM](https://img.shields.io/npm/v/rflib-plugin.svg?label=rflib-plugin)](https://www.npmjs.com/package/rflib-plugin) [![Downloads/week](https://img.shields.io/npm/dw/rflib-plugin.svg)](https://npmjs.org/package/rflib-plugin) [![License](https://img.shields.io/badge/License-BSD%203--Clause-brightgreen.svg)](https://raw.githubusercontent.com/salesforcecli/rflib-plugin/main/LICENSE)
 
 Plugin for Salesforce CLI to help with the adoption of [RFLIB](https://github.com/j-fischer/rflib) - an open-source logging framework for Salesforce.
 
 ## Features
 
 - Automatically instruments Apex classes with RFLIB logging statements
-- Adds method entry logging
-- Adds error logging in catch blocks\
-- Adds test setup configuration for unit tests
+- Automatically instruments LWC components with RFLIB logging statements
 
 ## Installation
 
@@ -39,6 +37,21 @@ sf rflib logging apex instrument --sourcepath force-app/main/default/classes --p
 - `--sourcepath (-s)`: Directory containing Apex classes to instrument
 - `--dryrun (-d)`: Preview changes without modifying files
 - `--prettier (-p)`: Format modified files using Prettier
+
+### `sf rflib logging lwc instrument`
+
+Adds RFLIB logging statements to Lightning Web Components.
+
+```bash
+# Add logging to all LWC files
+sf rflib logging lwc instrument --sourcepath force-app/main/default/lwc
+
+# Preview changes without modifying files
+sf rflib logging lwc instrument --sourcepath force-app/main/default/lwc --dryrun
+
+# Add logging and format code
+sf rflib logging lwc instrument --sourcepath force-app/main/default/lwc --prettier
+```
 
 ## Contributing
 
