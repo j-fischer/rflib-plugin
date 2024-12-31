@@ -53,6 +53,12 @@ sf rflib logging lwc instrument --sourcepath force-app/main/default/lwc --dryrun
 sf rflib logging lwc instrument --sourcepath force-app/main/default/lwc --prettier
 ```
 
+#### Command Options
+
+- `--sourcepath (-s)`: Directory containing Apex classes to instrument
+- `--dryrun (-d)`: Preview changes without modifying files
+- `--prettier (-p)`: Format modified files using Prettier
+
 ## Contributing
 
 1. Fork the repository
