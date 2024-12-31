@@ -18,7 +18,8 @@ const methodRegex = /(?:async\s+)?(?!(?:if|switch|case|while|for|catch)\b)(\b\w+
 const exportDefaultRegex = /export\s+default\s+class\s+(\w+)/;
 const ifStatementRegex = /if\s*\((.*?)\)\s*{([\s\S]*?)}|if\s*\((.*?)\)\s*([^{\n].*?)(?=\n|$)/g;
 const elseRegex = /}\s*else\s*{([\s\S]*?)}|}\s*else\s+([^{\n].*?)(?=\n|$)/g;
-const promiseChainRegex = /\.(then|catch|finally)\s*\(\s*(?:async\s+)?(?:\(?([^)]*)\)?)?\s*=>\s*(?:\{((?:[^{}]|`[^`]*`)*?)\}|([^{;]*(?:\([^)]*\))*)(?=(?:\)\))|\)|\.))/g;
+const promiseChainRegex =
+  /\.(then|catch|finally)\s*\(\s*(?:async\s+)?(?:\(?([^)]*)\)?)?\s*=>\s*(?:\{((?:[^{}]|`[^`]*`)*?)\}|([^{;]*(?:\([^)]*\))*)(?=(?:\)\))|\)|\.))/g;
 const tryCatchBlockRegex = /try\s*{[\s\S]*?}\s*catch\s*\(([^)]*)\)\s*{/g;
 
 export type RflibLoggingLwcInstrumentResult = {
@@ -37,20 +38,20 @@ export default class RflibLoggingLwcInstrument extends SfCommand<RflibLoggingLwc
       char: 's',
       required: true,
       summary: messages.getMessage('flags.sourcepath.summary'),
-      description: messages.getMessage('flags.sourcepath.description')
+      description: messages.getMessage('flags.sourcepath.description'),
     }),
     dryrun: Flags.boolean({
       char: 'd',
       default: false,
       summary: messages.getMessage('flags.dryrun.summary'),
-      description: messages.getMessage('flags.dryrun.description')
+      description: messages.getMessage('flags.dryrun.description'),
     }),
     prettier: Flags.boolean({
       char: 'p',
       default: false,
       summary: messages.getMessage('flags.prettier.summary'),
-      description: messages.getMessage('flags.prettier.description')
-    })
+      description: messages.getMessage('flags.prettier.description'),
+    }),
   };
 
   private logger!: Logger;
@@ -63,7 +64,7 @@ export default class RflibLoggingLwcInstrument extends SfCommand<RflibLoggingLwc
     printWidth: 120,
     tabWidth: 4,
     useTabs: false,
-    singleQuote: true
+    singleQuote: true,
   };
 
   private static detectExistingImport(content: string): boolean {
@@ -74,7 +75,7 @@ export default class RflibLoggingLwcInstrument extends SfCommand<RflibLoggingLwc
     const match = content.match(loggerRegex);
     return {
       exists: match !== null,
-      loggerName: match ? match[1] : 'logger'
+      loggerName: match ? match[1] : 'logger',
     };
   }
 
@@ -108,7 +109,8 @@ export default class RflibLoggingLwcInstrument extends SfCommand<RflibLoggingLwc
 
     // First process if statements and store conditions
     let modified = content.replace(ifStatementRegex, (match, blockCondition, blockBody, lineCondition, lineBody) => {
-      const condition = typeof blockCondition === 'string' ? blockCondition : (typeof lineCondition === 'string' ? lineCondition : '');
+      const condition =
+        typeof blockCondition === 'string' ? blockCondition : typeof lineCondition === 'string' ? lineCondition : '';
       lastCondition = condition.trim();
       const logStatement = `${loggerName}.debug(\`if (${lastCondition})\`);`;
 
@@ -136,7 +138,10 @@ export default class RflibLoggingLwcInstrument extends SfCommand<RflibLoggingLwc
   private static processMethodLogging(content: string, loggerName: string): string {
     // First handle methods
     let modified = content.replace(methodRegex, (match: string, methodName: string, args: string) => {
-      const parameters = args.split(',').map(p => p.trim()).filter(p => p);
+      const parameters = args
+        .split(',')
+        .map((p) => p.trim())
+        .filter((p) => p);
       const placeholders = parameters.map((_, i) => `{${i}}`).join(', ');
       const logArgs = parameters.length > 0 ? `, ${parameters.join(', ')}` : '';
 
@@ -152,7 +157,7 @@ export default class RflibLoggingLwcInstrument extends SfCommand<RflibLoggingLwc
   private static processPromiseChains(content: string, loggerName: string): string {
     return content.replace(promiseChainRegex, (match, type, param, blockBody, singleLineBody, offset: number) => {
       const methodName = this.findEnclosingMethod(content, offset);
-      const paramName = typeof param === 'string' ? param.trim() : (type === 'then' ? 'result' : 'error');
+      const paramName = typeof param === 'string' ? param.trim() : type === 'then' ? 'result' : 'error';
       const indentation = match.match(/\n\s*/)?.[0] || '\n        ';
 
       let logStatement;
@@ -195,9 +200,10 @@ export default class RflibLoggingLwcInstrument extends SfCommand<RflibLoggingLwc
       const methodName = this.findEnclosingMethod(content, offset);
       const errorVar = exceptionVar.trim().split(' ')[0] || 'error';
 
-      return match.replace(/catch\s*\(([^)]*)\)\s*{/,
+      return match.replace(
+        /catch\s*\(([^)]*)\)\s*{/,
         `catch(${exceptionVar}) {
-            ${loggerName}.error('An error occurred in function ${methodName}()', ${errorVar});`
+            ${loggerName}.error('An error occurred in function ${methodName}()', ${errorVar});`,
       );
     });
   }
@@ -218,7 +224,7 @@ export default class RflibLoggingLwcInstrument extends SfCommand<RflibLoggingLwc
     return {
       processedFiles: this.processedFiles,
       modifiedFiles: this.modifiedFiles,
-      formattedFiles: this.formattedFiles
+      formattedFiles: this.formattedFiles,
     };
   }
 

@@ -96,12 +96,12 @@ export default class SampleComponent extends LightningElement {
   });
 
   it('should handle single line promise chains', () => {
-    expect(modifiedContent).to.include(".then((response) => {\n");
-    expect(modifiedContent).to.include("return response.json()");
+    expect(modifiedContent).to.include('.then((response) => {\n');
+    expect(modifiedContent).to.include('return response.json()');
   });
 
   it('should handle template literals in promise chains', () => {
-    expect(modifiedContent).to.include("`${label} Editor`");
+    expect(modifiedContent).to.include('`${label} Editor`');
   });
 
   it('should process lwc in dry run mode', async () => {
