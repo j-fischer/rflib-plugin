@@ -207,5 +207,9 @@
   },
   "exports": "./lib/index.js",
   "type": "module",
-  "author": "Johannes Fischer"
+  "author": "Johannes Fischer",
+  "volta": {
+    "node": "20.17.0",
+    "yarn": "1.22.22"
+  }
 }
