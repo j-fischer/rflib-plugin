@@ -58,6 +58,9 @@
               },
               "lwc": {
                 "description": "description for rflib.logging.lwc"
+              },
+              "aura": {
+                "description": "description for rflib.logging.aura"
               }
             }
           }
