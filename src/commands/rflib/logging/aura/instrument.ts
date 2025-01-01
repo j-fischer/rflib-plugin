@@ -101,7 +101,7 @@ export default class RflibLoggingAuraInstrument extends SfCommand<RflibLoggingAu
 
   private static processPromiseChains(content: string): string {
     return content.replace(promiseChainRegex, (match, type, param, blockBody, singleLineBody) => {
-      const paramName = param?.trim() || (type === 'then' ? 'result' : 'error');
+      const paramName = (param as string | undefined)?.trim() || (type === 'then' ? 'result' : 'error');
 
       let logStatement = '';
       switch (type) {
@@ -234,7 +234,7 @@ export default class RflibLoggingAuraInstrument extends SfCommand<RflibLoggingAu
 
     const lastAttributeMatch = [...content.matchAll(attributeRegex)].pop();
     if (lastAttributeMatch) {
-      const insertPosition = lastAttributeMatch.index! + lastAttributeMatch[0].length;
+      const insertPosition = lastAttributeMatch.index + lastAttributeMatch[0].length;
       const loggerComponent = `\n    <c:rflibLoggerCmp aura:id="logger" name="${componentName}" appendComponentId="false" />`;
       content = content.slice(0, insertPosition) + loggerComponent + content.slice(insertPosition);
     }
