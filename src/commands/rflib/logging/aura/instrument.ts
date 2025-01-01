@@ -169,6 +169,16 @@ export default class RflibLoggingAuraInstrument extends SfCommand<RflibLoggingAu
 
   private async processDirectory(dirPath: string, isDryRun: boolean, usePrettier: boolean): Promise<void> {
     this.logger.debug(`Processing directory: ${dirPath}`);
+
+    // Check if path is direct component
+    const dirName = path.basename(dirPath);
+    const parentDir = path.basename(path.dirname(dirPath));
+    if (parentDir === 'aura') {
+      this.logger.info(`Processing single component: ${dirName}`);
+      await this.processAuraComponent(dirPath, dirName, isDryRun, usePrettier);
+      return;
+    }
+
     const entries = await fs.promises.readdir(dirPath, { withFileTypes: true });
 
     for (const entry of entries) {
@@ -187,6 +197,12 @@ export default class RflibLoggingAuraInstrument extends SfCommand<RflibLoggingAu
   }
 
   private async processAuraComponents(auraPath: string, isDryRun: boolean, usePrettier: boolean): Promise<void> {
+    // Check if path is already an aura directory
+    if (path.basename(auraPath) !== 'aura') {
+      this.logger.warn(`Not an aura directory: ${auraPath}`);
+      return;
+    }
+
     const entries = await fs.promises.readdir(auraPath, { withFileTypes: true });
 
     for (const entry of entries) {
