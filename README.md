@@ -8,6 +8,7 @@ Plugin for Salesforce CLI to help with the adoption of [RFLIB](https://github.co
 
 - Automatically instruments Apex classes with RFLIB logging statements
 - Automatically instruments LWC components with RFLIB logging statements
+- Automatically instruments Aura components with RFLIB logging statements
 
 ## Installation
 
@@ -23,13 +24,13 @@ Adds RFLIB logging statements to Apex classes.
 
 ```bash
 # Add logging to all classes in a directory
-sf rflib logging apex instrument --sourcepath force-app/main/default/classes
+sf rflib logging apex instrument --sourcepath force-app
 
 # Preview changes without modifying files
-sf rflib logging apex instrument --sourcepath force-app/main/default/classes --dryrun
+sf rflib logging apex instrument --sourcepath force-app --dryrun
 
 # Format modified files with Prettier
-sf rflib logging apex instrument --sourcepath force-app/main/default/classes --prettier
+sf rflib logging apex instrument --sourcepath force-app --prettier
 ```
 
 #### Command Options
@@ -44,13 +45,34 @@ Adds RFLIB logging statements to Lightning Web Components.
 
 ```bash
 # Add logging to all LWC files
-sf rflib logging lwc instrument --sourcepath force-app/main/default/lwc
+sf rflib logging lwc instrument --sourcepath force-app
 
 # Preview changes without modifying files
-sf rflib logging lwc instrument --sourcepath force-app/main/default/lwc --dryrun
+sf rflib logging lwc instrument --sourcepath force-app --dryrun
 
 # Add logging and format code
-sf rflib logging lwc instrument --sourcepath force-app/main/default/lwc --prettier
+sf rflib logging lwc instrument --sourcepath force-app --prettier
+```
+
+#### Command Options
+
+- `--sourcepath (-s)`: Directory containing Apex classes to instrument
+- `--dryrun (-d)`: Preview changes without modifying files
+- `--prettier (-p)`: Format modified files using Prettier
+
+### `sf rflib logging aura instrument`
+
+Adds RFLIB logging statements to Aura Components.
+
+```bash
+# Add logging to all LWC files
+sf rflib logging aura instrument --sourcepath force-app
+
+# Preview changes without modifying files
+sf rflib logging aura instrument --sourcepath force-app --dryrun
+
+# Add logging and format code
+sf rflib logging aura instrument --sourcepath force-app --prettier
 ```
 
 #### Command Options

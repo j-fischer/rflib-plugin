@@ -48,19 +48,19 @@
     ],
     "topics": {
       "rflib": {
-        "description": "description for rflib",
+        "description": "Utility commands for the RFLIB Salesforce open-source library",
         "subtopics": {
           "logging": {
-            "description": "description for rflib.logging",
+            "description": "Commands related to RFLIB's logging library",
             "subtopics": {
               "apex": {
-                "description": "description for rflib.logging.apex"
+                "description": "Commands related to Apex logging"
               },
               "lwc": {
-                "description": "description for rflib.logging.lwc"
+                "description": "Commands related to LWC logging"
               },
               "aura": {
-                "description": "description for rflib.logging.aura"
+                "description": "Commands related to Aura logging"
               }
             }
           }
