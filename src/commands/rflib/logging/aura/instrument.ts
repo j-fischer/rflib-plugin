@@ -15,7 +15,7 @@ const messages = Messages.loadMessages('rflib-plugin', 'rflib.logging.aura.instr
 const loggerComponentRegex = /<c:rflibLoggerCmp\s+aura:id="([^"]+)"\s+name="([^"]+)"\s+appendComponentId="([^"]+)"\s*\/>/;
 const attributeRegex = /<aura:attribute[^>]*>/g;
 const loggerVarRegex = /var\s+(\w+)\s*=\s*component\.find\(['"](\w+)['"]\)/;
-const methodRegex = /(\b\w+)\s*:\s*function\s*\((.*?)\)\s*{((?:[^{}]|{(?:[^{}]|{(?:[^{}]|{(?:[^{}]|{[^{}]*})*})*})*})*?)}/g;
+const methodRegex = /(\b\w+)\s*:\s*function\s*\((.*?)\)\s*{((?:[^{}]|{(?:[^{}]|{(?:[^{}]|{(?:[^{}]|{(?:[^{}]|{[^{}]*})*})*})*})*})*?)}/g;
 const promiseChainRegex = /\.(then|catch|finally)\s*\(\s*(?:async\s+)?(?:\(?([^)]*)\)?)?\s*=>\s*(?:{([\s\S]*?)}|([^{].*?)(?=\.|\)|\n|;|$))/g;
 const tryCatchBlockRegex = /try\s*{[\s\S]*?}\s*catch\s*\(([^)]*)\)\s*{/g;
 
@@ -65,10 +65,12 @@ export default class RflibLoggingAuraInstrument extends SfCommand<RflibLoggingAu
     trailingComma: "none"
   };
 
-  private static processMethodLogging(content: string, loggerId: string, filePath: string): string {
+  private static processMethodLogging(logger: Logger, content: string, loggerId: string, filePath: string): string {
     const isHelper = filePath.endsWith('Helper.js');
 
     return content.replace(methodRegex, (match: string, methodName: string, params: string, body: string) => {
+      logger.trace(`Processing method: ${methodName}`);
+
       const paramList = params.split(',').map(p => p.trim()).filter(p => p);
       let loggerVar = 'logger';
       let bodyContent = body;
@@ -257,7 +259,7 @@ export default class RflibLoggingAuraInstrument extends SfCommand<RflibLoggingAu
     const originalContent = content;
 
     // Process methods
-    content = RflibLoggingAuraInstrument.processMethodLogging(content, loggerId, filePath);
+    content = RflibLoggingAuraInstrument.processMethodLogging(this.logger, content, loggerId, filePath);
     content = RflibLoggingAuraInstrument.processPromiseChains(content);
     content = RflibLoggingAuraInstrument.processTryCatchBlocks(content);
 
