@@ -255,9 +255,11 @@ export default class RflibLoggingAuraInstrument extends SfCommand<RflibLoggingAu
       content = content.slice(0, insertPosition) + loggerComponent + content.slice(insertPosition);
     }
 
-    if (content !== originalContent && !isDryRun) {
-      await fs.promises.writeFile(filePath, content, 'utf8');
+    if (content !== originalContent) {
       this.modifiedFiles++;
+      if (!isDryRun) {
+        await fs.promises.writeFile(filePath, content, 'utf8');
+      }
     }
 
     return 'logger';
