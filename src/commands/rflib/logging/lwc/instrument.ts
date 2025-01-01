@@ -214,7 +214,9 @@ export default class RflibLoggingLwcInstrument extends SfCommand<RflibLoggingLwc
 
     this.log(`Scanning LWC components in ${flags.sourcepath}...`);
 
+    this.spinner.start('Running...');
     await this.processDirectory(flags.sourcepath, flags.dryrun, flags.prettier);
+    this.spinner.stop();
 
     this.log(`\nInstrumentation complete.`);
     this.log(`Processed files: ${this.processedFiles}`);
@@ -237,7 +239,7 @@ export default class RflibLoggingLwcInstrument extends SfCommand<RflibLoggingLwc
 
       if (stat.isDirectory()) {
         await this.processDirectory(filePath, isDryRun, usePrettier);
-      } else if (file.endsWith('.js') && !path.dirname(filePath).includes('aura')) {
+      } else if (file.endsWith('.js') && !path.dirname(filePath).includes('aura') && !path.dirname(filePath).includes('__tests__')) {
         await this.instrumentLwcFile(filePath, isDryRun, usePrettier);
       }
     }

@@ -14,6 +14,7 @@ const messages = Messages.loadMessages('rflib-plugin', 'rflib.logging.aura.instr
 
 const loggerComponentRegex = /<c:rflibLoggerCmp\s+aura:id="([^"]+)"\s+name="([^"]+)"\s+appendComponentId="([^"]+)"\s*\/>/;
 const attributeRegex = /<aura:attribute[^>]*>/g;
+const loggerVarRegex = /var\s+(\w+)\s*=\s*component\.find\(['"](\w+)['"]\)/;
 const methodRegex = /(\b\w+)\s*:\s*function\s*\((.*?)\)\s*{((?:[^{}]|{(?:[^{}]|{(?:[^{}]|{(?:[^{}]|{[^{}]*})*})*})*})*?)}/g;
 const promiseChainRegex = /\.(then|catch|finally)\s*\(\s*(?:async\s+)?(?:\(?([^)]*)\)?)?\s*=>\s*(?:{([\s\S]*?)}|([^{].*?)(?=\.|\)|\n|;|$))/g;
 const tryCatchBlockRegex = /try\s*{[\s\S]*?}\s*catch\s*\(([^)]*)\)\s*{/g;
@@ -61,15 +62,38 @@ export default class RflibLoggingAuraInstrument extends SfCommand<RflibLoggingAu
     tabWidth: 4,
     useTabs: false,
     singleQuote: true,
+    trailingComma: "none"
   };
 
-  private static processMethodLogging(content: string): string {
-    return content.replace(methodRegex, (match: string, methodName: string, args: string) => {
-      const parameters = args.split(',').map(p => p.trim()).filter(p => p);
-      const logArgs = parameters.length > 0 ? `, ${parameters.join(', ')}` : '';
+  private static processMethodLogging(content: string, loggerId: string, filePath: string): string {
+    const isHelper = filePath.endsWith('Helper.js');
 
-      return `${match}
-        logger.info('${methodName}(${parameters.map((_, i) => `{${i}}`).join(', ')})'${logArgs});`;
+    return content.replace(methodRegex, (match: string, methodName: string, params: string, body: string) => {
+      const paramList = params.split(',').map(p => p.trim()).filter(p => p);
+      let loggerVar = 'logger';
+      let bodyContent = body;
+
+      // Prepare logging parameters
+      const paramsToLog = isHelper ? paramList : paramList.slice(1, 2);
+      const placeholders = paramsToLog.map((_, i) => `{${i}}`).join(', ');
+      const logParams = paramsToLog.length > 0 ? `, [${paramsToLog.join(', ')}]` : '';
+
+      // Find existing logger in function body
+      const loggerMatch = body.match(loggerVarRegex);
+      if (loggerMatch && loggerMatch[2] === loggerId) {
+        loggerVar = loggerMatch[1];
+        // Insert log after existing logger declaration
+        const loggerIndex = body.indexOf(loggerMatch[0]) + loggerMatch[0].length;
+        bodyContent = body.slice(0, loggerIndex) +
+          `\n        ${loggerVar}.info('${methodName}(${placeholders})'${logParams});` +
+          body.slice(loggerIndex);
+      } else {
+        // Add new logger and log statement
+        const loggerInit = `var ${loggerVar} = ${paramList[0]}.find('${loggerId}');\n`;
+        bodyContent = `\n        ${loggerInit}        ${loggerVar}.info('${methodName}(${placeholders})'${logParams});${body}`;
+      }
+
+      return `${methodName}: function(${params}) {${bodyContent}}`;
     });
   }
 
@@ -122,13 +146,17 @@ export default class RflibLoggingAuraInstrument extends SfCommand<RflibLoggingAu
     this.logger = await Logger.child(this.ctor.name);
     const { flags } = await this.parse(RflibLoggingAuraInstrument);
 
-    this.logger.info(`Starting Aura component instrumentation in ${flags.sourcepath}`);
+    this.log(`Starting Aura component instrumentation in ${flags.sourcepath}`);
     this.logger.debug(`Dry run mode: ${flags.dryrun}`);
 
+    this.spinner.start('Running...');
     await this.processDirectory(flags.sourcepath, flags.dryrun, flags.prettier);
+    this.spinner.stop();
 
-    this.logger.info('Instrumentation complete');
-    this.logger.info(`Stats: processed=${this.processedFiles}, modified=${this.modifiedFiles}`);
+    this.log(`\nInstrumentation complete.`);
+    this.log(`Processed files: ${this.processedFiles}`);
+    this.log(`Modified files: ${this.modifiedFiles}`);
+    this.log(`Formatted files: ${this.formattedFiles}`);
 
     return {
       processedFiles: this.processedFiles,
@@ -172,6 +200,7 @@ export default class RflibLoggingAuraInstrument extends SfCommand<RflibLoggingAu
     const cmpPath = path.join(componentPath, `${componentName}.cmp`);
     const controllerPath = path.join(componentPath, `${componentName}Controller.js`);
     const helperPath = path.join(componentPath, `${componentName}Helper.js`);
+    const rendererPath = path.join(componentPath, `${componentName}Renderer.js`);
 
     try {
       const loggerId = await this.instrumentCmpFile(cmpPath, componentName, isDryRun);
@@ -179,6 +208,7 @@ export default class RflibLoggingAuraInstrument extends SfCommand<RflibLoggingAu
 
       await this.instrumentJsFile(controllerPath, loggerId, isDryRun, usePrettier);
       await this.instrumentJsFile(helperPath, loggerId, isDryRun, usePrettier);
+      await this.instrumentJsFile(rendererPath, loggerId, isDryRun, usePrettier);
     } catch (error) {
       this.logger.error(`Error processing Aura ${componentName}`, error);
     }
@@ -226,14 +256,8 @@ export default class RflibLoggingAuraInstrument extends SfCommand<RflibLoggingAu
     let content = await fs.promises.readFile(filePath, 'utf8');
     const originalContent = content;
 
-    // Add logger initialization if not present
-    if (!content.includes(`var logger = component.find('${loggerId}')`)) {
-      const loggerInit = `\n    var logger = component.find('${loggerId}');\n`;
-      content = loggerInit + content;
-    }
-
     // Process methods
-    content = RflibLoggingAuraInstrument.processMethodLogging(content);
+    content = RflibLoggingAuraInstrument.processMethodLogging(content, loggerId, filePath);
     content = RflibLoggingAuraInstrument.processPromiseChains(content);
     content = RflibLoggingAuraInstrument.processTryCatchBlocks(content);
 
