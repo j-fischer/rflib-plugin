@@ -1,29 +1,34 @@
 # summary
 
-Instrument Lightning Web Components with RFLIB logging statements automatically.
+Instrument Aura Components with RFLIB logging statements automatically.
 
 # description
 
-Analyzes Lightning Web Component JavaScript files and adds RFLIB logging statements for:
-- Method entry logging with parameter values
+Analyzes Aura Component files and adds RFLIB logging statements for:
+- Method entry logging with parameter values in Controller, Helper, and Renderer files
 - Error logging in try-catch blocks
 - Error logging in Promise catch handlers
-- Condition logging in if/else blocks
-- Adds logger import if not present
-- Adds logger initialization if not present
+- Adds rflibLoggerCmp component if not present
 - Formats modified files using Prettier (optional)
+
+The command processes:
+- Component (.cmp) files to add the logger component
+- Controller (.js) files for method instrumentation
+- Helper (.js) files for method instrumentation
+- Renderer (.js) files for method instrumentation
 
 # flags.sourcepath.summary
 
-Directory containing aura JavaScript files to instrument with logging.
+Directory containing Aura components to instrument with logging.
 
 # flags.sourcepath.description
 
-Path to the source directory containing Lightning Web Component JavaScript files that should be instrumented with RFLIB logging statements. Aura component files are automatically excluded. The command will:
-- Process all .js files in the directory and subdirectories
-- Skip files in 'aura' directories
-- Add import statement: import { createLogger } from 'c/rflibLogger'
-- Add logger initialization: const logger = createLogger('ComponentName')
+Path to the source directory containing Aura components that should be instrumented with RFLIB logging statements. The command will:
+- Scan for 'aura' directories recursively
+- Process all Aura components found
+- Add <c:rflibLoggerCmp> to component files
+- Add logging statements to JavaScript files
+- Initialize logger in methods using component.find()
 
 # flags.dryrun.summary
 
@@ -48,17 +53,18 @@ When enabled, formats the modified JavaScript files using Prettier after adding 
 - 4 space indentation
 - Single quotes for strings
 - No tabs
+- No trailing commas
 
 # examples
 
 - Add logging to all aura files:
-$ sf rflib logging aura instrument --sourcepath force-app/main/default/aura
+$ sf rflib logging aura instrument --sourcepath force-app
 
 - Preview changes:
-$ sf rflib logging aura instrument --sourcepath force-app/main/default/aura --dryrun
+$ sf rflib logging aura instrument --sourcepath force-app --dryrun
 
 - Add logging and format code:
-$ sf rflib logging aura instrument --sourcepath force-app/main/default/aura --prettier
+$ sf rflib logging aura instrument --sourcepath force-app --prettier
 
 - Process specific component:
 $ sf rflib logging aura instrument --sourcepath force-app/main/default/aura/myComponent
