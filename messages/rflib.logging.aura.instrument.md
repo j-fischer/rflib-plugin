@@ -55,6 +55,14 @@ When enabled, formats the modified JavaScript files using Prettier after adding 
 - No tabs
 - No trailing commas
 
+# flags.no-if.summary
+
+Exclude the instrumentation of if-else statements.
+
+# flags.no-if.description
+
+When provided, the command will not add log statements inside of `if` and `else` blocks.
+
 # examples
 
 - Add logging to all aura files:

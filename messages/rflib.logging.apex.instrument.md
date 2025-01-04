@@ -29,7 +29,20 @@ Format modified files using Prettier.
 
 # flags.prettier.description
 
-When enabled, formats the modified Apex files using prettier-plugin-apex after adding logging statements. Maintains consistent code style.
+When enabled, formats the modified Apex files using prettier-plugin-apex after adding logging statements. Maintains consistent code style with:
+
+- 120 character line width
+- 4 space indentation
+- Single quotes for strings
+- No tabs
+
+# flags.no-if.summary
+
+Exclude the instrumentation of if-else statements.
+
+# flags.no-if.description
+
+When provided, the command will not add log statements inside of `if` and `else` blocks.
 
 # examples
 
@@ -44,3 +57,4 @@ $ sf rflib logging apex instrument --sourcepath force-app/main/default/classes -
 - Add logging statements and format code:
 
 $ sf rflib logging apex instrument --sourcepath force-app/main/default/classes --prettier
+

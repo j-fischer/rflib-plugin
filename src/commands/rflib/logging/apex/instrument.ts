@@ -39,6 +39,11 @@ type IfCondition = {
   position: number;
 };
 
+type InstrumentationFlags = {
+  prettier: boolean;
+  noIf: boolean;
+};
+
 export type RflibLoggingApexInstrumentResult = {
   processedFiles: number;
   modifiedFiles: number;
@@ -68,6 +73,9 @@ export default class RflibLoggingApexInstrument extends SfCommand<RflibLoggingAp
       description: messages.getMessage('flags.prettier.description'),
       char: 'p',
       default: false,
+    }),
+    'no-if': Flags.boolean({
+      summary: messages.getMessage('flags.no-if.summary'),
     }),
   };
 
@@ -180,32 +188,33 @@ export default class RflibLoggingApexInstrument extends SfCommand<RflibLoggingAp
     const conditions: IfCondition[] = [];
 
     // Process if statements and store conditions with positions
-    let modified = content.replace(ifStatementRegex, (match: string, condition: string, blockBody: string, singleLineBody: string, offset: number) => {
-      const cleanedUpCondition = condition.trim().replaceAll("'", "\\'");
-      conditions.push({
-        condition: cleanedUpCondition,
-        position: offset
-      });
+    let modified = content.replace(
+      ifStatementRegex,
+      (match: string, condition: string, blockBody: string, singleLineBody: string, offset: number) => {
+        const cleanedUpCondition = condition.trim().replaceAll("'", "\\'");
+        conditions.push({
+          condition: cleanedUpCondition,
+          position: offset,
+        });
 
-      const logStatement = `${loggerName}.debug('if (${cleanedUpCondition})');\n        `;
+        const logStatement = `${loggerName}.debug('if (${cleanedUpCondition})');\n        `;
 
-      if (blockBody) {
-        return `if (${condition}) {\n        ${logStatement}${blockBody}}`;
-      } else if (singleLineBody) {
-        const cleanBody = singleLineBody.replace(/;$/, '').trim();
-        return `if (${condition}) {\n        ${logStatement}${cleanBody};\n    }`;
-      }
-      return match;
-    });
+        if (blockBody) {
+          return `if (${condition}) {\n        ${logStatement}${blockBody}}`;
+        } else if (singleLineBody) {
+          const cleanBody = singleLineBody.replace(/;$/, '').trim();
+          return `if (${condition}) {\n        ${logStatement}${cleanBody};\n    }`;
+        }
+        return match;
+      },
+    );
 
     // Process else blocks using nearest if condition
     modified = modified.replace(elseRegex, (match, blockBody, singleLineBody, offset) => {
       // Find last if statement before this else
       const nearestIf = conditions
-        .filter(c => c.position < offset)
-        .reduce((prev, curr) =>
-          (!prev || curr.position > prev.position) ? curr : prev
-        );
+        .filter((c) => c.position < offset)
+        .reduce((prev, curr) => (!prev || curr.position > prev.position ? curr : prev));
 
       const logStatement = nearestIf
         ? `${loggerName}.debug('else for if (${nearestIf.condition})');\n        `
@@ -229,12 +238,17 @@ export default class RflibLoggingApexInstrument extends SfCommand<RflibLoggingAp
     const { flags } = await this.parse(RflibLoggingApexInstrument);
     const sourcePath = flags.sourcepath;
     const isDryRun = flags.dryrun;
-    const usePrettier = flags.prettier;
+
+    const instrumentationFlags = {
+      prettier: flags.prettier,
+      noIf: flags['no-if'],
+    };
 
     this.log(`Scanning Apex classes in ${sourcePath} and sub directories`);
+    this.logger.debug(`Dry run mode: ${flags.dryrun}`);
 
     this.spinner.start('Running...');
-    await this.processDirectory(sourcePath, isDryRun, usePrettier);
+    await this.processDirectory(sourcePath, isDryRun, instrumentationFlags);
     this.spinner.stop();
 
     const duration = Date.now() - startTime;
@@ -252,7 +266,7 @@ export default class RflibLoggingApexInstrument extends SfCommand<RflibLoggingAp
     };
   }
 
-  private async processDirectory(dirPath: string, isDryRun: boolean, usePrettier: boolean): Promise<void> {
+  private async processDirectory(dirPath: string, isDryRun: boolean, flags: InstrumentationFlags): Promise<void> {
     this.logger.debug(`Processing directory: ${dirPath}`);
     const files = await fs.promises.readdir(dirPath);
 
@@ -261,11 +275,11 @@ export default class RflibLoggingApexInstrument extends SfCommand<RflibLoggingAp
       const stat = await fs.promises.stat(filePath);
 
       if (stat.isDirectory()) {
-        await this.processDirectory(filePath, isDryRun, usePrettier);
+        await this.processDirectory(filePath, isDryRun, flags);
       } else if (file.endsWith('Test.cls')) {
         await this.processTestFile(filePath, isDryRun);
       } else if (file.endsWith('.cls')) {
-        await this.instrumentApexClass(filePath, isDryRun, usePrettier);
+        await this.instrumentApexClass(filePath, isDryRun, flags);
       }
     }
   }
@@ -291,7 +305,9 @@ export default class RflibLoggingApexInstrument extends SfCommand<RflibLoggingAp
     }
   }
 
-  private async instrumentApexClass(filePath: string, isDryRun: boolean, usePrettier: boolean): Promise<void> {
+  private async instrumentApexClass(filePath: string, isDryRun: boolean, flags: InstrumentationFlags): Promise<void> {
+    const usePrettier = flags.prettier;
+
     const className = path.basename(filePath, '.cls');
     this.logger.debug(`Processing class: ${className}`);
 
@@ -303,8 +319,10 @@ export default class RflibLoggingApexInstrument extends SfCommand<RflibLoggingAp
       const { loggerVariableName } = RflibLoggingApexInstrument.detectExistingLogger(content);
       content = RflibLoggingApexInstrument.addLoggerDeclaration(content, className);
       content = RflibLoggingApexInstrument.processMethodDeclarations(content, loggerVariableName);
-      content = RflibLoggingApexInstrument.processIfStatements(content, loggerVariableName);
       content = RflibLoggingApexInstrument.processCatchBlocks(content, loggerVariableName);
+      if (!flags.noIf) {
+        content = RflibLoggingApexInstrument.processIfStatements(content, loggerVariableName);
+      }
 
       if (content !== originalContent) {
         this.modifiedFiles++;

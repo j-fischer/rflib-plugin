@@ -1,9 +1,15 @@
 /* eslint-disable @typescript-eslint/quotes */
 import * as fs from 'node:fs';
 import * as path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { expect } from 'chai';
 import { TestSession } from '@salesforce/cli-plugins-testkit';
 import RflibLoggingLwcInstrument from '../../../../../src/commands/rflib/logging/lwc/instrument.js';
+
+/* eslint-disable no-underscore-dangle */
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+/* eslint-enable no-underscore-dangle */
 
 describe('rflib logging lwc instrument', () => {
   let testSession: TestSession;
@@ -17,68 +23,8 @@ describe('rflib logging lwc instrument', () => {
     testDir = path.join(testSession.dir, 'force-app', 'main', 'default', 'lwc', 'sampleComponent');
     fs.mkdirSync(testDir, { recursive: true });
 
-    const sampleComponent = `
-import { LightningElement } from 'lwc';
-
-export default class SampleComponent extends LightningElement {
-    isEnabled = false;
-    loading = false;
-    disabled = false;
-    data = null;
-
-    async handleClick(event) {
-        try {
-            const result = await this.loadData();
-            this.processResult(result);
-        } catch(error) {
-            console.error(error);
-        }
-    }
-
-    handleEvent(event) {
-        if (disabled) return;
-
-        if (this.isEnabled) {
-            this.processEvent(event);
-            if (this.loading) {
-                if (this.data) {
-                    this.updateData();
-                }
-            }
-        } else {
-            this.handleError();
-        }
-    }
-
-    loadData() {
-        return fetch('/api/data')
-            .then(response => response.json())
-            .catch(error => {
-                console.error(error);
-            });
-    }
-
-    setTitle() {
-        getCustomSettingLabel({ customSettingsApiName: this.customSettingsApiName })
-            .then((label) => {
-                this.title = \`\${label} Editor\`;
-            })
-            .catch(error => {
-                this.title = 'Custom Settings Editor';
-            });
-    }
-
-    checkUserPermissions() {
-        return canUserModifyCustomSettings({ customSettingsApiName: this.customSettingsApiName })
-            .then(result => {
-                this.canModifySettings = result;
-            }) // checkUserPermissions must complete before the settings are loaded
-            .finally(() => this.loadCustomSettings());
-    }
-}`;
-
     sampleComponentPath = path.join(testDir, 'sampleComponent.js');
-    originalContent = sampleComponent;
+    originalContent = fs.readFileSync(path.join(__dirname, 'sample', 'sample.js'), 'utf8');
     fs.writeFileSync(sampleComponentPath, originalContent);
 
     await RflibLoggingLwcInstrument.run(['--sourcepath', testDir]);
@@ -150,5 +96,22 @@ export default class SampleComponent extends LightningElement {
     const formattedContent = fs.readFileSync(sampleComponentPath, 'utf8');
     expect(formattedContent).to.include(';');
     expect(formattedContent).to.match(/\n {4}/); // Check for 4-space indentation
+  });
+
+  it('should skip if statement instrumentation when no-if flag is used', async () => {
+    // Reset the test file
+    fs.writeFileSync(sampleComponentPath, originalContent);
+
+    await RflibLoggingLwcInstrument.run(['--sourcepath', testDir, '--no-if']);
+    const contentWithNoIf = fs.readFileSync(sampleComponentPath, 'utf8');
+
+    // Should still have method and error logging
+    expect(contentWithNoIf).to.include("logger.info('handleClick({0})', event)");
+    expect(contentWithNoIf).to.include("logger.error('An error occurred");
+
+    // Should not have if/else logging
+    expect(contentWithNoIf).not.to.include("logger.debug('if (disabled)");
+    expect(contentWithNoIf).not.to.include("logger.debug('if (this.isEnabled)");
+    expect(contentWithNoIf).not.to.include("logger.debug('else for if");
   });
 });
