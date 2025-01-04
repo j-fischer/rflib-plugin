@@ -95,6 +95,11 @@ describe('rflib logging aura instrument', () => {
     expect(modifiedContent.controller).to.include("logger.error('An error occurred', error)");
   });
 
+  it('should convert single line if statements to blocks', () => {
+    expect(modifiedContent.controller).to.match(/if \(data.isValid\) {\s+logger\.debug.*\s+component\.set\("v.value", data\.value\);\s+}/);
+    expect(modifiedContent.helper).to.match(/if \(response.getState\(\) === "SUCCESS"\) {\s+logger\.debug.*\s+component\.set\("v\.value", response\.getReturnValue\(\)\);\s+}/);
+  });
+
   it('should process aura in dry run mode', async () => {
     const result = await RflibLoggingAuraInstrument.run(['--sourcepath', sourceDir, '--dryrun']);
     expect(result.processedFiles).to.be.greaterThan(0);
