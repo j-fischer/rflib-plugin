@@ -16,8 +16,8 @@ const importRegex = /import\s*{\s*createLogger\s*}\s*from\s*['"]c\/rflibLogger['
 const loggerRegex = /const\s+(\w+)\s*=\s*createLogger\s*\(['"]([\w-]+)['"]\)/;
 const methodRegex = /(?:async\s+)?(?!(?:if|switch|case|while|for|catch)\b)(\b\w+)\s*\((.*?)\)\s*{/g;
 const exportDefaultRegex = /export\s+default\s+class\s+(\w+)/;
-const ifStatementRegex = /if\s*\((.*?)\)\s*{([\s\S]*?)}|if\s*\((.*?)\)\s*([^{\n].*?)(?=\n|$)/g;
-const elseRegex = /}\s*else\s*{([\s\S]*?)}|}\s*else\s+([^{\n].*?)(?=\n|$)/g;
+const ifStatementRegex = /if\s*\((.*?)\)\s*(?:{([^]*?(?:(?<!{){(?:[^]*?)}(?!})[^]*?)*)}|([^{].*?)(?=\s*(?:;|$));)/g;
+const elseRegex = /}\s*else(?!\s+if\b)\s*(?:{((?:[^{}]|{(?:[^{}]|{[^{}]*})*})*)}|([^{].*?)(?=\n|;|$))/g;
 const promiseChainRegex =
   /\.(then|catch|finally)\s*\(\s*(?:async\s+)?(?:\(?([^)]*)\)?)?\s*=>\s*(?:\{((?:[^{}]|`[^`]*`)*?)\}|([^{;]*(?:\([^)]*\))*)(?=(?:\)\))|\)|\.))/g;
 const tryCatchBlockRegex = /try\s*{[\s\S]*?}\s*catch\s*\(([^)]*)\)\s*{/g;
@@ -135,7 +135,7 @@ export default class RflibLoggingLwcInstrument extends SfCommand<RflibLoggingLwc
     modified = modified.replace(elseRegex, (match, blockBody, singleLineBody, offset) => {
       // Find last if statement before this else
       const nearestIf = conditions
-        .filter(c => c.position < offset)
+        .filter(c => c.position <= offset)
         .reduce((prev, curr) =>
           (!prev || curr.position > prev.position) ? curr : prev
         );
