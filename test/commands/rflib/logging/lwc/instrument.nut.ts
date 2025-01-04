@@ -70,6 +70,6 @@ export default class SampleComponent extends LightningElement {
     expect(modifiedContent).to.include("const logger = createLogger('SampleComponent')");
     expect(modifiedContent).to.include("logger.info('handleClick({0})', event)");
     expect(modifiedContent).to.include("logger.error('An error occurred in function handleClick()', error)");
-    expect(modifiedContent).to.include('logger.debug(`if (data.isValid)`);');
+    expect(modifiedContent).to.include("logger.debug('if (data.isValid)');");
   });
 });
