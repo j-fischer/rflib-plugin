@@ -16,11 +16,16 @@ const importRegex = /import\s*{\s*createLogger\s*}\s*from\s*['"]c\/rflibLogger['
 const loggerRegex = /const\s+(\w+)\s*=\s*createLogger\s*\(['"]([\w-]+)['"]\)/;
 const methodRegex = /(?:async\s+)?(?!(?:if|switch|case|while|for|catch)\b)(\b\w+)\s*\((.*?)\)\s*{/g;
 const exportDefaultRegex = /export\s+default\s+class\s+(\w+)/;
-const ifStatementRegex = /if\s*\((.*?)\)\s*{([\s\S]*?)}|if\s*\((.*?)\)\s*([^{\n].*?)(?=\n|$)/g;
-const elseRegex = /}\s*else\s*{([\s\S]*?)}|}\s*else\s+([^{\n].*?)(?=\n|$)/g;
+const ifStatementRegex = /if\s*\((.*?)\)\s*(?:{([^]*?(?:(?<!{){(?:[^]*?)}(?!})[^]*?)*)}|([^{].*?)(?=\s*(?:;|$));)/g;
+const elseRegex = /}\s*else(?!\s+if\b)\s*(?:{((?:[^{}]|{(?:[^{}]|{[^{}]*})*})*)}|([^{].*?)(?=\n|;|$))/g;
 const promiseChainRegex =
   /\.(then|catch|finally)\s*\(\s*(?:async\s+)?(?:\(?([^)]*)\)?)?\s*=>\s*(?:\{((?:[^{}]|`[^`]*`)*?)\}|([^{;]*(?:\([^)]*\))*)(?=(?:\)\))|\)|\.))/g;
 const tryCatchBlockRegex = /try\s*{[\s\S]*?}\s*catch\s*\(([^)]*)\)\s*{/g;
+
+type IfCondition = {
+  condition: string;
+  position: number;
+};
 
 export type RflibLoggingLwcInstrumentResult = {
   processedFiles: number;
@@ -105,31 +110,46 @@ export default class RflibLoggingLwcInstrument extends SfCommand<RflibLoggingLwc
   }
 
   private static processIfStatements(content: string, loggerName: string): string {
-    let lastCondition = '';
+    const conditions: IfCondition[] = [];
 
-    // First process if statements and store conditions
-    let modified = content.replace(ifStatementRegex, (match, blockCondition, blockBody, lineCondition, lineBody) => {
-      const condition =
-        typeof blockCondition === 'string' ? blockCondition : typeof lineCondition === 'string' ? lineCondition : '';
-      lastCondition = condition.trim();
-      const logStatement = `${loggerName}.debug(\`if (${lastCondition})\`);`;
+    // Process if statements and store conditions with positions
+    let modified = content.replace(ifStatementRegex, (match: string, condition: string, blockBody: string, singleLineBody: string, offset: number) => {
+      const cleanedUpCondition = condition.trim().replaceAll("'", "\\'");
+      conditions.push({
+        condition: cleanedUpCondition,
+        position: offset
+      });
+
+      const logStatement = `${loggerName}.debug('if (${cleanedUpCondition})');\n        `;
 
       if (blockBody) {
         return `if (${condition}) {\n        ${logStatement}${blockBody}}`;
-      } else {
-        return `if (${condition}) {\n        ${logStatement}\n        ${lineBody}\n    }`;
+      } else if (singleLineBody) {
+        const cleanBody = singleLineBody.replace(/;$/, '').trim();
+        return `if (${condition}) {\n        ${logStatement}${cleanBody};\n    }`;
       }
+      return match;
     });
 
-    // Then process else blocks using stored condition
-    modified = modified.replace(elseRegex, (match, blockBody, lineBody) => {
-      const logStatement = `${loggerName}.debug(\`else for if (${lastCondition})\`);`;
+    // Process else blocks using nearest if condition
+    modified = modified.replace(elseRegex, (match, blockBody, singleLineBody, offset) => {
+      // Find last if statement before this else
+      const nearestIf = conditions
+        .filter(c => c.position <= offset)
+        .reduce((prev, curr) =>
+          (!prev || curr.position > prev.position) ? curr : prev
+        );
+
+      const logStatement = nearestIf
+        ? `${loggerName}.debug('else for if (${nearestIf.condition})');\n        `
+        : `${loggerName}.debug('else statement');\n        `;
 
       if (blockBody) {
         return `} else {\n        ${logStatement}${blockBody}}`;
-      } else {
-        return `} else {\n        ${logStatement}\n        ${lineBody}\n    }`;
+      } else if (singleLineBody) {
+        return `} else {\n        ${logStatement}${singleLineBody};\n    }`;
       }
+      return match;
     });
 
     return modified;

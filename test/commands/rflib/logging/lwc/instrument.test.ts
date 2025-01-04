@@ -21,12 +21,32 @@ describe('rflib logging lwc instrument', () => {
 import { LightningElement } from 'lwc';
 
 export default class SampleComponent extends LightningElement {
+    isEnabled = false;
+    loading = false;
+    disabled = false;
+    data = null;
+
     async handleClick(event) {
         try {
             const result = await this.loadData();
             this.processResult(result);
         } catch(error) {
             console.error(error);
+        }
+    }
+
+    handleEvent(event) {
+        if (disabled) return;
+
+        if (this.isEnabled) {
+            this.processEvent(event);
+            if (this.loading) {
+                if (this.data) {
+                    this.updateData();
+                }
+            }
+        } else {
+            this.handleError();
         }
     }
 
@@ -102,6 +122,20 @@ export default class SampleComponent extends LightningElement {
 
   it('should handle template literals in promise chains', () => {
     expect(modifiedContent).to.include('`${label} Editor`');
+  });
+
+  it('should add log statements to if blocks', () => {
+    expect(modifiedContent).to.include("logger.debug('if (this.isEnabled)");
+    expect(modifiedContent).to.match(/if \(this\.isEnabled\) {\s+logger\.debug.*\s+this\.processEvent/);
+  });
+
+  it('should convert single line if statements to blocks', () => {
+    expect(modifiedContent).to.match(/if \(disabled\) {\s+logger\.debug.*\s+return;\s+}/);
+  });
+
+  it('should add log statements to else blocks', () => {
+    expect(modifiedContent).to.include("logger.debug('else for if (this.isEnabled)");
+    expect(modifiedContent).to.match(/} else {\s+logger\.debug.*\s+this\.handleError/);
   });
 
   it('should process lwc in dry run mode', async () => {

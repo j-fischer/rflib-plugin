@@ -4,11 +4,19 @@ public with sharing class SampleApexClass {
     
     @AuraEnabled
     public static List<String> getRecords(String filter, Integer limit) {
-        List<String> results = new List<String>();
-        for (Integer i = 0; i < limit; i++) {
-            results.add(filter + '_' + i);
+        if (filter == null) return new List<String>();
+
+        if (limit > 100) {
+            for (Integer i = 0; i < 10; i++) {
+                System.debug('Processing...');
+            }
+        } else if (limit > 50) {
+            System.debug('Medium batch');
+        } else {
+            System.debug('Small batch');
         }
-        return results;
+
+        return new List<String>();
     }
     
     public void processRecord(SObject record, Map<Id, User> userMap) {

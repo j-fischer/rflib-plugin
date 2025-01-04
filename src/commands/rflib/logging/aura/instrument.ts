@@ -18,6 +18,13 @@ const loggerVarRegex = /var\s+(\w+)\s*=\s*component\.find\(['"](\w+)['"]\)/;
 const methodRegex = /(\b\w+)\s*:\s*function\s*\((.*?)\)\s*{((?:[^{}]|{(?:[^{}]|{(?:[^{}]|{(?:[^{}]|{(?:[^{}]|{[^{}]*})*})*})*})*})*?)}/g;
 const promiseChainRegex = /\.(then|catch|finally)\s*\(\s*(?:async\s+)?(?:\(?([^)]*)\)?)?\s*=>\s*(?:{([\s\S]*?)}|([^{].*?)(?=\.|\)|\n|;|$))/g;
 const tryCatchBlockRegex = /try\s*{[\s\S]*?}\s*catch\s*\(([^)]*)\)\s*{/g;
+const ifStatementRegex = /if\s*\((.*?)\)\s*(?:{([^]*?(?:(?<!{){(?:[^]*?)}(?!})[^]*?)*)}|([^{].*?)(?=\s*(?:;|$));)/g;
+const elseRegex = /}\s*else(?!\s+if\b)\s*(?:{((?:[^{}]|{(?:[^{}]|{[^{}]*})*})*)}|([^{].*?)(?=\n|;|$))/g;
+
+type IfCondition = {
+  condition: string;
+  position: number;
+};
 
 export type RflibLoggingAuraInstrumentResult = {
   processedFiles: number;
@@ -95,6 +102,9 @@ export default class RflibLoggingAuraInstrument extends SfCommand<RflibLoggingAu
         bodyContent = `\n        ${loggerInit}        ${loggerVar}.info('${methodName}(${placeholders})'${logParams});${body}`;
       }
 
+      // Then handle if statements
+      bodyContent = this.processIfStatements(bodyContent, loggerVar);
+
       return `${methodName}: function(${params}) {${bodyContent}}`;
     });
   }
@@ -142,6 +152,52 @@ export default class RflibLoggingAuraInstrument extends SfCommand<RflibLoggingAu
           logger.error('An error occurred', ${errorVar});`
       );
     });
+  }
+
+  private static processIfStatements(content: string, loggerName: string): string {
+    const conditions: IfCondition[] = [];
+
+    // Process if statements and store conditions with positions
+    let modified = content.replace(ifStatementRegex, (match: string, condition: string, blockBody: string, singleLineBody: string, offset: number) => {
+      const cleanedUpCondition = condition.trim().replaceAll("'", "\\'");
+      conditions.push({
+        condition: cleanedUpCondition,
+        position: offset
+      });
+
+      const logStatement = `${loggerName}.debug('if (${cleanedUpCondition})');\n        `;
+
+      if (blockBody) {
+        return `if (${condition}) {\n        ${logStatement}${blockBody}}`;
+      } else if (singleLineBody) {
+        const cleanBody = singleLineBody.replace(/;$/, '').trim();
+        return `if (${condition}) {\n        ${logStatement}${cleanBody};\n    }`;
+      }
+      return match;
+    });
+
+    // Process else blocks using nearest if condition
+    modified = modified.replace(elseRegex, (match, blockBody, singleLineBody, offset) => {
+      // Find last if statement before this else
+      const nearestIf = conditions
+        .filter(c => c.position < offset)
+        .reduce((prev, curr) =>
+          (!prev || curr.position > prev.position) ? curr : prev
+        );
+
+      const logStatement = nearestIf
+        ? `${loggerName}.debug('else for if (${nearestIf.condition})');\n        `
+        : `${loggerName}.debug('else statement');\n        `;
+
+      if (blockBody) {
+        return `} else {\n        ${logStatement}${blockBody}}`;
+      } else if (singleLineBody) {
+        return `} else {\n        ${logStatement}${singleLineBody};\n    }`;
+      }
+      return match;
+    });
+
+    return modified;
   }
 
   public async run(): Promise<RflibLoggingAuraInstrumentResult> {

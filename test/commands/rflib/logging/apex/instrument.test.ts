@@ -52,4 +52,22 @@ describe('rflib logging apex instrument', () => {
   it('should add error logging to catch blocks', () => {
     expect(modifiedContent).to.include("LOGGER.error('An error occurred in processRecord()', ex);");
   });
+
+  it('should add log statements to simple if blocks', () => {
+    expect(modifiedContent).to.include('LOGGER.debug(\'if (filter == null)');
+  });
+
+  it('should convert single line if statements to blocks', () => {
+    expect(modifiedContent).to.match(/if \(filter == null\) {\s+LOGGER\.debug.*\s+return new List<String>\(\);\s+}/);
+  });
+
+  it('should add log statements to if blocks with nested content', () => {
+    expect(modifiedContent).to.include('LOGGER.debug(\'if (limit > 100)');
+    expect(modifiedContent).to.match(/if \(limit > 100\) {\s+LOGGER\.debug.*\s+for \(Integer i = 0; i < 10; i\+\+\)/);
+  });
+
+  it('should add log statements to else blocks', () => {
+    expect(modifiedContent).to.include('LOGGER.debug(\'else for if (limit > 50)\')');
+    expect(modifiedContent).to.match(/else {\s+LOGGER\.debug.*\s+System.debug\('Small batch'\);\s+}/);
+  });
 });
