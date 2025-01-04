@@ -18,6 +18,8 @@ const classLevelLoggerRegex = /\bprivate\s+(?:static\s+)?(?:final\s+)?rflib_Logg
 const genericArgsRegex = /<[^>]+>/g;
 const catchRegex = /catch\s*\(\s*\w+\s+(\w+)\s*\)\s*{/g;
 const testSetupRegex = /@TestSetup\s+((public|private|protected|global)s+)?(?:static\s+)?void\s+(\w+)\s*\([^)]*\)\s*{/g;
+const ifStatementRegex = /if\s*\((.*?)\)\s*(?:{([^]*?(?:(?<!{){(?:[^]*?)}(?!})[^]*?)*)}|([^{].*?)(?=\s*(?:;|$));)/g;
+const elseRegex = /}\s*else(?!\s+if\b)\s*(?:{((?:[^{}]|{(?:[^{}]|{[^{}]*})*})*)}|([^{].*?)(?=\n|;|$))/g;
 
 const PRIMITIVE_TYPES = new Set([
   'STRING',
@@ -31,6 +33,11 @@ const PRIMITIVE_TYPES = new Set([
   'TIME',
   'ID',
 ]);
+
+type IfCondition = {
+  condition: string;
+  position: number;
+};
 
 export type RflibLoggingApexInstrumentResult = {
   processedFiles: number;
@@ -108,22 +115,22 @@ export default class RflibLoggingApexInstrument extends SfCommand<RflibLoggingAp
   private static processParameters(args: string): { paramList: string[]; logArgs: string } {
     const parameters = args
       ? args
-          .replaceAll(genericArgsRegex, '')
-          .split(',')
-          .map((param) => param.trim())
+        .replaceAll(genericArgsRegex, '')
+        .split(',')
+        .map((param) => param.trim())
       : [];
 
     const logArgs =
       parameters.length > 0 && parameters[0] !== ''
         ? `, new Object[] { ${parameters
-            .map((p) => {
-              const parts = p.split(' ');
-              const paramType = parts[0];
-              const paramName = parts.length > 1 ? parts[1] : parts[0];
+          .map((p) => {
+            const parts = p.split(' ');
+            const paramType = parts[0];
+            const paramName = parts.length > 1 ? parts[1] : parts[0];
 
-              return this.isComplexType(paramType) ? `JSON.serialize(${paramName})` : paramName;
-            })
-            .join(', ')} }`
+            return this.isComplexType(paramType) ? `JSON.serialize(${paramName})` : paramName;
+          })
+          .join(', ')} }`
         : '';
 
     return { paramList: parameters, logArgs };
@@ -167,6 +174,52 @@ export default class RflibLoggingApexInstrument extends SfCommand<RflibLoggingAp
 
       return `${match}\n            ${loggerName}.error('An error occurred in ${methodName}()', ${exceptionVar.trim()});`;
     });
+  }
+
+  private static processIfStatements(content: string, loggerName: string): string {
+    const conditions: IfCondition[] = [];
+
+    // Process if statements and store conditions with positions
+    let modified = content.replace(ifStatementRegex, (match: string, condition: string, blockBody: string, singleLineBody: string, offset: number) => {
+      const cleanedUpCondition = condition.trim().replaceAll("'", "\\'");
+      conditions.push({
+        condition: cleanedUpCondition,
+        position: offset
+      });
+
+      const logStatement = `${loggerName}.debug('if (${cleanedUpCondition})');\n        `;
+
+      if (blockBody) {
+        return `if (${condition}) {\n        ${logStatement}${blockBody}}`;
+      } else if (singleLineBody) {
+        const cleanBody = singleLineBody.replace(/;$/, '').trim();
+        return `if (${condition}) {\n        ${logStatement}${cleanBody};\n    }`;
+      }
+      return match;
+    });
+
+    // Process else blocks using nearest if condition
+    modified = modified.replace(elseRegex, (match, blockBody, singleLineBody, offset) => {
+      // Find last if statement before this else
+      const nearestIf = conditions
+        .filter(c => c.position < offset)
+        .reduce((prev, curr) =>
+          (!prev || curr.position > prev.position) ? curr : prev
+        );
+
+      const logStatement = nearestIf
+        ? `${loggerName}.debug('else for if (${nearestIf.condition})');\n        `
+        : `${loggerName}.debug('else statement');\n        `;
+
+      if (blockBody) {
+        return `} else {\n        ${logStatement}${blockBody}}`;
+      } else if (singleLineBody) {
+        return `} else {\n        ${logStatement}${singleLineBody};\n    }`;
+      }
+      return match;
+    });
+
+    return modified;
   }
 
   public async run(): Promise<RflibLoggingApexInstrumentResult> {
@@ -250,6 +303,7 @@ export default class RflibLoggingApexInstrument extends SfCommand<RflibLoggingAp
       const { loggerVariableName } = RflibLoggingApexInstrument.detectExistingLogger(content);
       content = RflibLoggingApexInstrument.addLoggerDeclaration(content, className);
       content = RflibLoggingApexInstrument.processMethodDeclarations(content, loggerVariableName);
+      content = RflibLoggingApexInstrument.processIfStatements(content, loggerVariableName);
       content = RflibLoggingApexInstrument.processCatchBlocks(content, loggerVariableName);
 
       if (content !== originalContent) {
