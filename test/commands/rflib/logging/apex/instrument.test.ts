@@ -70,4 +70,27 @@ describe('rflib logging apex instrument', () => {
     expect(modifiedContent).to.include('LOGGER.debug(\'else for if (limit > 50)\')');
     expect(modifiedContent).to.match(/else {\s+LOGGER\.debug.*\s+System.debug\('Small batch'\);\s+}/);
   });
+
+  it('should skip if statement instrumentation when no-if flag is used', async () => {
+    // Reset the test file
+    fs.writeFileSync(sampleClassPath, originalContent);
+
+    await RflibLoggingApexInstrument.run([
+      '--sourcepath',
+      testDir,
+      '--no-if'
+    ]);
+
+    const contentWithNoIf = fs.readFileSync(sampleClassPath, 'utf8');
+
+    // Should still have method and catch logging
+    expect(contentWithNoIf).to.include("LOGGER.info('getRecords({0}, {1})'");
+    expect(contentWithNoIf).to.include("LOGGER.error('An error occurred");
+
+    // Should not have if statement logging
+    expect(contentWithNoIf).not.to.include("LOGGER.debug('if (filter == null)");
+    expect(contentWithNoIf).not.to.include("LOGGER.debug('if (limit > 100)");
+    expect(contentWithNoIf).not.to.include("LOGGER.debug('else for if");
+  });
+
 });

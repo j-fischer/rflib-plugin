@@ -1,0 +1,4 @@
+<aura:component>
+    <aura:attribute name="value" type="String" default="" />
+    <aura:attribute name="isValid" type="Boolean" default="false" />
+</aura:component>

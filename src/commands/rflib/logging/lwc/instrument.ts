@@ -27,6 +27,11 @@ type IfCondition = {
   position: number;
 };
 
+type InstrumentationFlags = {
+  prettier: boolean;
+  noIf: boolean;
+};
+
 export type RflibLoggingLwcInstrumentResult = {
   processedFiles: number;
   modifiedFiles: number;
@@ -56,6 +61,9 @@ export default class RflibLoggingLwcInstrument extends SfCommand<RflibLoggingLwc
       default: false,
       summary: messages.getMessage('flags.prettier.summary'),
       description: messages.getMessage('flags.prettier.description'),
+    }),
+    'no-if': Flags.boolean({
+      summary: messages.getMessage('flags.no-if.summary'),
     }),
   };
 
@@ -113,32 +121,33 @@ export default class RflibLoggingLwcInstrument extends SfCommand<RflibLoggingLwc
     const conditions: IfCondition[] = [];
 
     // Process if statements and store conditions with positions
-    let modified = content.replace(ifStatementRegex, (match: string, condition: string, blockBody: string, singleLineBody: string, offset: number) => {
-      const cleanedUpCondition = condition.trim().replaceAll("'", "\\'");
-      conditions.push({
-        condition: cleanedUpCondition,
-        position: offset
-      });
+    let modified = content.replace(
+      ifStatementRegex,
+      (match: string, condition: string, blockBody: string, singleLineBody: string, offset: number) => {
+        const cleanedUpCondition = condition.trim().replaceAll("'", "\\'");
+        conditions.push({
+          condition: cleanedUpCondition,
+          position: offset,
+        });
 
-      const logStatement = `${loggerName}.debug('if (${cleanedUpCondition})');\n        `;
+        const logStatement = `${loggerName}.debug('if (${cleanedUpCondition})');\n        `;
 
-      if (blockBody) {
-        return `if (${condition}) {\n        ${logStatement}${blockBody}}`;
-      } else if (singleLineBody) {
-        const cleanBody = singleLineBody.replace(/;$/, '').trim();
-        return `if (${condition}) {\n        ${logStatement}${cleanBody};\n    }`;
-      }
-      return match;
-    });
+        if (blockBody) {
+          return `if (${condition}) {\n        ${logStatement}${blockBody}}`;
+        } else if (singleLineBody) {
+          const cleanBody = singleLineBody.replace(/;$/, '').trim();
+          return `if (${condition}) {\n        ${logStatement}${cleanBody};\n    }`;
+        }
+        return match;
+      },
+    );
 
     // Process else blocks using nearest if condition
     modified = modified.replace(elseRegex, (match, blockBody, singleLineBody, offset) => {
       // Find last if statement before this else
       const nearestIf = conditions
-        .filter(c => c.position <= offset)
-        .reduce((prev, curr) =>
-          (!prev || curr.position > prev.position) ? curr : prev
-        );
+        .filter((c) => c.position <= offset)
+        .reduce((prev, curr) => (!prev || curr.position > prev.position ? curr : prev));
 
       const logStatement = nearestIf
         ? `${loggerName}.debug('else for if (${nearestIf.condition})');\n        `
@@ -155,7 +164,7 @@ export default class RflibLoggingLwcInstrument extends SfCommand<RflibLoggingLwc
     return modified;
   }
 
-  private static processMethodLogging(content: string, loggerName: string): string {
+  private static processMethodLogging(content: string, loggerName: string, flags: InstrumentationFlags): string {
     // First handle methods
     let modified = content.replace(methodRegex, (match: string, methodName: string, args: string) => {
       const parameters = args
@@ -169,7 +178,9 @@ export default class RflibLoggingLwcInstrument extends SfCommand<RflibLoggingLwc
     });
 
     // Then handle if statements
-    modified = this.processIfStatements(modified, loggerName);
+    if (!flags.noIf) {
+      modified = this.processIfStatements(modified, loggerName);
+    }
 
     return modified;
   }
@@ -232,10 +243,15 @@ export default class RflibLoggingLwcInstrument extends SfCommand<RflibLoggingLwc
     this.logger = await Logger.child(this.ctor.name);
     const { flags } = await this.parse(RflibLoggingLwcInstrument);
 
+    const instrumentationFlags = {
+      prettier: flags.prettier,
+      noIf: flags['no-if'],
+    };
+
     this.log(`Scanning LWC components in ${flags.sourcepath}...`);
 
     this.spinner.start('Running...');
-    await this.processDirectory(flags.sourcepath, flags.dryrun, flags.prettier);
+    await this.processDirectory(flags.sourcepath, flags.dryrun, instrumentationFlags);
     this.spinner.stop();
 
     this.log(`\nInstrumentation complete.`);
@@ -250,7 +266,7 @@ export default class RflibLoggingLwcInstrument extends SfCommand<RflibLoggingLwc
     };
   }
 
-  private async processDirectory(dirPath: string, isDryRun: boolean, usePrettier: boolean): Promise<void> {
+  private async processDirectory(dirPath: string, isDryRun: boolean, flags: InstrumentationFlags): Promise<void> {
     const files = await fs.promises.readdir(dirPath);
 
     for (const file of files) {
@@ -258,16 +274,22 @@ export default class RflibLoggingLwcInstrument extends SfCommand<RflibLoggingLwc
       const stat = await fs.promises.stat(filePath);
 
       if (stat.isDirectory()) {
-        await this.processDirectory(filePath, isDryRun, usePrettier);
-      } else if (file.endsWith('.js') && !path.dirname(filePath).includes('aura') && !path.dirname(filePath).includes('__tests__')) {
-        await this.instrumentLwcFile(filePath, isDryRun, usePrettier);
+        await this.processDirectory(filePath, isDryRun, flags);
+      } else if (
+        file.endsWith('.js') &&
+        !path.dirname(filePath).includes('aura') &&
+        !path.dirname(filePath).includes('__tests__')
+      ) {
+        await this.instrumentLwcFile(filePath, isDryRun, flags);
       }
     }
   }
 
-  private async instrumentLwcFile(filePath: string, isDryRun: boolean, usePrettier: boolean): Promise<void> {
+  private async instrumentLwcFile(filePath: string, isDryRun: boolean, flags: InstrumentationFlags): Promise<void> {
     const componentName = path.basename(path.dirname(filePath));
     this.logger.debug(`Processing LWC: ${componentName}`);
+
+    const usePrettier = flags.prettier;
 
     try {
       this.processedFiles++;
@@ -276,7 +298,7 @@ export default class RflibLoggingLwcInstrument extends SfCommand<RflibLoggingLwc
 
       const { loggerName } = RflibLoggingLwcInstrument.detectExistingLogger(content);
       content = RflibLoggingLwcInstrument.addImportAndLogger(content, componentName);
-      content = RflibLoggingLwcInstrument.processMethodLogging(content, loggerName);
+      content = RflibLoggingLwcInstrument.processMethodLogging(content, loggerName, flags);
       content = RflibLoggingLwcInstrument.processTryCatchBlocks(content, loggerName);
       content = RflibLoggingLwcInstrument.processPromiseChains(content, loggerName);
 

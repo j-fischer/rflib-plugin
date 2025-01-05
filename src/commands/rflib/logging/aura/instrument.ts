@@ -12,11 +12,14 @@ import * as prettier from 'prettier';
 Messages.importMessagesDirectoryFromMetaUrl(import.meta.url);
 const messages = Messages.loadMessages('rflib-plugin', 'rflib.logging.aura.instrument');
 
-const loggerComponentRegex = /<c:rflibLoggerCmp\s+aura:id="([^"]+)"\s+name="([^"]+)"\s+appendComponentId="([^"]+)"\s*\/>/;
+const loggerComponentRegex =
+  /<c:rflibLoggerCmp\s+aura:id="([^"]+)"\s+name="([^"]+)"\s+appendComponentId="([^"]+)"\s*\/>/;
 const attributeRegex = /<aura:attribute[^>]*>/g;
 const loggerVarRegex = /var\s+(\w+)\s*=\s*component\.find\(['"](\w+)['"]\)/;
-const methodRegex = /(\b\w+)\s*:\s*function\s*\((.*?)\)\s*{((?:[^{}]|{(?:[^{}]|{(?:[^{}]|{(?:[^{}]|{(?:[^{}]|{[^{}]*})*})*})*})*})*?)}/g;
-const promiseChainRegex = /\.(then|catch|finally)\s*\(\s*(?:async\s+)?(?:\(?([^)]*)\)?)?\s*=>\s*(?:{([\s\S]*?)}|([^{].*?)(?=\.|\)|\n|;|$))/g;
+const methodRegex =
+  /(\b\w+)\s*:\s*function\s*\((.*?)\)\s*{((?:[^{}]|{(?:[^{}]|{(?:[^{}]|{(?:[^{}]|{(?:[^{}]|{[^{}]*})*})*})*})*})*?)}/g;
+const promiseChainRegex =
+  /\.(then|catch|finally)\s*\(\s*(?:async\s+)?(?:\(?([^)]*)\)?)?\s*=>\s*(?:{([\s\S]*?)}|([^{].*?)(?=\.|\)|\n|;|$))/g;
 const tryCatchBlockRegex = /try\s*{[\s\S]*?}\s*catch\s*\(([^)]*)\)\s*{/g;
 const ifStatementRegex = /if\s*\((.*?)\)\s*(?:{([^]*?(?:(?<!{){(?:[^]*?)}(?!})[^]*?)*)}|([^{].*?)(?=\s*(?:;|$));)/g;
 const elseRegex = /}\s*else(?!\s+if\b)\s*(?:{((?:[^{}]|{(?:[^{}]|{[^{}]*})*})*)}|([^{].*?)(?=\n|;|$))/g;
@@ -24,6 +27,11 @@ const elseRegex = /}\s*else(?!\s+if\b)\s*(?:{((?:[^{}]|{(?:[^{}]|{[^{}]*})*})*)}
 type IfCondition = {
   condition: string;
   position: number;
+};
+
+type InstrumentationFlags = {
+  prettier: boolean;
+  noIf: boolean;
 };
 
 export type RflibLoggingAuraInstrumentResult = {
@@ -56,6 +64,9 @@ export default class RflibLoggingAuraInstrument extends SfCommand<RflibLoggingAu
       summary: messages.getMessage('flags.prettier.summary'),
       description: messages.getMessage('flags.prettier.description'),
     }),
+    'no-if': Flags.boolean({
+      summary: messages.getMessage('flags.no-if.summary'),
+    }),
   };
 
   private logger!: Logger;
@@ -69,16 +80,19 @@ export default class RflibLoggingAuraInstrument extends SfCommand<RflibLoggingAu
     tabWidth: 4,
     useTabs: false,
     singleQuote: true,
-    trailingComma: "none"
+    trailingComma: 'none',
   };
 
-  private static processMethodLogging(logger: Logger, content: string, loggerId: string, filePath: string): string {
+  private static processMethodLogging(logger: Logger, content: string, loggerId: string, filePath: string, flags: InstrumentationFlags): string {
     const isHelper = filePath.endsWith('Helper.js');
 
     return content.replace(methodRegex, (match: string, methodName: string, params: string, body: string) => {
       logger.trace(`Processing method: ${methodName}`);
 
-      const paramList = params.split(',').map(p => p.trim()).filter(p => p);
+      const paramList = params
+        .split(',')
+        .map((p) => p.trim())
+        .filter((p) => p);
       let loggerVar = 'logger';
       let bodyContent = body;
 
@@ -93,7 +107,8 @@ export default class RflibLoggingAuraInstrument extends SfCommand<RflibLoggingAu
         loggerVar = loggerMatch[1];
         // Insert log after existing logger declaration
         const loggerIndex = body.indexOf(loggerMatch[0]) + loggerMatch[0].length;
-        bodyContent = body.slice(0, loggerIndex) +
+        bodyContent =
+          body.slice(0, loggerIndex) +
           `\n        ${loggerVar}.info('${methodName}(${placeholders})'${logParams});` +
           body.slice(loggerIndex);
       } else {
@@ -103,7 +118,9 @@ export default class RflibLoggingAuraInstrument extends SfCommand<RflibLoggingAu
       }
 
       // Then handle if statements
-      bodyContent = this.processIfStatements(bodyContent, loggerVar);
+      if (!flags.noIf) {
+        bodyContent = this.processIfStatements(bodyContent, loggerVar);
+      }
 
       return `${methodName}: function(${params}) {${bodyContent}}`;
     });
@@ -147,9 +164,10 @@ export default class RflibLoggingAuraInstrument extends SfCommand<RflibLoggingAu
     return content.replace(tryCatchBlockRegex, (match: string, exceptionVar: string) => {
       const errorVar = exceptionVar.trim().split(' ')[0] || 'error';
 
-      return match.replace(/catch\s*\(([^)]*)\)\s*{/,
+      return match.replace(
+        /catch\s*\(([^)]*)\)\s*{/,
         `catch(${exceptionVar}) {
-          logger.error('An error occurred', ${errorVar});`
+          logger.error('An error occurred', ${errorVar});`,
       );
     });
   }
@@ -158,32 +176,33 @@ export default class RflibLoggingAuraInstrument extends SfCommand<RflibLoggingAu
     const conditions: IfCondition[] = [];
 
     // Process if statements and store conditions with positions
-    let modified = content.replace(ifStatementRegex, (match: string, condition: string, blockBody: string, singleLineBody: string, offset: number) => {
-      const cleanedUpCondition = condition.trim().replaceAll("'", "\\'");
-      conditions.push({
-        condition: cleanedUpCondition,
-        position: offset
-      });
+    let modified = content.replace(
+      ifStatementRegex,
+      (match: string, condition: string, blockBody: string, singleLineBody: string, offset: number) => {
+        const cleanedUpCondition = condition.trim().replaceAll("'", "\\'");
+        conditions.push({
+          condition: cleanedUpCondition,
+          position: offset,
+        });
 
-      const logStatement = `${loggerName}.debug('if (${cleanedUpCondition})');\n        `;
+        const logStatement = `${loggerName}.debug('if (${cleanedUpCondition})');\n        `;
 
-      if (blockBody) {
-        return `if (${condition}) {\n        ${logStatement}${blockBody}}`;
-      } else if (singleLineBody) {
-        const cleanBody = singleLineBody.replace(/;$/, '').trim();
-        return `if (${condition}) {\n        ${logStatement}${cleanBody};\n    }`;
-      }
-      return match;
-    });
+        if (blockBody) {
+          return `if (${condition}) {\n        ${logStatement}${blockBody}}`;
+        } else if (singleLineBody) {
+          const cleanBody = singleLineBody.replace(/;$/, '').trim();
+          return `if (${condition}) {\n        ${logStatement}${cleanBody};\n    }`;
+        }
+        return match;
+      },
+    );
 
     // Process else blocks using nearest if condition
     modified = modified.replace(elseRegex, (match, blockBody, singleLineBody, offset) => {
       // Find last if statement before this else
       const nearestIf = conditions
-        .filter(c => c.position < offset)
-        .reduce((prev, curr) =>
-          (!prev || curr.position > prev.position) ? curr : prev
-        );
+        .filter((c) => c.position < offset)
+        .reduce((prev, curr) => (!prev || curr.position > prev.position ? curr : prev));
 
       const logStatement = nearestIf
         ? `${loggerName}.debug('else for if (${nearestIf.condition})');\n        `
@@ -204,11 +223,16 @@ export default class RflibLoggingAuraInstrument extends SfCommand<RflibLoggingAu
     this.logger = await Logger.child(this.ctor.name);
     const { flags } = await this.parse(RflibLoggingAuraInstrument);
 
+    const instrumentationFlags = {
+      prettier: flags.prettier,
+      noIf: flags['no-if'],
+    };
+
     this.log(`Starting Aura component instrumentation in ${flags.sourcepath}`);
     this.logger.debug(`Dry run mode: ${flags.dryrun}`);
 
     this.spinner.start('Running...');
-    await this.processDirectory(flags.sourcepath, flags.dryrun, flags.prettier);
+    await this.processDirectory(flags.sourcepath, flags.dryrun, instrumentationFlags);
     this.spinner.stop();
 
     this.log(`\nInstrumentation complete.`);
@@ -223,7 +247,7 @@ export default class RflibLoggingAuraInstrument extends SfCommand<RflibLoggingAu
     };
   }
 
-  private async processDirectory(dirPath: string, isDryRun: boolean, usePrettier: boolean): Promise<void> {
+  private async processDirectory(dirPath: string, isDryRun: boolean, flags: InstrumentationFlags): Promise<void> {
     this.logger.debug(`Processing directory: ${dirPath}`);
 
     // Check if path is direct component
@@ -231,7 +255,7 @@ export default class RflibLoggingAuraInstrument extends SfCommand<RflibLoggingAu
     const parentDir = path.basename(path.dirname(dirPath));
     if (parentDir === 'aura') {
       this.logger.info(`Processing single component: ${dirName}`);
-      await this.processAuraComponent(dirPath, dirName, isDryRun, usePrettier);
+      await this.processAuraComponent(dirPath, dirName, isDryRun, flags);
       return;
     }
 
@@ -244,15 +268,15 @@ export default class RflibLoggingAuraInstrument extends SfCommand<RflibLoggingAu
       if (entry.isDirectory()) {
         if (entry.name === 'aura') {
           this.logger.info(`Found Aura directory: ${fullPath}`);
-          await this.processAuraComponents(fullPath, isDryRun, usePrettier);
+          await this.processAuraComponents(fullPath, isDryRun, flags);
         } else {
-          await this.processDirectory(fullPath, isDryRun, usePrettier);
+          await this.processDirectory(fullPath, isDryRun, flags);
         }
       }
     }
   }
 
-  private async processAuraComponents(auraPath: string, isDryRun: boolean, usePrettier: boolean): Promise<void> {
+  private async processAuraComponents(auraPath: string, isDryRun: boolean, flags: InstrumentationFlags): Promise<void> {
     // Check if path is already an aura directory
     if (path.basename(auraPath) !== 'aura') {
       this.logger.warn(`Not an aura directory: ${auraPath}`);
@@ -264,13 +288,19 @@ export default class RflibLoggingAuraInstrument extends SfCommand<RflibLoggingAu
     for (const entry of entries) {
       if (entry.isDirectory()) {
         const componentPath = path.join(auraPath, entry.name);
-        await this.processAuraComponent(componentPath, entry.name, isDryRun, usePrettier);
+        await this.processAuraComponent(componentPath, entry.name, isDryRun, flags);
       }
     }
   }
 
-  private async processAuraComponent(componentPath: string, componentName: string, isDryRun: boolean, usePrettier: boolean): Promise<void> {
+  private async processAuraComponent(
+    componentPath: string,
+    componentName: string,
+    isDryRun: boolean,
+    flags: InstrumentationFlags,
+  ): Promise<void> {
     this.logger.info(`Processing Aura component: ${componentName}`);
+
     const cmpPath = path.join(componentPath, `${componentName}.cmp`);
     const controllerPath = path.join(componentPath, `${componentName}Controller.js`);
     const helperPath = path.join(componentPath, `${componentName}Helper.js`);
@@ -280,9 +310,9 @@ export default class RflibLoggingAuraInstrument extends SfCommand<RflibLoggingAu
       const loggerId = await this.instrumentCmpFile(cmpPath, componentName, isDryRun);
       this.logger.debug(`Using logger ID: ${loggerId}`);
 
-      await this.instrumentJsFile(controllerPath, loggerId, isDryRun, usePrettier);
-      await this.instrumentJsFile(helperPath, loggerId, isDryRun, usePrettier);
-      await this.instrumentJsFile(rendererPath, loggerId, isDryRun, usePrettier);
+      await this.instrumentJsFile(controllerPath, loggerId, isDryRun, flags);
+      await this.instrumentJsFile(helperPath, loggerId, isDryRun, flags);
+      await this.instrumentJsFile(rendererPath, loggerId, isDryRun, flags);
     } catch (error) {
       this.logger.error(`Error processing Aura ${componentName}`, error);
     }
@@ -321,7 +351,12 @@ export default class RflibLoggingAuraInstrument extends SfCommand<RflibLoggingAu
     return 'logger';
   }
 
-  private async instrumentJsFile(filePath: string, loggerId: string, isDryRun: boolean, usePrettier: boolean): Promise<void> {
+  private async instrumentJsFile(
+    filePath: string,
+    loggerId: string,
+    isDryRun: boolean,
+    flags: InstrumentationFlags,
+  ): Promise<void> {
     if (!fs.existsSync(filePath)) {
       this.logger.debug(`JavaScript file not found: ${filePath}`);
       return;
@@ -332,8 +367,10 @@ export default class RflibLoggingAuraInstrument extends SfCommand<RflibLoggingAu
     let content = await fs.promises.readFile(filePath, 'utf8');
     const originalContent = content;
 
+    const usePrettier = flags.prettier;
+
     // Process methods
-    content = RflibLoggingAuraInstrument.processMethodLogging(this.logger, content, loggerId, filePath);
+    content = RflibLoggingAuraInstrument.processMethodLogging(this.logger, content, loggerId, filePath, flags);
     content = RflibLoggingAuraInstrument.processPromiseChains(content);
     content = RflibLoggingAuraInstrument.processTryCatchBlocks(content);
 

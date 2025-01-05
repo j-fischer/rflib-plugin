@@ -1,8 +1,14 @@
 import * as fs from 'node:fs';
 import * as path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { expect } from 'chai';
 import { TestSession } from '@salesforce/cli-plugins-testkit';
 import RflibLoggingAuraInstrument from '../../../../../src/commands/rflib/logging/aura/instrument.js';
+
+/* eslint-disable no-underscore-dangle */
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+/* eslint-enable no-underscore-dangle */
 
 describe('rflib logging aura instrument', () => {
   let testSession: TestSession;
@@ -11,59 +17,32 @@ describe('rflib logging aura instrument', () => {
   let sampleCmpPath: string;
   let sampleControllerPath: string;
   let sampleHelperPath: string;
+  let originalContent: { [key: string]: string };
   let modifiedContent: { [key: string]: string };
 
   before(async () => {
     testSession = await TestSession.create();
-    sourceDir = path.join(testSession.dir, 'force-app',);
+    sourceDir = path.join(testSession.dir, 'force-app');
     testDir = path.join(sourceDir, 'main', 'default', 'aura', 'sampleComponent');
     fs.mkdirSync(testDir, { recursive: true });
-
-    const sampleCmp = `
-<aura:component>
-    <aura:attribute name="value" type="String" default="" />
-    <aura:attribute name="isValid" type="Boolean" default="false" />
-</aura:component>`;
-
-    const sampleController = `({
-    handleClick: function(component, event, helper) {
-        try {
-            helper.loadData(component);
-        } catch(error) {
-            console.error(error);
-        }
-    },
-    
-    processResult: function(component, event, helper) {
-        var data = event.getParam('data');
-        if (data.isValid) {
-            component.set("v.value", data.value);
-        }
-    }
-})`;
-
-    const sampleHelper = `({
-    loadData: function(component, params) {
-        var action = component.get("c.getData");
-        action.setParams(params);
-        action.setCallback(this, function(response) {
-            if (response.getState() === "SUCCESS") {
-                component.set("v.value", response.getReturnValue());
-            }
-        });
-        $A.enqueueAction(action);
-    }
-})`;
 
     sampleCmpPath = path.join(testDir, 'sampleComponent.cmp');
     sampleControllerPath = path.join(testDir, 'sampleComponentController.js');
     sampleHelperPath = path.join(testDir, 'sampleComponentHelper.js');
 
-    fs.writeFileSync(sampleCmpPath, sampleCmp);
-    fs.writeFileSync(sampleControllerPath, sampleController);
-    fs.writeFileSync(sampleHelperPath, sampleHelper);
+    // Load sample files from test directory
+    originalContent = {
+      cmp: fs.readFileSync(path.join(__dirname, 'sample', 'sample.cmp'), 'utf8'),
+      controller: fs.readFileSync(path.join(__dirname, 'sample', 'sampleController.js'), 'utf8'),
+      helper: fs.readFileSync(path.join(__dirname, 'sample', 'sampleHelper.js'), 'utf8')
+    };
 
-    await RflibLoggingAuraInstrument.run(['--sourcepath', path.dirname(sourceDir)]);
+    // Copy sample files to test directory
+    fs.writeFileSync(sampleCmpPath, originalContent.cmp);
+    fs.writeFileSync(sampleControllerPath, originalContent.controller);
+    fs.writeFileSync(sampleHelperPath, originalContent.helper);
+
+    await RflibLoggingAuraInstrument.run(['--sourcepath', sourceDir]);
 
     modifiedContent = {
       cmp: fs.readFileSync(sampleCmpPath, 'utf8'),
@@ -112,5 +91,26 @@ describe('rflib logging aura instrument', () => {
     const formattedContent = fs.readFileSync(sampleControllerPath, 'utf8');
     expect(formattedContent).to.include(';');
     expect(formattedContent).to.match(/\n {4}/);
+  });
+
+  it('should skip if statement instrumentation when no-if flag is used', async () => {
+    // Reset test files
+    fs.writeFileSync(sampleControllerPath, originalContent.controller);
+    fs.writeFileSync(sampleHelperPath, originalContent.helper);
+
+    await RflibLoggingAuraInstrument.run(['--sourcepath', sourceDir, '--no-if']);
+
+    const controllerContent = fs.readFileSync(sampleControllerPath, 'utf8');
+    const helperContent = fs.readFileSync(sampleHelperPath, 'utf8');
+
+    // Should have regular logging
+    expect(controllerContent).to.include("logger.info('handleClick({0})', [event])");
+    expect(helperContent).to.include("logger.info('loadData({0}, {1})', [component, params])");
+    expect(controllerContent).to.include("logger.error('An error occurred', error)");
+
+    // Should not have if/else logging
+    expect(controllerContent).not.to.include("logger.debug('if (data.isValid)");
+    expect(helperContent).not.to.include("logger.debug('if (response.getState()");
+    expect(controllerContent).not.to.include("logger.debug('else");
   });
 });

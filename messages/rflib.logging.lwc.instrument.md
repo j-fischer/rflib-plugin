@@ -49,6 +49,14 @@ When enabled, formats the modified JavaScript files using Prettier after adding 
 - Single quotes for strings
 - No tabs
 
+# flags.no-if.summary
+
+Exclude the instrumentation of if-else statements.
+
+# flags.no-if.description
+
+When provided, the command will not add log statements inside of `if` and `else` blocks.
+
 # examples
 
 - Add logging to all LWC files:
