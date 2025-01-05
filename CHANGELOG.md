@@ -4,6 +4,8 @@
 ### Features
 
 * added --no-if flag that will skip the instrumentation of "if" and "else" blocks ([3f06d40](https://github.com/j-fischer/rflib-plugin/commit/3f06d40b291863dc153eb87ea6af18ee8f8085d4))
+* add If-Statement Logging to Apex Code Instrumentation
+* improved instrumentation of if-statements in LWC command
 
 
 
