@@ -1,11 +1,19 @@
+## [0.3.1](https://github.com/j-fischer/rflib-plugin/compare/0.3.0...0.3.1) (2025-01-12)
+
+
+### Bug Fixes
+
+* **deps:** bump @oclif/core from 4.2.0 to 4.2.2 ([147addd](https://github.com/j-fischer/rflib-plugin/commit/147addd8c283843b802de4f66952c3c029b5aac8))
+* **deps:** bump @salesforce/sf-plugins-core from 12.1.1 to 12.1.2 ([66f01b8](https://github.com/j-fischer/rflib-plugin/commit/66f01b8269fe3505f0aa6539c9bca80f68bfe2fd))
+
+
+
 # [0.3.0](https://github.com/j-fischer/rflib-plugin/compare/0.2.0...0.3.0) (2025-01-05)
 
 
 ### Features
 
 * added --no-if flag that will skip the instrumentation of "if" and "else" blocks ([3f06d40](https://github.com/j-fischer/rflib-plugin/commit/3f06d40b291863dc153eb87ea6af18ee8f8085d4))
-* add If-Statement Logging to Apex Code Instrumentation
-* improved instrumentation of if-statements in LWC command
 
 
 
