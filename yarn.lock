@@ -1565,10 +1565,10 @@
     lodash "^4.17.21"
     registry-auth-token "^5.0.3"
 
-"@oclif/table@^0.3.2":
-  version "0.3.9"
-  resolved "https://registry.yarnpkg.com/@oclif/table/-/table-0.3.9.tgz#9bbdfe64c6da94da20d668bd244b3c2dabb7ae6e"
-  integrity sha512-JjWIg6kZ4of8D9++9xAkc39CWCBayPlrzI7NCEqtu8GxV39YALCNl8462JoSGcasPl85IQ9N7jiTSMFkIK7hfA==
+"@oclif/table@^0.4.0":
+  version "0.4.0"
+  resolved "https://registry.yarnpkg.com/@oclif/table/-/table-0.4.0.tgz#3bf97121a4fc3524801883f550eeb0fd822852a9"
+  integrity sha512-cXmZDb0VcxIk8o5cvd8J4CUtMGJeTuEDC8wQmlZC55Dl9FHcWE9TdZxksWLLp4w0qKP0YfJCFSvfGPMeMPyO5Q==
   dependencies:
     "@oclif/core" "^4"
     "@types/react" "^18.3.12"
@@ -1727,14 +1727,14 @@
   integrity sha512-LiN37zG5ODT6z70sL1fxF7BQwtCX9JOWofSU8iliSNIM+WDEeinnoFtVqPInRSNt8I0RiJxIKCrqstsmQRBNvA==
 
 "@salesforce/sf-plugins-core@^12":
-  version "12.1.1"
-  resolved "https://registry.yarnpkg.com/@salesforce/sf-plugins-core/-/sf-plugins-core-12.1.1.tgz#20ae5246b1f458643c2fd04bb639b76085db1cff"
-  integrity sha512-88Vna77gYLj1b9X/aduCsl/5KFthhoM43+o30+0UEAWf93xED1nahmbw7jcJJoiTkaSzLZq08vZfh6X24AyWqg==
+  version "12.1.2"
+  resolved "https://registry.yarnpkg.com/@salesforce/sf-plugins-core/-/sf-plugins-core-12.1.2.tgz#0c4fba3787ee670014c8bca447c2fc59fb9c3ec3"
+  integrity sha512-qrmGZr2mG7uOpqhOpeOJjBEVztM7Mt8B10lD3rG+aOBZQelTm3YQ738yZYcwHjksQW3AOyf0QtqZICCfe0nD8A==
   dependencies:
     "@inquirer/confirm" "^3.1.22"
     "@inquirer/password" "^2.2.0"
     "@oclif/core" "^4.0.34"
-    "@oclif/table" "^0.3.2"
+    "@oclif/table" "^0.4.0"
     "@salesforce/core" "^8.5.1"
     "@salesforce/kit" "^3.2.3"
     "@salesforce/ts-types" "^2.0.12"
