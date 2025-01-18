@@ -30,6 +30,7 @@ type IfCondition = {
 type InstrumentationFlags = {
   prettier: boolean;
   noIf: boolean;
+  skipInstrumented: boolean;
 };
 
 export type RflibLoggingLwcInstrumentResult = {
@@ -64,6 +65,13 @@ export default class RflibLoggingLwcInstrument extends SfCommand<RflibLoggingLwc
     }),
     'no-if': Flags.boolean({
       summary: messages.getMessage('flags.no-if.summary'),
+      description: messages.getMessage('flags.no-if.description'),
+      default: false,
+    }),
+    'skip-instrumented': Flags.boolean({
+      summary: messages.getMessage('flags.skip-instrumented.summary'),
+      description: messages.getMessage('flags.skip-instrumented.description'),
+      default: false,
     }),
   };
 
@@ -239,6 +247,10 @@ export default class RflibLoggingLwcInstrument extends SfCommand<RflibLoggingLwc
     });
   }
 
+  private static isInstrumented(content: string): boolean {
+    return importRegex.test(content);
+  }
+
   public async run(): Promise<RflibLoggingLwcInstrumentResult> {
     this.logger = await Logger.child(this.ctor.name);
     const { flags } = await this.parse(RflibLoggingLwcInstrument);
@@ -246,6 +258,7 @@ export default class RflibLoggingLwcInstrument extends SfCommand<RflibLoggingLwc
     const instrumentationFlags = {
       prettier: flags.prettier,
       noIf: flags['no-if'],
+      skipInstrumented: flags['skip-instrumented'],
     };
 
     this.log(`Scanning LWC components in ${flags.sourcepath}...`);
@@ -295,6 +308,11 @@ export default class RflibLoggingLwcInstrument extends SfCommand<RflibLoggingLwc
       this.processedFiles++;
       let content = await fs.promises.readFile(filePath, 'utf8');
       const originalContent = content;
+
+      if (flags.skipInstrumented && RflibLoggingLwcInstrument.isInstrumented(content)) {
+        this.logger.info(`Skipping instrumented component: ${componentName}`);
+        return;
+      }
 
       const { loggerName } = RflibLoggingLwcInstrument.detectExistingLogger(content);
       content = RflibLoggingLwcInstrument.addImportAndLogger(content, componentName);

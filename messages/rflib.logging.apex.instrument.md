@@ -44,6 +44,15 @@ Exclude the instrumentation of if-else statements.
 
 When provided, the command will not add log statements inside of `if` and `else` blocks.
 
+
+# flags.skip-instrumented.summary
+
+Skips any files where a logger is already present.
+
+# flags.skip-instrumented.description
+
+When provided, the command will not add log statements to any Apex class that contains the `rflib_Logger` reference.
+
 # examples
 
 - Add logging statements to all Apex classes in a directory:
@@ -57,4 +66,3 @@ $ sf rflib logging apex instrument --sourcepath force-app/main/default/classes -
 - Add logging statements and format code:
 
 $ sf rflib logging apex instrument --sourcepath force-app/main/default/classes --prettier
-

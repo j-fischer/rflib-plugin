@@ -32,6 +32,7 @@ type IfCondition = {
 type InstrumentationFlags = {
   prettier: boolean;
   noIf: boolean;
+  skipInstrumented: boolean;
 };
 
 export type RflibLoggingAuraInstrumentResult = {
@@ -66,6 +67,13 @@ export default class RflibLoggingAuraInstrument extends SfCommand<RflibLoggingAu
     }),
     'no-if': Flags.boolean({
       summary: messages.getMessage('flags.no-if.summary'),
+      description: messages.getMessage('flags.no-if.description'),
+      default: false,
+    }),
+    'skip-instrumented': Flags.boolean({
+      summary: messages.getMessage('flags.skip-instrumented.summary'),
+      description: messages.getMessage('flags.skip-instrumented.description'),
+      default: false,
     }),
   };
 
@@ -83,7 +91,13 @@ export default class RflibLoggingAuraInstrument extends SfCommand<RflibLoggingAu
     trailingComma: 'none',
   };
 
-  private static processMethodLogging(logger: Logger, content: string, loggerId: string, filePath: string, flags: InstrumentationFlags): string {
+  private static processMethodLogging(
+    logger: Logger,
+    content: string,
+    loggerId: string,
+    filePath: string,
+    flags: InstrumentationFlags,
+  ): string {
     const isHelper = filePath.endsWith('Helper.js');
 
     return content.replace(methodRegex, (match: string, methodName: string, params: string, body: string) => {
@@ -219,6 +233,10 @@ export default class RflibLoggingAuraInstrument extends SfCommand<RflibLoggingAu
     return modified;
   }
 
+  private static isInstrumented(content: string): boolean {
+    return loggerComponentRegex.test(content);
+  }
+
   public async run(): Promise<RflibLoggingAuraInstrumentResult> {
     this.logger = await Logger.child(this.ctor.name);
     const { flags } = await this.parse(RflibLoggingAuraInstrument);
@@ -226,6 +244,7 @@ export default class RflibLoggingAuraInstrument extends SfCommand<RflibLoggingAu
     const instrumentationFlags = {
       prettier: flags.prettier,
       noIf: flags['no-if'],
+      skipInstrumented: flags['skip-instrumented'],
     };
 
     this.log(`Starting Aura component instrumentation in ${flags.sourcepath}`);
@@ -302,6 +321,16 @@ export default class RflibLoggingAuraInstrument extends SfCommand<RflibLoggingAu
     this.logger.info(`Processing Aura component: ${componentName}`);
 
     const cmpPath = path.join(componentPath, `${componentName}.cmp`);
+
+    // Check if component is already instrumented
+    if (flags.skipInstrumented && fs.existsSync(cmpPath)) {
+      const content = await fs.promises.readFile(cmpPath, 'utf8');
+      if (RflibLoggingAuraInstrument.isInstrumented(content)) {
+        this.logger.info(`Skipping instrumented component: ${componentName}`);
+        return;
+      }
+    }
+
     const controllerPath = path.join(componentPath, `${componentName}Controller.js`);
     const helperPath = path.join(componentPath, `${componentName}Helper.js`);
     const rendererPath = path.join(componentPath, `${componentName}Renderer.js`);
