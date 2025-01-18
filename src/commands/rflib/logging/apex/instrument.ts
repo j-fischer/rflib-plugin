@@ -54,7 +54,7 @@ class ApexInstrumentationService {
   private static readonly CATCH_REGEX = /catch\s*\(\s*\w+\s+(\w+)\s*\)\s*{/g;
   private static readonly IF_STATEMENT_REGEX = /if\s*\((.*?)\)\s*(?:{([^]*?(?:(?<!{){(?:[^]*?)}(?!})[^]*?)*)}|([^{].*?)(?=\s*(?:;|$));)/g;
   private static readonly ELSE_REGEX = /}\s*else(?!\s+if\b)\s*(?:{((?:[^{}]|{(?:[^{}]|{[^{}]*})*})*)}|([^{].*?)(?=\n|;|$))/g;
-  private static readonly IS_INSTRUMENTED_REGEX = /\brflib_Logger\b/;
+  private static readonly IS_INSTRUMENTED_REGEX = /(\brflib_Logger\b|\brflib_TestUtil\b)/;
 
   private static readonly PRIMITIVE_TYPES = new Set([
     'STRING', 'INTEGER', 'LONG', 'DECIMAL', 'DOUBLE', 'BOOLEAN',
@@ -299,17 +299,22 @@ export default class RflibLoggingApexInstrument extends SfCommand<RflibLoggingAp
       if (stat.isDirectory()) {
         await this.processDirectory(filePath, isDryRun, instrumentationOpts);
       } else if (file.endsWith('Test.cls')) {
-        await this.processTestFile(filePath, isDryRun);
+        await this.processTestFile(filePath, isDryRun, instrumentationOpts);
       } else if (file.endsWith('.cls')) {
         await this.instrumentApexClass(filePath, isDryRun, instrumentationOpts);
       }
     }
   }
 
-  private async processTestFile(filePath: string, isDryRun: boolean): Promise<void> {
+  private async processTestFile(filePath: string, isDryRun: boolean, instrumentationOpts: InstrumentationOptions): Promise<void> {
     this.logger.debug(`Processing test file: ${filePath}`);
     let content = await fs.promises.readFile(filePath, 'utf8');
     const originalContent = content;
+
+    if (instrumentationOpts.skipInstrumented && ApexInstrumentationService.isInstrumented(content)) {
+      this.logger.info(`Skipping instrumented test class: ${filePath}`);
+      return;
+    }
 
     content = content.replace(
       ApexInstrumentationService.TEST_SETUP_REGEX,
