@@ -1,3 +1,12 @@
+# [0.4.0](https://github.com/j-fischer/rflib-plugin/compare/0.3.3...0.4.0) (2025-01-19)
+
+
+### Features
+
+* added --skip-instrumented flag for selective logging instrumentation ([4fd20bb](https://github.com/j-fischer/rflib-plugin/commit/4fd20bb31f5ed09edc5f2a6da6b80a6e9f2dc17e))
+
+
+
 ## [0.3.3](https://github.com/j-fischer/rflib-plugin/compare/0.3.2...0.3.3) (2025-01-19)
 
 
