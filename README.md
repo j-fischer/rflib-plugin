@@ -31,6 +31,9 @@ sf rflib logging apex instrument --sourcepath force-app --dryrun
 
 # Format modified files with Prettier
 sf rflib logging apex instrument --sourcepath force-app --prettier
+
+# Skip instrumenting files where logging is already present
+sf rflib logging apex instrument --sourcepath force-app --skip-instrumented
 ```
 
 #### Command Options
@@ -38,6 +41,7 @@ sf rflib logging apex instrument --sourcepath force-app --prettier
 - `--sourcepath (-s)`: Directory containing Apex classes to instrument
 - `--dryrun (-d)`: Preview changes without modifying files
 - `--prettier (-p)`: Format modified files using Prettier
+- `--skip-instrumented`: Do not instrument files where RFLIB logging is already present
 
 ### `sf rflib logging lwc instrument`
 
@@ -52,6 +56,9 @@ sf rflib logging lwc instrument --sourcepath force-app --dryrun
 
 # Add logging and format code
 sf rflib logging lwc instrument --sourcepath force-app --prettier
+
+# Skip instrumenting files where logging is already present
+sf rflib logging lwc instrument --sourcepath force-app --skip-instrumented
 ```
 
 #### Command Options
@@ -59,6 +66,7 @@ sf rflib logging lwc instrument --sourcepath force-app --prettier
 - `--sourcepath (-s)`: Directory containing Apex classes to instrument
 - `--dryrun (-d)`: Preview changes without modifying files
 - `--prettier (-p)`: Format modified files using Prettier
+- `--skip-instrumented`: Do not instrument files where RFLIB logging is already present
 
 ### `sf rflib logging aura instrument`
 
@@ -73,6 +81,9 @@ sf rflib logging aura instrument --sourcepath force-app --dryrun
 
 # Add logging and format code
 sf rflib logging aura instrument --sourcepath force-app --prettier
+
+# Skip instrumenting files where logging is already present
+sf rflib logging aura instrument --sourcepath force-app --skip-instrumented
 ```
 
 #### Command Options
@@ -80,6 +91,7 @@ sf rflib logging aura instrument --sourcepath force-app --prettier
 - `--sourcepath (-s)`: Directory containing Apex classes to instrument
 - `--dryrun (-d)`: Preview changes without modifying files
 - `--prettier (-p)`: Format modified files using Prettier
+- `--skip-instrumented`: Do not instrument files where RFLIB logging is already present
 
 ## Contributing
 
