@@ -15,8 +15,9 @@ describe('rflib logging lwc instrument', () => {
   let testSession: TestSession;
   let testDir: string;
   let sampleComponentPath: string;
+  let instrumentedComponentPath: string;
   let originalContent: string;
-  let modifiedContent: string;
+  let instrumentedContent: string;
 
   before(async () => {
     testSession = await TestSession.create();
@@ -24,62 +25,97 @@ describe('rflib logging lwc instrument', () => {
     fs.mkdirSync(testDir, { recursive: true });
 
     sampleComponentPath = path.join(testDir, 'sampleComponent.js');
+    instrumentedComponentPath = path.join(testDir, 'instrumented.js');
     originalContent = fs.readFileSync(path.join(__dirname, 'sample', 'sample.js'), 'utf8');
-    fs.writeFileSync(sampleComponentPath, originalContent);
 
-    await RflibLoggingLwcInstrument.run(['--sourcepath', testDir]);
-    modifiedContent = fs.readFileSync(sampleComponentPath, 'utf8');
+    // Create instrumented content with import statement
+    instrumentedContent = `import { createLogger } from 'c/rflibLogger';\n${originalContent}`;
+  });
+
+  beforeEach(() => {
+    fs.writeFileSync(sampleComponentPath, originalContent);
+    fs.writeFileSync(instrumentedComponentPath, instrumentedContent);
   });
 
   after(async () => {
     await testSession?.clean();
   });
 
-  it('should add logger import and initialization', () => {
+  it('should add logger import and initialization', async () => {
+    await RflibLoggingLwcInstrument.run(['--sourcepath', testDir]);
+    const modifiedContent = fs.readFileSync(sampleComponentPath, 'utf8');
+
     expect(modifiedContent).to.include("import { createLogger } from 'c/rflibLogger'");
     expect(modifiedContent).to.include("const logger = createLogger('SampleComponent')");
   });
 
-  it('should add entry logging to methods with parameters', () => {
+  it('should add entry logging to methods with parameters', async () => {
+    await RflibLoggingLwcInstrument.run(['--sourcepath', testDir]);
+    const modifiedContent = fs.readFileSync(sampleComponentPath, 'utf8');
+
     expect(modifiedContent).to.include("logger.info('handleClick({0})', event)");
     expect(modifiedContent).to.include("logger.info('loadData()')");
     expect(modifiedContent).to.include("logger.info('setTitle()')");
   });
 
-  it('should add logging to promise then blocks', () => {
+  it('should add logging to promise then blocks', async () => {
+    await RflibLoggingLwcInstrument.run(['--sourcepath', testDir]);
+    const modifiedContent = fs.readFileSync(sampleComponentPath, 'utf8');
+
     expect(modifiedContent).to.include("logger.info('loadData() promise resolved. Result={0}', response)");
     expect(modifiedContent).to.include("logger.info('setTitle() promise resolved. Result={0}', label)");
     expect(modifiedContent).to.include("logger.info('checkUserPermissions() promise resolved. Result={0}', result)");
   });
 
-  it('should add logging to promise catch blocks', () => {
+  it('should add logging to promise catch blocks', async () => {
+    await RflibLoggingLwcInstrument.run(['--sourcepath', testDir]);
+    const modifiedContent = fs.readFileSync(sampleComponentPath, 'utf8');
+
     expect(modifiedContent).to.include("logger.error('An error occurred in function loadData()', error)");
     expect(modifiedContent).to.include("logger.error('An error occurred in function setTitle()', error)");
   });
 
-  it('should add logging to promise finally blocks', () => {
+  it('should add logging to promise finally blocks', async () => {
+    await RflibLoggingLwcInstrument.run(['--sourcepath', testDir]);
+    const modifiedContent = fs.readFileSync(sampleComponentPath, 'utf8');
+
     expect(modifiedContent).to.include("logger.info('checkUserPermissions() promise chain completed')");
   });
 
-  it('should handle single line promise chains', () => {
+  it('should handle single line promise chains', async () => {
+    await RflibLoggingLwcInstrument.run(['--sourcepath', testDir]);
+    const modifiedContent = fs.readFileSync(sampleComponentPath, 'utf8');
+
     expect(modifiedContent).to.include('.then((response) => {\n');
     expect(modifiedContent).to.include('return response.json()');
   });
 
-  it('should handle template literals in promise chains', () => {
+  it('should handle template literals in promise chains', async () => {
+    await RflibLoggingLwcInstrument.run(['--sourcepath', testDir]);
+    const modifiedContent = fs.readFileSync(sampleComponentPath, 'utf8');
+
     expect(modifiedContent).to.include('`${label} Editor`');
   });
 
-  it('should add log statements to if blocks', () => {
+  it('should add log statements to if blocks', async () => {
+    await RflibLoggingLwcInstrument.run(['--sourcepath', testDir]);
+    const modifiedContent = fs.readFileSync(sampleComponentPath, 'utf8');
+
     expect(modifiedContent).to.include("logger.debug('if (this.isEnabled)");
     expect(modifiedContent).to.match(/if \(this\.isEnabled\) {\s+logger\.debug.*\s+this\.processEvent/);
   });
 
-  it('should convert single line if statements to blocks', () => {
+  it('should convert single line if statements to blocks', async () => {
+    await RflibLoggingLwcInstrument.run(['--sourcepath', testDir]);
+    const modifiedContent = fs.readFileSync(sampleComponentPath, 'utf8');
+
     expect(modifiedContent).to.match(/if \(disabled\) {\s+logger\.debug.*\s+return;\s+}/);
   });
 
-  it('should add log statements to else blocks', () => {
+  it('should add log statements to else blocks', async () => {
+    await RflibLoggingLwcInstrument.run(['--sourcepath', testDir]);
+    const modifiedContent = fs.readFileSync(sampleComponentPath, 'utf8');
+
     expect(modifiedContent).to.include("logger.debug('else for if (this.isEnabled)");
     expect(modifiedContent).to.match(/} else {\s+logger\.debug.*\s+this\.handleError/);
   });
@@ -113,5 +149,35 @@ describe('rflib logging lwc instrument', () => {
     expect(contentWithNoIf).not.to.include("logger.debug('if (disabled)");
     expect(contentWithNoIf).not.to.include("logger.debug('if (this.isEnabled)");
     expect(contentWithNoIf).not.to.include("logger.debug('else for if");
+  });
+
+  // New tests for skip-instrumented flag
+  it('should skip already instrumented files when skip-instrumented flag is used', async () => {
+    await RflibLoggingLwcInstrument.run(['--sourcepath', testDir, '--skip-instrumented']);
+
+    // Read content of both files after instrumentation
+    const sampleContent = fs.readFileSync(sampleComponentPath, 'utf8');
+    const instrumentedFileContent = fs.readFileSync(instrumentedComponentPath, 'utf8');
+
+    // Non-instrumented file should be modified
+    expect(sampleContent).to.include("import { createLogger } from 'c/rflibLogger'");
+    expect(sampleContent).to.include("logger.info('handleClick({0})', event)");
+
+    // Already instrumented file should remain unchanged
+    expect(instrumentedFileContent).to.equal(instrumentedContent);
+  });
+
+  it('should process all files when skip-instrumented flag is not used', async () => {
+    await RflibLoggingLwcInstrument.run(['--sourcepath', testDir]);
+
+    // Both files should be modified
+    const sampleContent = fs.readFileSync(sampleComponentPath, 'utf8');
+    const instrumentedFileContent = fs.readFileSync(instrumentedComponentPath, 'utf8');
+
+    expect(sampleContent).to.include("logger.info('handleClick({0})', event)");
+    expect(instrumentedFileContent).to.include("logger.info('handleClick({0})', event)");
+
+    // The previously instrumented file should be modified with additional logging
+    expect(instrumentedFileContent).not.to.equal(instrumentedContent);
   });
 });

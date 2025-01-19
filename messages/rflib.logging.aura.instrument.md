@@ -63,6 +63,14 @@ Exclude the instrumentation of if-else statements.
 
 When provided, the command will not add log statements inside of `if` and `else` blocks.
 
+# flags.skip-instrumented.summary
+
+Skips any files where a logger is already present.
+
+# flags.skip-instrumented.description
+
+When provided, the command will not add log statements to any Aura component that contains the `` component.
+
 # examples
 
 - Add logging to all aura files:

@@ -57,6 +57,14 @@ Exclude the instrumentation of if-else statements.
 
 When provided, the command will not add log statements inside of `if` and `else` blocks.
 
+# flags.skip-instrumented.summary
+
+Skips any files where a logger is already present.
+
+# flags.skip-instrumented.description
+
+When provided, the command will not add log statements to any Apex class that contains the `rflib` import statement.
+
 # examples
 
 - Add logging to all LWC files:
