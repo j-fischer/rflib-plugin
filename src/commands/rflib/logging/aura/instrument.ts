@@ -15,7 +15,7 @@ const messages = Messages.loadMessages('rflib-plugin', 'rflib.logging.aura.instr
 const loggerComponentRegex =
   /<c:rflibLoggerCmp\s+aura:id="([^"]+)"\s+name="([^"]+)"\s+appendComponentId="([^"]+)"\s*\/>/;
 const attributeRegex = /<aura:attribute[^>]*>/g;
-const loggerVarRegex = /var\s+(\w+)\s*=\s*component\.find\(['"](\w+)['"]\)/;
+const loggerVarRegex = /var\s+(\w+)\s*=\s*\w+\.find\(['"](\w+)['"]\)/;
 const methodRegex =
   /(\b\w+)\s*:\s*function\s*\((.*?)\)\s*{((?:[^{}]|{(?:[^{}]|{(?:[^{}]|{(?:[^{}]|{(?:[^{}]|{[^{}]*})*})*})*})*})*?)}/g;
 const promiseChainRegex =
@@ -233,8 +233,8 @@ export default class RflibLoggingAuraInstrument extends SfCommand<RflibLoggingAu
     return modified;
   }
 
-  private static isInstrumented(content: string): boolean {
-    return loggerComponentRegex.test(content);
+  private static isInstrumented(content: string, loggerId: string): boolean {
+    return new RegExp(`\\.find\\(['"]${loggerId}['"]\\)`, 'g').test(content);
   }
 
   public async run(): Promise<RflibLoggingAuraInstrumentResult> {
@@ -321,16 +321,6 @@ export default class RflibLoggingAuraInstrument extends SfCommand<RflibLoggingAu
     this.logger.info(`Processing Aura component: ${componentName}`);
 
     const cmpPath = path.join(componentPath, `${componentName}.cmp`);
-
-    // Check if component is already instrumented
-    if (flags.skipInstrumented && fs.existsSync(cmpPath)) {
-      const content = await fs.promises.readFile(cmpPath, 'utf8');
-      if (RflibLoggingAuraInstrument.isInstrumented(content)) {
-        this.logger.info(`Skipping instrumented component: ${componentName}`);
-        return;
-      }
-    }
-
     const controllerPath = path.join(componentPath, `${componentName}Controller.js`);
     const helperPath = path.join(componentPath, `${componentName}Helper.js`);
     const rendererPath = path.join(componentPath, `${componentName}Renderer.js`);
@@ -394,6 +384,13 @@ export default class RflibLoggingAuraInstrument extends SfCommand<RflibLoggingAu
     this.logger.debug(`Instrumenting JavaScript file: ${filePath}`);
     this.processedFiles++;
     let content = await fs.promises.readFile(filePath, 'utf8');
+
+    // Check if component is already instrumented
+    if (flags.skipInstrumented && RflibLoggingAuraInstrument.isInstrumented(content, loggerId)) {
+      this.logger.info(`Skipping instrumented component: ${filePath}`);
+      return;
+    }
+
     const originalContent = content;
 
     const usePrettier = flags.prettier;
