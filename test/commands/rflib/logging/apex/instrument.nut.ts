@@ -37,4 +37,38 @@ describe('rflib logging apex instrument NUTs', () => {
     expect(result?.modifiedFiles).to.equal(1);
     expect(result?.formattedFiles).to.equal(0);
   });
+
+  it('should skip instrumented classes when skip-instrumented flag is used', () => {
+    const testDir = path.join(testSession.dir, 'force-app', 'main', 'default', 'classes');
+    const instrumentedClass = `public with sharing class InstrumentedClass {
+      private static final rflib_Logger LOGGER = rflib_LoggerUtil.getFactory().createLogger('InstrumentedClass');
+
+      public void doSomething() {
+          System.debug('test');
+      }
+    }`;
+
+    const regularClass = `public with sharing class RegularClass {
+      public void doSomething() {
+          System.debug('test');
+      }
+    }`;
+
+    fs.writeFileSync(path.join(testDir, 'InstrumentedClass.cls'), instrumentedClass);
+    fs.writeFileSync(path.join(testDir, 'RegularClass.cls'), regularClass);
+
+    const result = execCmd<RflibLoggingApexInstrumentResult>(
+      'rflib logging apex instrument --sourcepath force-app/main/default/classes --skip-instrumented --json',
+      {
+        ensureExitCode: 0,
+        cwd: testSession.dir,
+      }
+    ).jsonOutput?.result;
+
+    expect(result?.processedFiles).to.equal(3); // Including SampleApexClass
+    expect(result?.modifiedFiles).to.equal(2); // Only RegularClass and SampleApexClass
+
+    const instrumentedContent = fs.readFileSync(path.join(testDir, 'InstrumentedClass.cls'), 'utf8');
+    expect(instrumentedContent).to.equal(instrumentedClass); // Should remain unchanged
+  });
 });
