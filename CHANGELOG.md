@@ -1,3 +1,12 @@
+## [0.3.2](https://github.com/j-fischer/rflib-plugin/compare/0.3.1...0.3.2) (2025-01-19)
+
+
+### Bug Fixes
+
+* **deps:** bump @salesforce/core from 8.8.0 to 8.8.2 ([0a4b661](https://github.com/j-fischer/rflib-plugin/commit/0a4b66187e9a6f110745eae2f80bc1f78a5146de))
+
+
+
 ## [0.3.1](https://github.com/j-fischer/rflib-plugin/compare/0.3.0...0.3.1) (2025-01-12)
 
 
