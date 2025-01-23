@@ -130,7 +130,7 @@ describe('rflib logging lwc instrument', () => {
   it('should format modified files when prettier flag is used', async () => {
     await RflibLoggingLwcInstrument.run(['--sourcepath', testDir, '--prettier']);
     const formattedContent = fs.readFileSync(sampleComponentPath, 'utf8');
-    expect(formattedContent).to.include(';');
+    expect(formattedContent).to.include('var x = "format-this";');
     expect(formattedContent).to.match(/\n {4}/); // Check for 4-space indentation
   });
 
