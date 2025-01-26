@@ -63,7 +63,7 @@ sf rflib logging lwc instrument --sourcepath force-app --skip-instrumented
 
 #### Command Options
 
-- `--sourcepath (-s)`: Directory containing Apex classes to instrument
+- `--sourcepath (-s)`: Directory containing LWC components to instrument
 - `--dryrun (-d)`: Preview changes without modifying files
 - `--prettier (-p)`: Format modified files using Prettier
 - `--skip-instrumented`: Do not instrument files where RFLIB logging is already present
@@ -88,7 +88,7 @@ sf rflib logging aura instrument --sourcepath force-app --skip-instrumented
 
 #### Command Options
 
-- `--sourcepath (-s)`: Directory containing Apex classes to instrument
+- `--sourcepath (-s)`: Directory containing Aura components to instrument
 - `--dryrun (-d)`: Preview changes without modifying files
 - `--prettier (-p)`: Format modified files using Prettier
 - `--skip-instrumented`: Do not instrument files where RFLIB logging is already present
