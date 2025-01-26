@@ -1,3 +1,12 @@
+## [0.4.1](https://github.com/j-fischer/rflib-plugin/compare/0.4.0...0.4.1) (2025-01-26)
+
+
+### Bug Fixes
+
+* fixed various instrumentation issues with else blocks and promise chains ([a519271](https://github.com/j-fischer/rflib-plugin/commit/a5192718f408a8fea643b0d4fb33e83db564adfb))
+
+
+
 # [0.4.0](https://github.com/j-fischer/rflib-plugin/compare/0.3.3...0.4.0) (2025-01-19)
 
 
