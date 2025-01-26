@@ -55,6 +55,7 @@ class ApexInstrumentationService {
   private static readonly IF_STATEMENT_REGEX = /if\s*\((.*?)\)\s*(?:{([^]*?(?:(?<!{){(?:[^]*?)}(?!})[^]*?)*)}|([^{].*?)(?=\s*(?:;|$));)/g;
   private static readonly ELSE_REGEX = /\s*else(?!\s*if\b)\s*(?:{((?:[^{}]|{(?:[^{}]|{[^{}]*})*})*)}|([^{;]*(?:;|$)))/g;
   private static readonly IS_INSTRUMENTED_REGEX = /(\brflib_Logger\b|\brflib_TestUtil\b)/;
+  private static readonly SYSTEM_DEBUG_REGEX = /System\.debug\s*\(\s*['"]([^'"]*)['"]\s*\)\s*;/g;
 
   private static readonly PRIMITIVE_TYPES = new Set([
     'STRING', 'INTEGER', 'LONG', 'DECIMAL', 'DOUBLE', 'BOOLEAN',
@@ -179,6 +180,12 @@ class ApexInstrumentationService {
     });
 
     return modified;
+  }
+
+  public static processSystemDebugStatements(content: string, loggerName: string): string {
+    return content.replace(this.SYSTEM_DEBUG_REGEX, (match, debugMessage) =>
+      `${loggerName}.debug('${debugMessage}');`
+    );
   }
 
   private static isComplexType(paramType: string): boolean {
@@ -353,6 +360,7 @@ export default class RflibLoggingApexInstrument extends SfCommand<RflibLoggingAp
       const { variableName } = ApexInstrumentationService.detectLogger(content);
       content = ApexInstrumentationService.addLoggerDeclaration(content, className);
       content = ApexInstrumentationService.processMethodDeclarations(content, variableName);
+      content = ApexInstrumentationService.processSystemDebugStatements(content, variableName);
       content = ApexInstrumentationService.processCatchBlocks(content, variableName);
 
       if (!instrumentationOpts.noIf) {

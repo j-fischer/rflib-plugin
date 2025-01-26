@@ -128,7 +128,7 @@ describe('rflib logging apex instrument', () => {
     const modifiedContent = fs.readFileSync(sampleClassPath, 'utf8');
 
     expect(modifiedContent).to.include('LOGGER.debug(\'else for if (someLimit > 50)\')');
-    expect(modifiedContent).to.match(/else {\s+LOGGER\.debug.*\s+System.debug\('Small batch'\);\s+}/);
+    expect(modifiedContent).to.match(/else {\s+LOGGER\.debug.*\s+LOGGER.debug\('Small batch'\);\s+}/);
   });
 
   it('should skip if statement instrumentation when no-if flag is used', async () => {
@@ -195,5 +195,12 @@ describe('rflib logging apex instrument', () => {
     expect(formattedContent).to.include('if (filter == null) {'); // Single quotes
     expect(result.formattedFiles).to.equal(2);      // The test file should not have been formatted since it is already clean
     expect(result.modifiedFiles).to.equal(3);       // Modified files counter
+  });
+
+  it('should replace System.debug statements with LOGGER.debug', async () => {
+    await RflibLoggingApexInstrument.run(['--sourcepath', testDir]);
+    const modifiedContent = fs.readFileSync(sampleClassPath, 'utf8');
+
+    expect(modifiedContent).to.include("LOGGER.debug('Medium batch');");
   });
 });
