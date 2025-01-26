@@ -37,7 +37,7 @@ class LwcInstrumentationService {
   private static readonly EXPORT_DEFAULT_REGEX = /export\s+default\s+class\s+(\w+)/;
   private static readonly IF_STATEMENT_REGEX = /if\s*\((.*?)\)\s*(?:{([^]*?(?:(?<!{){(?:[^]*?)}(?!})[^]*?)*)}|([^{].*?)(?=\s*(?:;|$));)/g;
   private static readonly ELSE_REGEX = /}\s*else(?!\s+if\b)\s*(?:{((?:[^{}]|{(?:[^{}]|{[^{}]*})*})*)}|([^{].*?)(?=\n|;|$))/g;
-  private static readonly PROMISE_CHAIN_REGEX = /\.(then|catch|finally)\s*\(\s*(?:async\s+)?(?:\(?([^)]*)\)?)?\s*=>\s*(?:\{((?:[^{}]|`[^`]*`)*?)\}|([^{;]*(?:\([^)]*\))*)(?=(?:\)\))|\)|\.))/g;
+  private static readonly PROMISE_CHAIN_REGEX = /\.(then|catch|finally)\s*\(\s*(?:async\s+)?(?:\(?([^)]*)\)?)?\s*=>\s*(?:\{((?:[^{}]|`[^`]*`)*?)\}|([^{;]*?(?:\.[^{;]*?)*(?:\([^)]*\))?)(?=\s*(?:\)\)|\.|\))))/g;
   private static readonly TRY_CATCH_BLOCK_REGEX = /try\s*{[\s\S]*?}\s*catch\s*\(([^)]*)\)\s*{/g;
 
   private static readonly PRETTIER_CONFIG: prettier.Options = {
@@ -112,7 +112,7 @@ class LwcInstrumentationService {
 
     modified = modified.replace(
       this.ELSE_REGEX,
-      (match, blockBody, singleLineBody, offset) => {
+      (match: string, blockBody: string, singleLineBody: string, offset: number) => {
         const nearestIf = conditions
           .filter((c) => c.position <= (offset ?? 0))
           .reduce((prev, curr) => (!prev || curr.position > prev.position ? curr : prev));
@@ -201,9 +201,9 @@ class LwcInstrumentationService {
             : trimmedBody;
 
           return `.${type}((${paramName}) => {
-            ${logStatement}
-            return ${adjustedBody};
-        }`;
+              ${logStatement}
+              return ${adjustedBody};
+          }`;
         }
 
         if (blockBody) {

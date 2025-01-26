@@ -17,15 +17,14 @@ export default class SampleComponent extends LightningElement {
 
     handleEvent(event) {
         if (disabled) return;
-
-        var x = "format-this";
+        else console.log('not disabled');
+        
+        var x = "format-this"
 
         if (this.isEnabled) {
             this.processEvent(event);
             if (this.loading) {
-                if (this.data) {
-                    this.updateData();
-                }
+                if (this.data) this.updateData();
             }
         } else {
             this.handleError();

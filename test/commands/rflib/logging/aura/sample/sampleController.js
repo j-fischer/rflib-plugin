@@ -7,10 +7,11 @@
       }
   },
   
-  processResult: function(component, event, helper) {
-      var data = event.getParam('data');
-      if (data.isValid) {
-          component.set("v.value", data.value);
-      }
+  testIfInstrumentation: function(component, event, helper) {
+      var data = event.getParam('data')
+      if (data.isValid)
+        component.set("v.value", data.value);
+      else 
+        component.set("v.value", null);
   }
 })

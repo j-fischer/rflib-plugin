@@ -1,7 +1,18 @@
 {
+  "extends": "@istanbuljs/nyc-config-typescript",
+  "all": true,
   "check-coverage": true,
-  "lines": 75,
+  "include": ["src/**/*.ts"],
+  "exclude": ["**/index.ts", "**/*.test.ts", "**/*.nut.ts"],
+  "reporter": ["text", "html"],
   "statements": 75,
+  "branches": 75,
   "functions": 75,
-  "branches": 75
+  "lines": 75,
+  "require": ["ts-node/register", "source-map-support/register"],
+  "extension": [".ts"],
+  "sourceMap": true,
+  "instrument": true,
+  "cache": false,
+  "report-dir": "./coverage"
 }

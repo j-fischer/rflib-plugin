@@ -16,11 +16,6 @@ interface InstrumentationOptions {
   readonly skipInstrumented: boolean;
 }
 
-interface ProcessedPromise {
-  readonly logStatement: string;
-  readonly paramName: string;
-}
-
 export interface RflibLoggingAuraInstrumentResult {
   processedFiles: number;
   modifiedFiles: number;
@@ -34,9 +29,9 @@ class AuraInstrumentationService {
   public static readonly ATTRIBUTE_REGEX = /<aura:attribute[^>]*>/g;
   public static readonly LOGGER_COMPONENT_REGEX = /<c:rflibLoggerCmp\s+aura:id="([^"]+)"\s+name="([^"]+)"\s+appendComponentId="([^"]+)"\s*\/>/;
 
-  private static readonly LOGGER_VAR_REGEX = /var\s+(\w+)\s*=\s*\w+\.find\(['"](\w+)['"]\)/;
+  private static readonly LOGGER_VAR_REGEX = /var\s+(\w+)\s*=\s*\w+\.find\(['"](\w+)['"]\);/;
   private static readonly METHOD_REGEX = /(\b\w+)\s*:\s*function\s*\((.*?)\)\s*{((?:[^{}]|{(?:[^{}]|{(?:[^{}]|{(?:[^{}]|{(?:[^{}]|{[^{}]*})*})*})*})*})*?)}/g;
-  private static readonly PROMISE_CHAIN_REGEX = /\.(then|catch|finally)\s*\(\s*(?:async\s+)?(?:\(?([^)]*)\)?)?\s*=>\s*(?:{([\s\S]*?)}|([^{].*?)(?=\.|\)|\n|;|$))/g;
+  private static readonly PROMISE_CHAIN_REGEX = /\.(then|catch|finally)\s*\(\s*function\s*\(([^)]*)\)\s*{([\s\S]*?)}/g;
   private static readonly TRY_CATCH_BLOCK_REGEX = /try\s*{[\s\S]*?}\s*catch\s*\(([^)]*)\)\s*{/g;
   private static readonly IF_STATEMENT_REGEX = /if\s*\((.*?)\)\s*(?:{([^]*?(?:(?<!{){(?:[^]*?)}(?!})[^]*?)*)}|([^{].*?)(?=\s*(?:;|$));)/g;
   private static readonly ELSE_REGEX = /}\s*else(?!\s+if\b)\s*(?:{((?:[^{}]|{(?:[^{}]|{[^{}]*})*})*)}|([^{].*?)(?=\n|;|$))/g;
@@ -96,31 +91,20 @@ class AuraInstrumentationService {
           bodyContent = this.processIfStatements(bodyContent, loggerVar);
         }
 
+        bodyContent = AuraInstrumentationService.processPromiseChains(bodyContent, loggerVar);
+
         return `${methodName}: function(${params}) {${bodyContent}}`;
       }
     );
   }
 
-  public static processPromiseChains(content: string): string {
+  public static processPromiseChains(content: string, loggerVar: string): string {
     return content.replace(
       this.PROMISE_CHAIN_REGEX,
-      (match: string, type: string, param: string, blockBody?: string, singleLineBody?: string) => {
-        const { logStatement, paramName } = this.processPromiseType(type, param?.trim() || '');
+      (match: string, type: string, param: string, blockBody: string) => {
+        const logStatement = this.processPromiseType(type, param?.trim() || '', loggerVar);
 
-        if (singleLineBody) {
-          return `.${type}(${paramName ? paramName : ''} => {
-            ${logStatement}
-            return ${singleLineBody};
-          })`;
-        }
-
-        if (blockBody) {
-          return `.${type}(${paramName ? paramName : ''} => {
-            ${logStatement}${blockBody}
-          })`;
-        }
-
-        return match;
+        return match.replace(blockBody, `\n        ${logStatement}\n        ${blockBody}`);
       }
     );
   }
@@ -139,23 +123,14 @@ class AuraInstrumentationService {
     );
   }
 
-  private static processPromiseType(type: string, paramName: string): ProcessedPromise {
+  private static processPromiseType(type: string, paramName: string, loggerVar: string): string {
     switch (type) {
       case 'then':
-        return {
-          logStatement: `logger.info('Promise resolved. Result={0}', ${paramName});`,
-          paramName: paramName || 'result'
-        };
+        return `${loggerVar}.info('Promise resolved. Result={0}', ${paramName});`;
       case 'catch':
-        return {
-          logStatement: `logger.error('An error occurred', ${paramName});`,
-          paramName: paramName || 'error'
-        };
+        return `${loggerVar}.error('An error occurred', ${paramName});`;
       case 'finally':
-        return {
-          logStatement: 'logger.info(\'Promise chain completed\');',
-          paramName: paramName || ''
-        };
+        return `${loggerVar}.info('Promise chain completed');`;
       default:
         throw new Error(`Unsupported promise type: ${type}`);
     }
@@ -423,7 +398,6 @@ export default class RflibLoggingAuraInstrument extends SfCommand<RflibLoggingAu
       isHelper,
       instrumentationOpts.noIf
     );
-    content = AuraInstrumentationService.processPromiseChains(content);
     content = AuraInstrumentationService.processTryCatchBlocks(content);
 
     if (content !== originalContent) {

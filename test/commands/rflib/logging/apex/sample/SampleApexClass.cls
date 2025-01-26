@@ -3,14 +3,14 @@ public with sharing class SampleApexClass {
     private Map<String, String> configMap;
     
     @AuraEnabled
-    public static List<String> getRecords(String filter, Integer limit) {
+    public static List<String> getRecords(String filter, Integer someLimit) {
         if (filter == null) return new List<String>();
 
-        if (limit > 100) {
+        if (someLimit > 100) {
             for (Integer i = 0; i < 10; i++) {
                 System.debug('Processing...');
             }
-        } else if (limit > 50) {
+        } else if (someLimit > 50) {
             System.debug('Medium batch');
         } else {
             System.debug('Small batch');
@@ -50,6 +50,9 @@ public with sharing class SampleApexClass {
     }
     
     public static String simpleMethod() {
-        return 'Hello World';
+        if (configMap != null)
+            return configMap.get('key');
+        else 
+            return 'Hello World';
     }
 }

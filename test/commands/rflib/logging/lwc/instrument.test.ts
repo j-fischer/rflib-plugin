@@ -12,33 +12,56 @@ const __dirname = path.dirname(__filename);
 /* eslint-enable no-underscore-dangle */
 
 describe('rflib logging lwc instrument', () => {
+  let hasFailures = false;
   let testSession: TestSession;
   let testDir: string;
   let sampleComponentPath: string;
   let instrumentedComponentPath: string;
-  let originalContent: string;
-  let instrumentedContent: string;
+  let originalSampleContent: string;
+  let originalInstrumentedContent: string;
 
   before(async () => {
     testSession = await TestSession.create();
-    testDir = path.join(testSession.dir, 'force-app', 'main', 'default', 'lwc', 'sampleComponent');
-    fs.mkdirSync(testDir, { recursive: true });
+    testDir = path.join(testSession.dir, 'force-app', 'main', 'default', 'lwc');
+    fs.mkdirSync(path.join(testDir, 'sampleComponent'), { recursive: true });
+    fs.mkdirSync(path.join(testDir, 'instrumentedComponent'), { recursive: true });
 
-    sampleComponentPath = path.join(testDir, 'sampleComponent.js');
-    instrumentedComponentPath = path.join(testDir, 'instrumented.js');
-    originalContent = fs.readFileSync(path.join(__dirname, 'sample', 'sample.js'), 'utf8');
+    sampleComponentPath = path.join(testDir, 'sampleComponent', 'sampleComponent.js');
+    instrumentedComponentPath = path.join(testDir, 'instrumentedComponent', 'instrumentedComponent.js');
 
-    // Create instrumented content with import statement
-    instrumentedContent = `import { createLogger } from 'c/rflibLogger';\n${originalContent}`;
+    originalSampleContent = fs.readFileSync(path.join(__dirname, 'sample', 'sample.js'), 'utf8');
+    originalInstrumentedContent = fs.readFileSync(path.join(__dirname, 'sample', 'instrumented.js'), 'utf8');
+
+    fs.writeFileSync(sampleComponentPath, originalSampleContent);
+    fs.writeFileSync(instrumentedComponentPath, originalInstrumentedContent);
   });
 
   beforeEach(() => {
-    fs.writeFileSync(sampleComponentPath, originalContent);
-    fs.writeFileSync(instrumentedComponentPath, instrumentedContent);
+    fs.writeFileSync(sampleComponentPath, originalSampleContent);
+    fs.writeFileSync(instrumentedComponentPath, originalInstrumentedContent);
+  });
+
+  afterEach(function () {
+    if (this.currentTest?.state === 'failed') {
+      hasFailures = true;
+      const failedTestDir = path.join(testSession.dir, 'failedTest', this.currentTest.title);
+
+      // Create target directory
+      fs.mkdirSync(failedTestDir, { recursive: true });
+
+      // Copy entire directory structure recursively
+      fs.cpSync(testDir, path.join(failedTestDir, 'force-app'), {
+        recursive: true,
+        force: true,
+        preserveTimestamps: true
+      });
+    }
   });
 
   after(async () => {
-    await testSession?.clean();
+    if (!hasFailures) {
+      await testSession?.clean();
+    }
   });
 
   it('should add logger import and initialization', async () => {
@@ -128,15 +151,19 @@ describe('rflib logging lwc instrument', () => {
   });
 
   it('should format modified files when prettier flag is used', async () => {
-    await RflibLoggingLwcInstrument.run(['--sourcepath', testDir, '--prettier']);
+    const result = await RflibLoggingLwcInstrument.run(['--sourcepath', testDir, '--prettier']);
     const formattedContent = fs.readFileSync(sampleComponentPath, 'utf8');
-    expect(formattedContent).to.include('var x = "format-this";');
+    expect(formattedContent).to.include("var x = 'format-this';");
     expect(formattedContent).to.match(/\n {4}/); // Check for 4-space indentation
+
+    expect(result.processedFiles).to.equal(2);
+    expect(result.modifiedFiles).to.equal(2);
+    expect(result.formattedFiles).to.equal(2);
   });
 
   it('should skip if statement instrumentation when no-if flag is used', async () => {
     // Reset the test file
-    fs.writeFileSync(sampleComponentPath, originalContent);
+    fs.writeFileSync(sampleComponentPath, originalSampleContent);
 
     await RflibLoggingLwcInstrument.run(['--sourcepath', testDir, '--no-if']);
     const contentWithNoIf = fs.readFileSync(sampleComponentPath, 'utf8');
@@ -164,7 +191,7 @@ describe('rflib logging lwc instrument', () => {
     expect(sampleContent).to.include("logger.info('handleClick({0})', event)");
 
     // Already instrumented file should remain unchanged
-    expect(instrumentedFileContent).to.equal(instrumentedContent);
+    expect(instrumentedFileContent).to.equal(originalInstrumentedContent);
   });
 
   it('should process all files when skip-instrumented flag is not used', async () => {
@@ -178,6 +205,6 @@ describe('rflib logging lwc instrument', () => {
     expect(instrumentedFileContent).to.include("logger.info('handleClick({0})', event)");
 
     // The previously instrumented file should be modified with additional logging
-    expect(instrumentedFileContent).not.to.equal(instrumentedContent);
+    expect(instrumentedFileContent).not.to.equal(originalInstrumentedContent);
   });
 });

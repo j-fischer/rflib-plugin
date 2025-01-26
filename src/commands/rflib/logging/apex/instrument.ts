@@ -53,7 +53,7 @@ class ApexInstrumentationService {
   private static readonly GENERIC_ARGS_REGEX = /<[^>]+>/g;
   private static readonly CATCH_REGEX = /catch\s*\(\s*\w+\s+(\w+)\s*\)\s*{/g;
   private static readonly IF_STATEMENT_REGEX = /if\s*\((.*?)\)\s*(?:{([^]*?(?:(?<!{){(?:[^]*?)}(?!})[^]*?)*)}|([^{].*?)(?=\s*(?:;|$));)/g;
-  private static readonly ELSE_REGEX = /}\s*else(?!\s+if\b)\s*(?:{((?:[^{}]|{(?:[^{}]|{[^{}]*})*})*)}|([^{].*?)(?=\n|;|$))/g;
+  private static readonly ELSE_REGEX = /\s*else(?!\s*if\b)\s*(?:{((?:[^{}]|{(?:[^{}]|{[^{}]*})*})*)}|([^{;]*(?:;|$)))/g;
   private static readonly IS_INSTRUMENTED_REGEX = /(\brflib_Logger\b|\brflib_TestUtil\b)/;
 
   private static readonly PRIMITIVE_TYPES = new Set([
@@ -152,10 +152,10 @@ class ApexInstrumentationService {
         const logStatement = `${loggerName}.debug('if (${cleanedUpCondition})');\n        `;
 
         if (blockBody) {
-          return `if (${condition}) {\n        ${logStatement}${blockBody}}`;
+          return `if (${condition}) {\n        ${logStatement}${blockBody}}\n`;
         } else if (singleLineBody) {
           const cleanBody = singleLineBody.replace(/;$/, '').trim();
-          return `if (${condition}) {\n        ${logStatement}${cleanBody};\n    }`;
+          return `if (${condition}) {\n        ${logStatement}${cleanBody};\n    }\n`;
         }
         return match;
       }
@@ -171,9 +171,9 @@ class ApexInstrumentationService {
         : `${loggerName}.debug('else statement');\n        `;
 
       if (blockBody) {
-        return `} else {\n        ${logStatement}${blockBody}}`;
+        return ` else {\n        ${logStatement}${blockBody}}`;
       } else if (singleLineBody) {
-        return `} else {\n        ${logStatement}${singleLineBody};\n    }`;
+        return ` else {\n        ${logStatement}${singleLineBody}\n    }`;
       }
       return match;
     });
@@ -298,7 +298,7 @@ export default class RflibLoggingApexInstrument extends SfCommand<RflibLoggingAp
 
       if (stat.isDirectory()) {
         await this.processDirectory(filePath, isDryRun, instrumentationOpts);
-      } else if (file.endsWith('Test.cls')) {
+      } else if (file.includes('Test') && file.endsWith('.cls')) {
         await this.processTestFile(filePath, isDryRun, instrumentationOpts);
       } else if (file.endsWith('.cls')) {
         await this.instrumentApexClass(filePath, isDryRun, instrumentationOpts);
