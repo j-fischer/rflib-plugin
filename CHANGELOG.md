@@ -1,3 +1,12 @@
+# [0.5.0](https://github.com/j-fischer/rflib-plugin/compare/0.4.2...0.5.0) (2025-01-26)
+
+
+### Features
+
+* added functionality to replace Apex's System.debug statements with LOGGER.debug statements ([#22](https://github.com/j-fischer/rflib-plugin/issues/22)) ([52d1d95](https://github.com/j-fischer/rflib-plugin/commit/52d1d958bac312b22b050b2114a526dfdfaac896))
+
+
+
 ## [0.4.2](https://github.com/j-fischer/rflib-plugin/compare/0.4.1...0.4.2) (2025-01-26)
 
 
