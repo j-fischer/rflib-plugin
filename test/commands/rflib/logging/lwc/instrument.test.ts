@@ -207,4 +207,18 @@ describe('rflib logging lwc instrument', () => {
     // The previously instrumented file should be modified with additional logging
     expect(instrumentedFileContent).not.to.equal(originalInstrumentedContent);
   });
+
+  it('should replace console log statements in functions', async () => {
+    await RflibLoggingLwcInstrument.run(['--sourcepath', testDir]);
+
+    const sampleController = fs.readFileSync(sampleComponentPath, 'utf8');
+
+    expect(sampleController).to.include("logger.debug('This is a console.log message');");
+    expect(sampleController).to.include("logger.info('This is a console.info message');");
+    expect(sampleController).to.include("logger.warn('This is a console.warn message');");
+    expect(sampleController).to.include("logger.error('This is a console.error message');");
+
+    expect(sampleController).to.include('logger.debug(anObject);');
+    expect(sampleController).to.include('logger.error(error);');
+  });
 });

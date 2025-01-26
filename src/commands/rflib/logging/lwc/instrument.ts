@@ -39,6 +39,7 @@ class LwcInstrumentationService {
   private static readonly ELSE_REGEX = /}\s*else(?!\s+if\b)\s*(?:{((?:[^{}]|{(?:[^{}]|{[^{}]*})*})*)}|([^{].*?)(?=\n|;|$))/g;
   private static readonly PROMISE_CHAIN_REGEX = /\.(then|catch|finally)\s*\(\s*(?:async\s+)?(?:\(?([^)]*)\)?)?\s*=>\s*(?:\{((?:[^{}]|`[^`]*`)*?)\}|([^{;]*?(?:\.[^{;]*?)*(?:\([^)]*\))?)(?=\s*(?:\)\)|\.|\))))/g;
   private static readonly TRY_CATCH_BLOCK_REGEX = /try\s*{[\s\S]*?}\s*catch\s*\(([^)]*)\)\s*{/g;
+  private static readonly CONSOLE_LOG_REGEX = /console\.(log|debug|info|warn|error)\s*\(\s*([^)]+)\s*\)\s*;?/g;
 
   private static readonly PRETTIER_CONFIG: prettier.Options = {
     parser: 'babel',
@@ -215,6 +216,13 @@ class LwcInstrumentationService {
     );
   }
 
+  public static processConsoleStatements(methodBody: string, loggerName: string): string {
+    return methodBody.replace(this.CONSOLE_LOG_REGEX, (match: string, logType: string, argument: string) => {
+      const logLevel = logType === 'info' || logType === 'warn' || logType === 'error' ? logType : 'debug';
+      return `${loggerName}.${logLevel}(${argument});`;
+    });
+  }
+
   private static findEnclosingMethod(content: string, position: number): string {
     const beforeCatch = content.substring(0, position);
     const methods = [...beforeCatch.matchAll(this.METHOD_REGEX)].reverse();
@@ -336,6 +344,7 @@ export default class RflibLoggingLwcInstrument extends SfCommand<RflibLoggingLwc
       content = LwcInstrumentationService.processMethodLogging(content, variableName, instrumentationOpts);
       content = LwcInstrumentationService.processTryCatchBlocks(content, variableName);
       content = LwcInstrumentationService.processPromiseChains(content, variableName);
+      content = LwcInstrumentationService.processConsoleStatements(content, variableName);
 
       if (content !== originalContent) {
         this.stats.modifiedFiles++;
