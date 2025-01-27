@@ -1,3 +1,12 @@
+# [0.6.0](https://github.com/j-fischer/rflib-plugin/compare/0.5.0...0.6.0) (2025-01-27)
+
+
+### Features
+
+* Add Console Log to RFLIB Logger Conversion for Aura and LWC ([#23](https://github.com/j-fischer/rflib-plugin/issues/23)) ([842a938](https://github.com/j-fischer/rflib-plugin/commit/842a938d9d18c85f39ee25ede2446b02343f526b))
+
+
+
 # [0.5.0](https://github.com/j-fischer/rflib-plugin/compare/0.4.2...0.5.0) (2025-01-26)
 
 
