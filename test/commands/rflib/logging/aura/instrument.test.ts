@@ -282,4 +282,30 @@ describe('rflib logging aura instrument', () => {
     expect(instrumentedController).to.include("customLogger.debug('if (data.isValid)");
     expect(instrumentedController).to.include("customLogger.debug('else");
   });
+
+  it('should replace console log statements in functions', async () => {
+    await RflibLoggingAuraInstrument.run(['--sourcepath', sourceDir]);
+
+    const sampleController = fs.readFileSync(paths.sample.controller, 'utf8');
+    const sampleHelper = fs.readFileSync(paths.sample.helper, 'utf8');
+
+    expect(sampleController).to.include("logger.debug('This is a console.log message');");
+    expect(sampleController).to.include("logger.info('This is a console.info message');");
+    expect(sampleController).to.include("logger.warn('This is a console.warn message');");
+    expect(sampleController).to.include("logger.error('This is a console.error message');");
+
+    expect(sampleController).to.include('logger.debug(anObject);');
+
+    expect(sampleHelper).to.include("myLogger.debug('This is a console.log message');");
+  });
+
+  it('should replace console log statements in promises', async () => {
+    await RflibLoggingAuraInstrument.run(['--sourcepath', sourceDir]);
+
+    const sampleHelper = fs.readFileSync(paths.sample.helper, 'utf8');
+
+    expect(sampleHelper).to.include('logger.debug("Promise resolved: " + data);');
+    expect(sampleHelper).to.include('logger.error("Promise rejected: " + error);');
+    expect(sampleHelper).to.include('logger.debug("Promise finally");');
+  });
 });

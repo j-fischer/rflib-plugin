@@ -56,4 +56,14 @@ export default class SampleComponent extends LightningElement {
             }) // checkUserPermissions must complete before the settings are loaded
             .finally(() => this.loadCustomSettings());
     }
+
+    testConsoleLogReplacement() {
+        console.log('This is a console.log message');
+        console.info('This is a console.info message');
+        console.warn('This is a console.warn message');
+        console.error('This is a console.error message');
+    
+        var anObject = {};
+        console.log(anObject);
+    }
 }

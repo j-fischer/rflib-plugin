@@ -9,6 +9,7 @@ Analyzes Aura Component files and adds RFLIB logging statements for:
 - Error logging in try-catch blocks
 - Error logging in Promise catch handlers
 - Adds rflibLoggerCmp component if not present
+- Replaces console.log and similar method invocations
 - Formats modified files using Prettier (optional)
 
 The command processes:

@@ -35,6 +35,7 @@ class AuraInstrumentationService {
   private static readonly TRY_CATCH_BLOCK_REGEX = /try\s*{[\s\S]*?}\s*catch\s*\(([^)]*)\)\s*{/g;
   private static readonly IF_STATEMENT_REGEX = /if\s*\((.*?)\)\s*(?:{([^]*?(?:(?<!{){(?:[^]*?)}(?!})[^]*?)*)}|([^{].*?)(?=\s*(?:;|$));)/g;
   private static readonly ELSE_REGEX = /}\s*else(?!\s+if\b)\s*(?:{((?:[^{}]|{(?:[^{}]|{[^{}]*})*})*)}|([^{].*?)(?=\n|;|$))/g;
+  private static readonly CONSOLE_LOG_REGEX = /console\.(log|debug|info|warn|error)\s*\(\s*([^)]+)\s*\)\s*;?/g;
 
   private static readonly PRETTIER_CONFIG: prettier.Options = {
     parser: 'babel',
@@ -92,6 +93,7 @@ class AuraInstrumentationService {
         }
 
         bodyContent = AuraInstrumentationService.processPromiseChains(bodyContent, loggerVar);
+        bodyContent = AuraInstrumentationService.processConsoleStatements(bodyContent, loggerVar);
 
         return `${methodName}: function(${params}) {${bodyContent}}`;
       }
@@ -178,6 +180,13 @@ class AuraInstrumentationService {
     );
 
     return modified;
+  }
+
+  private static processConsoleStatements(methodBody: string, loggerName: string): string {
+    return methodBody.replace(this.CONSOLE_LOG_REGEX, (match: string, logType: string, argument: string) => {
+      const logLevel = logType === 'info' || logType === 'warn' || logType === 'error' ? logType : 'debug';
+      return `${loggerName}.${logLevel}(${argument});`;
+    });
   }
 }
 

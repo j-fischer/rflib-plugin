@@ -11,6 +11,7 @@ Analyzes Lightning Web Component JavaScript files and adds RFLIB logging stateme
 - Condition logging in if/else blocks
 - Adds logger import if not present
 - Adds logger initialization if not present
+- Replaces console.log and similar method invocations
 - Formats modified files using Prettier (optional)
 
 # flags.sourcepath.summary
