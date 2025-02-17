@@ -40,14 +40,14 @@ describe('rflib logging aura instrument', () => {
         dir: path.join(sourceDir, 'main', 'default', 'aura', 'sampleComponent'),
         cmp: '',
         controller: '',
-        helper: ''
+        helper: '',
       },
       instrumented: {
         dir: path.join(sourceDir, 'main', 'default', 'aura', 'instrumentedComponent'),
         cmp: '',
         controller: '',
-        helper: ''
-      }
+        helper: '',
+      },
     };
 
     // Create component directories
@@ -69,8 +69,14 @@ describe('rflib logging aura instrument', () => {
       controller: fs.readFileSync(path.join(__dirname, 'sample', 'sampleController.js'), 'utf8'),
       helper: fs.readFileSync(path.join(__dirname, 'sample', 'sampleHelper.js'), 'utf8'),
       instrumentedCmp: fs.readFileSync(path.join(__dirname, 'instrumentedSample', 'instrumentedSample.cmp'), 'utf8'),
-      instrumentedController: fs.readFileSync(path.join(__dirname, 'instrumentedSample', 'instrumentedSampleController.js'), 'utf8'),
-      instrumentedHelper: fs.readFileSync(path.join(__dirname, 'instrumentedSample', 'instrumentedSampleHelper.js'), 'utf8')
+      instrumentedController: fs.readFileSync(
+        path.join(__dirname, 'instrumentedSample', 'instrumentedSampleController.js'),
+        'utf8',
+      ),
+      instrumentedHelper: fs.readFileSync(
+        path.join(__dirname, 'instrumentedSample', 'instrumentedSampleHelper.js'),
+        'utf8',
+      ),
     };
 
     // Write sample files
@@ -104,7 +110,7 @@ describe('rflib logging aura instrument', () => {
       fs.cpSync(sourceDir, path.join(failedTestDir, 'force-app'), {
         recursive: true,
         force: true,
-        preserveTimestamps: true
+        preserveTimestamps: true,
       });
     }
   });
@@ -119,7 +125,9 @@ describe('rflib logging aura instrument', () => {
     await RflibLoggingAuraInstrument.run(['--sourcepath', paths.sample.dir]);
     const modifiedContent = fs.readFileSync(paths.sample.cmp, 'utf8');
 
-    expect(modifiedContent).to.include('<c:rflibLoggerCmp aura:id="logger" name="sampleComponent" appendComponentId="false" />');
+    expect(modifiedContent).to.include(
+      '<c:rflibLoggerCmp aura:id="logger" name="sampleComponent" appendComponentId="false" />',
+    );
   });
 
   it('should add logger initialization to controller methods', async () => {
@@ -151,8 +159,12 @@ describe('rflib logging aura instrument', () => {
     const modifiedControllerContent = fs.readFileSync(paths.sample.controller, 'utf8');
     const modifiedHelperContent = fs.readFileSync(paths.sample.helper, 'utf8');
 
-    expect(modifiedControllerContent).to.match(/if \(data.isValid\) {\s+logger\.debug.*\s+component\.set\("v.value", data\.value\);\s+}/);
-    expect(modifiedHelperContent).to.match(/if \(response.getState\(\) === "SUCCESS"\) {\s+logger\.debug.*\s+component\.set\("v\.value", response\.getReturnValue\(\)\);\s+}/);
+    expect(modifiedControllerContent).to.match(
+      /if \(data.isValid\) {\s+logger\.debug.*\s+component\.set\('v.value', data\.value\);\s+}/,
+    );
+    expect(modifiedHelperContent).to.match(
+      /if \(response.getState\(\) === 'SUCCESS'\) {\s+logger\.debug.*\s+component\.set\('v\.value', response\.getReturnValue\(\)\);\s+}/,
+    );
   });
 
   it('should process aura in dry run mode', async () => {
@@ -220,7 +232,7 @@ describe('rflib logging aura instrument', () => {
     expect(finalHelperContent).to.not.equal(originalContent.instrumentedHelper);
     expect(finalHelperContent).to.include("var logger = component.find('logger')");
     expect(finalHelperContent).to.include("logger.info('loadData({0}, {1})', [component, params])");
-    expect(finalHelperContent).to.include("logger.debug('if (response.getState() === \"SUCCESS\")')");
+    expect(finalHelperContent).to.include("logger.debug('if (response.getState() === \\'SUCCESS\\')')");
   });
 
   it('should add log statements to if blocks', async () => {
@@ -304,8 +316,8 @@ describe('rflib logging aura instrument', () => {
 
     const sampleHelper = fs.readFileSync(paths.sample.helper, 'utf8');
 
-    expect(sampleHelper).to.include('logger.debug("Promise resolved: " + data);');
-    expect(sampleHelper).to.include('logger.error("Promise rejected: " + error);');
-    expect(sampleHelper).to.include('logger.debug("Promise finally");');
+    expect(sampleHelper).to.include("logger.debug('Promise resolved: ' + data);");
+    expect(sampleHelper).to.include("logger.error('Promise rejected: ' + error);");
+    expect(sampleHelper).to.include("logger.debug('Promise finally');");
   });
 });

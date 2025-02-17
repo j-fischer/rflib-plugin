@@ -62,7 +62,7 @@ describe('rflib logging apex instrument NUTs', () => {
       {
         ensureExitCode: 0,
         cwd: testSession.dir,
-      }
+      },
     ).jsonOutput?.result;
 
     expect(result?.processedFiles).to.equal(3); // Including SampleApexClass

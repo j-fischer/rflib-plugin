@@ -53,7 +53,7 @@ describe('rflib logging lwc instrument', () => {
       fs.cpSync(testDir, path.join(failedTestDir, 'force-app'), {
         recursive: true,
         force: true,
-        preserveTimestamps: true
+        preserveTimestamps: true,
       });
     }
   });

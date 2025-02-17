@@ -52,7 +52,7 @@ describe('rflib logging apex instrument', () => {
 
       // Copy all files from testDir to failedTestDir
       const files = fs.readdirSync(testDir);
-      files.forEach(file => {
+      files.forEach((file) => {
         const srcPath = path.join(testDir, file);
         const destPath = path.join(failedTestDir, file);
         fs.copyFileSync(srcPath, destPath);
@@ -71,7 +71,7 @@ describe('rflib logging apex instrument', () => {
     const modifiedContent = fs.readFileSync(sampleClassPath, 'utf8');
 
     expect(modifiedContent).to.include(
-      "private static final rflib_Logger LOGGER = rflib_LoggerUtil.getFactory().createLogger('SampleApexClass');"
+      "private static final rflib_Logger LOGGER = rflib_LoggerUtil.getFactory().createLogger('SampleApexClass');",
     );
   });
 
@@ -80,7 +80,7 @@ describe('rflib logging apex instrument', () => {
     const modifiedContent = fs.readFileSync(sampleClassPath, 'utf8');
 
     expect(modifiedContent).to.include(
-      "private static final rflib_Logger LOGGER = rflib_LoggerUtil.getFactory().createLogger('SampleApexClass');"
+      "private static final rflib_Logger LOGGER = rflib_LoggerUtil.getFactory().createLogger('SampleApexClass');",
     );
   });
 
@@ -105,7 +105,7 @@ describe('rflib logging apex instrument', () => {
     await RflibLoggingApexInstrument.run(['--sourcepath', testDir]);
     const modifiedContent = fs.readFileSync(sampleClassPath, 'utf8');
 
-    expect(modifiedContent).to.include('LOGGER.debug(\'if (filter == null)');
+    expect(modifiedContent).to.include("LOGGER.debug('if (filter == null)");
   });
 
   it('should convert single line if statements to blocks', async () => {
@@ -119,15 +119,17 @@ describe('rflib logging apex instrument', () => {
     await RflibLoggingApexInstrument.run(['--sourcepath', testDir]);
     const modifiedContent = fs.readFileSync(sampleClassPath, 'utf8');
 
-    expect(modifiedContent).to.include('LOGGER.debug(\'if (someLimit > 100)');
-    expect(modifiedContent).to.match(/if \(someLimit > 100\) {\s+LOGGER\.debug.*\s+for \(Integer i = 0; i < 10; i\+\+\)/);
+    expect(modifiedContent).to.include("LOGGER.debug('if (someLimit > 100)");
+    expect(modifiedContent).to.match(
+      /if \(someLimit > 100\) {\s+LOGGER\.debug.*\s+for \(Integer i = 0; i < 10; i\+\+\)/,
+    );
   });
 
   it('should add log statements to else blocks', async () => {
     await RflibLoggingApexInstrument.run(['--sourcepath', testDir]);
     const modifiedContent = fs.readFileSync(sampleClassPath, 'utf8');
 
-    expect(modifiedContent).to.include('LOGGER.debug(\'else for if (someLimit > 50)\')');
+    expect(modifiedContent).to.include("LOGGER.debug('else for if (someLimit > 50)')");
     expect(modifiedContent).to.match(/else {\s+LOGGER\.debug.*\s+LOGGER.debug\('Small batch'\);\s+}/);
   });
 
@@ -135,11 +137,7 @@ describe('rflib logging apex instrument', () => {
     // Reset the test file
     fs.writeFileSync(sampleClassPath, originalContent);
 
-    await RflibLoggingApexInstrument.run([
-      '--sourcepath',
-      testDir,
-      '--no-if'
-    ]);
+    await RflibLoggingApexInstrument.run(['--sourcepath', testDir, '--no-if']);
 
     const contentWithNoIf = fs.readFileSync(sampleClassPath, 'utf8');
 
@@ -154,11 +152,7 @@ describe('rflib logging apex instrument', () => {
   });
 
   it('should skip instrumented classes when skip-instrumented flag is used', async () => {
-    await RflibLoggingApexInstrument.run([
-      '--sourcepath',
-      testDir,
-      '--skip-instrumented'
-    ]);
+    await RflibLoggingApexInstrument.run(['--sourcepath', testDir, '--skip-instrumented']);
 
     const instrumentedContent = fs.readFileSync(instrumentedClassPath, 'utf8');
     const regularContent = fs.readFileSync(sampleClassPath, 'utf8');
@@ -176,25 +170,23 @@ describe('rflib logging apex instrument', () => {
 
     expect(modifiedContent).not.to.equal(originalTestContent);
     expect(modifiedContent).to.include('rflib_TestUtil.prepareLoggerForUnitTests()');
-    expect(modifiedContent).to.match(/@TestSetup\s+static\s+void\s+setupTestData\(\)\s*{\s+rflib_TestUtil\.prepareLoggerForUnitTests\(\);/);
+    expect(modifiedContent).to.match(
+      /@TestSetup\s+static\s+void\s+setupTestData\(\)\s*{\s+rflib_TestUtil\.prepareLoggerForUnitTests\(\);/,
+    );
   });
 
   it('should format modified files when prettier flag is used', async () => {
-    const result = await RflibLoggingApexInstrument.run([
-      '--sourcepath',
-      testDir,
-      '--prettier'
-    ]);
+    const result = await RflibLoggingApexInstrument.run(['--sourcepath', testDir, '--prettier']);
 
     const formattedContent = fs.readFileSync(sampleClassPath, 'utf8');
 
     // Verify proper formatting
-    expect(formattedContent).to.match(/^\s{4}/gm);  // Check 4-space indentation
-    expect(formattedContent).not.to.match(/\t/);    // No tabs
-    expect(formattedContent).to.match(/{\n/);       // Line break after brace
+    expect(formattedContent).to.match(/^\s{4}/gm); // Check 4-space indentation
+    expect(formattedContent).not.to.match(/\t/); // No tabs
+    expect(formattedContent).to.match(/{\n/); // Line break after brace
     expect(formattedContent).to.include('if (filter == null) {'); // Single quotes
-    expect(result.formattedFiles).to.equal(2);      // The test file should not have been formatted since it is already clean
-    expect(result.modifiedFiles).to.equal(3);       // Modified files counter
+    expect(result.formattedFiles).to.equal(2); // The test file should not have been formatted since it is already clean
+    expect(result.modifiedFiles).to.equal(3); // Modified files counter
   });
 
   it('should replace System.debug statements with LOGGER.debug', async () => {

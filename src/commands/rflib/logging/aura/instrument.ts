@@ -5,18 +5,18 @@ import { SfCommand, Flags } from '@salesforce/sf-plugins-core';
 import { Messages, Logger } from '@salesforce/core';
 import * as prettier from 'prettier';
 
-interface IfCondition {
+type IfCondition = {
   readonly condition: string;
   readonly position: number;
 }
 
-interface InstrumentationOptions {
+type InstrumentationOptions = {
   readonly prettier: boolean;
   readonly noIf: boolean;
   readonly skipInstrumented: boolean;
 }
 
-export interface RflibLoggingAuraInstrumentResult {
+export type RflibLoggingAuraInstrumentResult = {
   processedFiles: number;
   modifiedFiles: number;
   formattedFiles: number;
@@ -27,14 +27,18 @@ const messages = Messages.loadMessages('rflib-plugin', 'rflib.logging.aura.instr
 
 class AuraInstrumentationService {
   public static readonly ATTRIBUTE_REGEX = /<aura:attribute[^>]*>/g;
-  public static readonly LOGGER_COMPONENT_REGEX = /<c:rflibLoggerCmp\s+aura:id="([^"]+)"\s+name="([^"]+)"\s+appendComponentId="([^"]+)"\s*\/>/;
+  public static readonly LOGGER_COMPONENT_REGEX =
+    /<c:rflibLoggerCmp\s+aura:id="([^"]+)"\s+name="([^"]+)"\s+appendComponentId="([^"]+)"\s*\/>/;
 
   private static readonly LOGGER_VAR_REGEX = /var\s+(\w+)\s*=\s*\w+\.find\(['"](\w+)['"]\);/;
-  private static readonly METHOD_REGEX = /(\b\w+)\s*:\s*function\s*\((.*?)\)\s*{((?:[^{}]|{(?:[^{}]|{(?:[^{}]|{(?:[^{}]|{(?:[^{}]|{[^{}]*})*})*})*})*})*?)}/g;
+  private static readonly METHOD_REGEX =
+    /(\b\w+)\s*:\s*function\s*\((.*?)\)\s*{((?:[^{}]|{(?:[^{}]|{(?:[^{}]|{(?:[^{}]|{(?:[^{}]|{[^{}]*})*})*})*})*})*?)}/g;
   private static readonly PROMISE_CHAIN_REGEX = /\.(then|catch|finally)\s*\(\s*function\s*\(([^)]*)\)\s*{([\s\S]*?)}/g;
   private static readonly TRY_CATCH_BLOCK_REGEX = /try\s*{[\s\S]*?}\s*catch\s*\(([^)]*)\)\s*{/g;
-  private static readonly IF_STATEMENT_REGEX = /if\s*\((.*?)\)\s*(?:{([^]*?(?:(?<!{){(?:[^]*?)}(?!})[^]*?)*)}|([^{].*?)(?=\s*(?:;|$));)/g;
-  private static readonly ELSE_REGEX = /}\s*else(?!\s+if\b)\s*(?:{((?:[^{}]|{(?:[^{}]|{[^{}]*})*})*)}|([^{].*?)(?=\n|;|$))/g;
+  private static readonly IF_STATEMENT_REGEX =
+    /if\s*\((.*?)\)\s*(?:{([^]*?(?:(?<!{){(?:[^]*?)}(?!})[^]*?)*)}|([^{].*?)(?=\s*(?:;|$));)/g;
+  private static readonly ELSE_REGEX =
+    /}\s*else(?!\s+if\b)\s*(?:{((?:[^{}]|{(?:[^{}]|{[^{}]*})*})*)}|([^{].*?)(?=\n|;|$))/g;
   private static readonly CONSOLE_LOG_REGEX = /console\.(log|debug|info|warn|error)\s*\(\s*([^)]+)\s*\)\s*;?/g;
 
   private static readonly PRETTIER_CONFIG: prettier.Options = {
@@ -43,7 +47,7 @@ class AuraInstrumentationService {
     tabWidth: 4,
     useTabs: false,
     singleQuote: true,
-    trailingComma: 'none'
+    trailingComma: 'none',
   };
 
   public static isInstrumented(content: string, loggerId: string): boolean {
@@ -61,43 +65,38 @@ class AuraInstrumentationService {
     }
   }
 
-  public static processMethodLogging(
-    content: string,
-    loggerId: string,
-    isHelper: boolean,
-    noIf: boolean
-  ): string {
-    return content.replace(
-      this.METHOD_REGEX,
-      (match: string, methodName: string, params: string, body: string) => {
-        const paramList = params.split(',').map((p) => p.trim()).filter(Boolean);
-        let loggerVar = 'logger';
-        let bodyContent = body;
+  public static processMethodLogging(content: string, loggerId: string, isHelper: boolean, noIf: boolean): string {
+    return content.replace(this.METHOD_REGEX, (match: string, methodName: string, params: string, body: string) => {
+      const paramList = params
+        .split(',')
+        .map((p) => p.trim())
+        .filter(Boolean);
+      let loggerVar = 'logger';
+      let bodyContent = body;
 
-        const paramsToLog = isHelper ? paramList : paramList.slice(1, 2);
-        const placeholders = paramsToLog.map((_, i) => `{${i}}`).join(', ');
-        const logParams = paramsToLog.length > 0 ? `, [${paramsToLog.join(', ')}]` : '';
+      const paramsToLog = isHelper ? paramList : paramList.slice(1, 2);
+      const placeholders = paramsToLog.map((_, i) => `{${i}}`).join(', ');
+      const logParams = paramsToLog.length > 0 ? `, [${paramsToLog.join(', ')}]` : '';
 
-        const loggerMatch = body.match(this.LOGGER_VAR_REGEX);
-        if (loggerMatch && loggerMatch[2] === loggerId) {
-          loggerVar = loggerMatch[1];
-          const loggerIndex = body.indexOf(loggerMatch[0]) + loggerMatch[0].length;
-          bodyContent = `${body.slice(0, loggerIndex)}\n        ${loggerVar}.info('${methodName}(${placeholders})'${logParams});${body.slice(loggerIndex)}`;
-        } else {
-          const loggerInit = `var ${loggerVar} = ${paramList[0]}.find('${loggerId}');\n`;
-          bodyContent = `\n        ${loggerInit}        ${loggerVar}.info('${methodName}(${placeholders})'${logParams});${body}`;
-        }
-
-        if (!noIf) {
-          bodyContent = this.processIfStatements(bodyContent, loggerVar);
-        }
-
-        bodyContent = AuraInstrumentationService.processPromiseChains(bodyContent, loggerVar);
-        bodyContent = AuraInstrumentationService.processConsoleStatements(bodyContent, loggerVar);
-
-        return `${methodName}: function(${params}) {${bodyContent}}`;
+      const loggerMatch = body.match(this.LOGGER_VAR_REGEX);
+      if (loggerMatch && loggerMatch[2] === loggerId) {
+        loggerVar = loggerMatch[1];
+        const loggerIndex = body.indexOf(loggerMatch[0]) + loggerMatch[0].length;
+        bodyContent = `${body.slice(0, loggerIndex)}\n        ${loggerVar}.info('${methodName}(${placeholders})'${logParams});${body.slice(loggerIndex)}`;
+      } else {
+        const loggerInit = `var ${loggerVar} = ${paramList[0]}.find('${loggerId}');\n`;
+        bodyContent = `\n        ${loggerInit}        ${loggerVar}.info('${methodName}(${placeholders})'${logParams});${body}`;
       }
-    );
+
+      if (!noIf) {
+        bodyContent = this.processIfStatements(bodyContent, loggerVar);
+      }
+
+      bodyContent = AuraInstrumentationService.processPromiseChains(bodyContent, loggerVar);
+      bodyContent = AuraInstrumentationService.processConsoleStatements(bodyContent, loggerVar);
+
+      return `${methodName}: function(${params}) {${bodyContent}}`;
+    });
   }
 
   public static processPromiseChains(content: string, loggerVar: string): string {
@@ -107,22 +106,19 @@ class AuraInstrumentationService {
         const logStatement = this.processPromiseType(type, param?.trim() || '', loggerVar);
 
         return match.replace(blockBody, `\n        ${logStatement}\n        ${blockBody}`);
-      }
+      },
     );
   }
 
   public static processTryCatchBlocks(content: string): string {
-    return content.replace(
-      this.TRY_CATCH_BLOCK_REGEX,
-      (match: string, exceptionVar: string) => {
-        const errorVar = exceptionVar.trim().split(' ')[0] || 'error';
-        return match.replace(
-          /catch\s*\(([^)]*)\)\s*{/,
-          `catch(${exceptionVar}) {
-            logger.error('An error occurred', ${errorVar});`
-        );
-      }
-    );
+    return content.replace(this.TRY_CATCH_BLOCK_REGEX, (match: string, exceptionVar: string) => {
+      const errorVar = exceptionVar.trim().split(' ')[0] || 'error';
+      return match.replace(
+        /catch\s*\(([^)]*)\)\s*{/,
+        `catch(${exceptionVar}) {
+            logger.error('An error occurred', ${errorVar});`,
+      );
+    });
   }
 
   private static processPromiseType(type: string, paramName: string, loggerVar: string): string {
@@ -156,7 +152,7 @@ class AuraInstrumentationService {
           return `if (${condition}) {\n        ${logStatement}${cleanBody};\n    }`;
         }
         return match;
-      }
+      },
     );
 
     modified = modified.replace(
@@ -176,7 +172,7 @@ class AuraInstrumentationService {
           return `} else {\n        ${logStatement}${singleLineBody};\n    }`;
         }
         return match;
-      }
+      },
     );
 
     return modified;
@@ -200,37 +196,37 @@ export default class RflibLoggingAuraInstrument extends SfCommand<RflibLoggingAu
       char: 's',
       required: true,
       summary: messages.getMessage('flags.sourcepath.summary'),
-      description: messages.getMessage('flags.sourcepath.description')
+      description: messages.getMessage('flags.sourcepath.description'),
     }),
     dryrun: Flags.boolean({
       char: 'd',
       default: false,
       summary: messages.getMessage('flags.dryrun.summary'),
-      description: messages.getMessage('flags.dryrun.description')
+      description: messages.getMessage('flags.dryrun.description'),
     }),
     prettier: Flags.boolean({
       char: 'p',
       default: false,
       summary: messages.getMessage('flags.prettier.summary'),
-      description: messages.getMessage('flags.prettier.description')
+      description: messages.getMessage('flags.prettier.description'),
     }),
     'no-if': Flags.boolean({
       summary: messages.getMessage('flags.no-if.summary'),
       description: messages.getMessage('flags.no-if.description'),
-      default: false
+      default: false,
     }),
     'skip-instrumented': Flags.boolean({
       summary: messages.getMessage('flags.skip-instrumented.summary'),
       description: messages.getMessage('flags.skip-instrumented.description'),
-      default: false
-    })
+      default: false,
+    }),
   };
 
   private logger!: Logger;
   private readonly stats: RflibLoggingAuraInstrumentResult = {
     processedFiles: 0,
     modifiedFiles: 0,
-    formattedFiles: 0
+    formattedFiles: 0,
   };
 
   public async run(): Promise<RflibLoggingAuraInstrumentResult> {
@@ -240,7 +236,7 @@ export default class RflibLoggingAuraInstrument extends SfCommand<RflibLoggingAu
     const instrumentationOpts: InstrumentationOptions = {
       prettier: flags.prettier,
       noIf: flags['no-if'],
-      skipInstrumented: flags['skip-instrumented']
+      skipInstrumented: flags['skip-instrumented'],
     };
 
     this.log(`Starting Aura component instrumentation in ${flags.sourcepath}`);
@@ -261,7 +257,7 @@ export default class RflibLoggingAuraInstrument extends SfCommand<RflibLoggingAu
   private async processDirectory(
     dirPath: string,
     isDryRun: boolean,
-    instrumentationOpts: InstrumentationOptions
+    instrumentationOpts: InstrumentationOptions,
   ): Promise<void> {
     this.logger.debug(`Processing directory: ${dirPath}`);
 
@@ -292,7 +288,7 @@ export default class RflibLoggingAuraInstrument extends SfCommand<RflibLoggingAu
   private async processAuraComponents(
     auraPath: string,
     isDryRun: boolean,
-    instrumentationOpts: InstrumentationOptions
+    instrumentationOpts: InstrumentationOptions,
   ): Promise<void> {
     if (path.basename(auraPath) !== 'aura') {
       this.logger.warn(`Not an aura directory: ${auraPath}`);
@@ -313,7 +309,7 @@ export default class RflibLoggingAuraInstrument extends SfCommand<RflibLoggingAu
     componentPath: string,
     componentName: string,
     isDryRun: boolean,
-    instrumentationOpts: InstrumentationOptions
+    instrumentationOpts: InstrumentationOptions,
   ): Promise<void> {
     this.logger.info(`Processing Aura component: ${componentName}`);
 
@@ -335,11 +331,7 @@ export default class RflibLoggingAuraInstrument extends SfCommand<RflibLoggingAu
     }
   }
 
-  private async instrumentCmpFile(
-    filePath: string,
-    componentName: string,
-    isDryRun: boolean
-  ): Promise<string> {
+  private async instrumentCmpFile(filePath: string, componentName: string, isDryRun: boolean): Promise<string> {
     if (!fs.existsSync(filePath)) {
       this.logger.warn(`Component file not found: ${filePath}`);
       return 'logger';
@@ -380,7 +372,7 @@ export default class RflibLoggingAuraInstrument extends SfCommand<RflibLoggingAu
     filePath: string,
     loggerId: string,
     isDryRun: boolean,
-    instrumentationOpts: InstrumentationOptions
+    instrumentationOpts: InstrumentationOptions,
   ): Promise<void> {
     if (!fs.existsSync(filePath)) {
       this.logger.debug(`JavaScript file not found: ${filePath}`);
@@ -401,12 +393,7 @@ export default class RflibLoggingAuraInstrument extends SfCommand<RflibLoggingAu
     const isHelper = filePath.endsWith('Helper.js');
 
     // Process methods and other patterns
-    content = AuraInstrumentationService.processMethodLogging(
-      content,
-      loggerId,
-      isHelper,
-      instrumentationOpts.noIf
-    );
+    content = AuraInstrumentationService.processMethodLogging(content, loggerId, isHelper, instrumentationOpts.noIf);
     content = AuraInstrumentationService.processTryCatchBlocks(content);
 
     if (content !== originalContent) {

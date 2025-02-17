@@ -84,7 +84,15 @@ describe('rflib logging aura instrument NUTs', () => {
     );
 
     const controllerContent = fs.readFileSync(
-      path.join(testSession.dir, 'force-app', 'main', 'default', 'aura', 'sampleComponent', 'sampleComponentController.js'),
+      path.join(
+        testSession.dir,
+        'force-app',
+        'main',
+        'default',
+        'aura',
+        'sampleComponent',
+        'sampleComponentController.js',
+      ),
       'utf8',
     );
 
@@ -94,7 +102,9 @@ describe('rflib logging aura instrument NUTs', () => {
     );
 
     // Check component modifications
-    expect(cmpContent).to.include('<c:rflibLoggerCmp aura:id="logger" name="sampleComponent" appendComponentId="false" />');
+    expect(cmpContent).to.include(
+      '<c:rflibLoggerCmp aura:id="logger" name="sampleComponent" appendComponentId="false" />',
+    );
 
     // Check controller modifications
     expect(controllerContent).to.include("var logger = component.find('logger')");

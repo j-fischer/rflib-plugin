@@ -5,23 +5,23 @@ import { SfCommand, Flags } from '@salesforce/sf-plugins-core';
 import { Messages, Logger } from '@salesforce/core';
 import * as prettier from 'prettier';
 
-interface InstrumentationOptions {
+type InstrumentationOptions = {
   readonly prettier: boolean;
   readonly noIf: boolean;
   readonly skipInstrumented: boolean;
 }
 
-interface LoggerInfo {
+type LoggerInfo = {
   readonly exists: boolean;
   readonly variableName: string;
 }
 
-interface IfCondition {
+type IfCondition = {
   readonly condition: string;
   readonly position: number;
 }
 
-export interface RflibLoggingLwcInstrumentResult {
+export type RflibLoggingLwcInstrumentResult = {
   processedFiles: number;
   modifiedFiles: number;
   formattedFiles: number;
@@ -33,11 +33,15 @@ const messages = Messages.loadMessages('rflib-plugin', 'rflib.logging.lwc.instru
 class LwcInstrumentationService {
   private static readonly IMPORT_REGEX = /import\s*{\s*createLogger\s*}\s*from\s*['"]c\/rflibLogger['"]/;
   private static readonly LOGGER_REGEX = /const\s+(\w+)\s*=\s*createLogger\s*\(['"]([\w-]+)['"]\)/;
-  private static readonly METHOD_REGEX = /(?:async\s+)?(?!(?:if|switch|case|while|for|catch)\b)(\b\w+)\s*\((.*?)\)\s*{/g;
+  private static readonly METHOD_REGEX =
+    /(?:async\s+)?(?!(?:if|switch|case|while|for|catch)\b)(\b\w+)\s*\((.*?)\)\s*{/g;
   private static readonly EXPORT_DEFAULT_REGEX = /export\s+default\s+class\s+(\w+)/;
-  private static readonly IF_STATEMENT_REGEX = /if\s*\((.*?)\)\s*(?:{([^]*?(?:(?<!{){(?:[^]*?)}(?!})[^]*?)*)}|([^{].*?)(?=\s*(?:;|$));)/g;
-  private static readonly ELSE_REGEX = /}\s*else(?!\s+if\b)\s*(?:{((?:[^{}]|{(?:[^{}]|{[^{}]*})*})*)}|([^{].*?)(?=\n|;|$))/g;
-  private static readonly PROMISE_CHAIN_REGEX = /\.(then|catch|finally)\s*\(\s*(?:async\s+)?(?:\(?([^)]*)\)?)?\s*=>\s*(?:\{((?:[^{}]|`[^`]*`)*?)\}|([^{;]*?(?:\.[^{;]*?)*(?:\([^)]*\))?)(?=\s*(?:\)\)|\.|\))))/g;
+  private static readonly IF_STATEMENT_REGEX =
+    /if\s*\((.*?)\)\s*(?:{([^]*?(?:(?<!{){(?:[^]*?)}(?!})[^]*?)*)}|([^{].*?)(?=\s*(?:;|$));)/g;
+  private static readonly ELSE_REGEX =
+    /}\s*else(?!\s+if\b)\s*(?:{((?:[^{}]|{(?:[^{}]|{[^{}]*})*})*)}|([^{].*?)(?=\n|;|$))/g;
+  private static readonly PROMISE_CHAIN_REGEX =
+    /\.(then|catch|finally)\s*\(\s*(?:async\s+)?(?:\(?([^)]*)\)?)?\s*=>\s*(?:\{((?:[^{}]|`[^`]*`)*?)\}|([^{;]*?(?:\.[^{;]*?)*(?:\([^)]*\))?)(?=\s*(?:\)\)|\.|\))))/g;
   private static readonly TRY_CATCH_BLOCK_REGEX = /try\s*{[\s\S]*?}\s*catch\s*\(([^)]*)\)\s*{/g;
   private static readonly CONSOLE_LOG_REGEX = /console\.(log|debug|info|warn|error)\s*\(\s*([^)]+)\s*\)\s*;?/g;
 
@@ -108,7 +112,7 @@ class LwcInstrumentationService {
           return `if (${condition}) {\n        ${logStatement}${cleanBody};\n    }`;
         }
         return match;
-      }
+      },
     );
 
     modified = modified.replace(
@@ -128,26 +132,23 @@ class LwcInstrumentationService {
           return `} else {\n        ${logStatement}${singleLineBody};\n    }`;
         }
         return match;
-      }
+      },
     );
 
     return modified;
   }
 
   public static processMethodLogging(content: string, loggerName: string, options: InstrumentationOptions): string {
-    let modified = content.replace(
-      this.METHOD_REGEX,
-      (match: string, methodName: string, args: string) => {
-        const parameters = args
-          .split(',')
-          .map((p) => p.trim())
-          .filter((p) => p);
-        const placeholders = parameters.map((_, i) => `{${i}}`).join(', ');
-        const logArgs = parameters.length > 0 ? `, ${parameters.join(', ')}` : '';
+    let modified = content.replace(this.METHOD_REGEX, (match: string, methodName: string, args: string) => {
+      const parameters = args
+        .split(',')
+        .map((p) => p.trim())
+        .filter((p) => p);
+      const placeholders = parameters.map((_, i) => `{${i}}`).join(', ');
+      const logArgs = parameters.length > 0 ? `, ${parameters.join(', ')}` : '';
 
-        return `${match}\n        ${loggerName}.info('${methodName}(${placeholders})'${logArgs});`;
-      }
-    );
+      return `${match}\n        ${loggerName}.info('${methodName}(${placeholders})'${logArgs});`;
+    });
 
     if (!options.noIf) {
       modified = this.processIfStatements(modified, loggerName);
@@ -157,19 +158,16 @@ class LwcInstrumentationService {
   }
 
   public static processTryCatchBlocks(content: string, loggerName: string): string {
-    return content.replace(
-      this.TRY_CATCH_BLOCK_REGEX,
-      (match: string, exceptionVar: string, offset: number) => {
-        const methodName = this.findEnclosingMethod(content, offset);
-        const errorVar = exceptionVar.trim().split(' ')[0] || 'error';
+    return content.replace(this.TRY_CATCH_BLOCK_REGEX, (match: string, exceptionVar: string, offset: number) => {
+      const methodName = this.findEnclosingMethod(content, offset);
+      const errorVar = exceptionVar.trim().split(' ')[0] || 'error';
 
-        return match.replace(
-          /catch\s*\(([^)]*)\)\s*{/,
-          `catch(${exceptionVar}) {
-            ${loggerName}.error('An error occurred in function ${methodName}()', ${errorVar});`
-        );
-      }
-    );
+      return match.replace(
+        /catch\s*\(([^)]*)\)\s*{/,
+        `catch(${exceptionVar}) {
+            ${loggerName}.error('An error occurred in function ${methodName}()', ${errorVar});`,
+      );
+    });
   }
 
   public static processPromiseChains(content: string, loggerName: string): string {
@@ -197,9 +195,8 @@ class LwcInstrumentationService {
 
         if (singleLineBody) {
           const trimmedBody = (singleLineBody as string).trim();
-          const adjustedBody = trimmedBody.split(')').length > trimmedBody.split('(').length
-            ? trimmedBody.slice(0, -1)
-            : trimmedBody;
+          const adjustedBody =
+            trimmedBody.split(')').length > trimmedBody.split('(').length ? trimmedBody.slice(0, -1) : trimmedBody;
 
           return `.${type}((${paramName}) => {
               ${logStatement}
@@ -212,7 +209,7 @@ class LwcInstrumentationService {
         }
 
         return match;
-      }
+      },
     );
   }
 
@@ -301,7 +298,7 @@ export default class RflibLoggingLwcInstrument extends SfCommand<RflibLoggingLwc
   private async processDirectory(
     dirPath: string,
     isDryRun: boolean,
-    instrumentationOpts: InstrumentationOptions
+    instrumentationOpts: InstrumentationOptions,
   ): Promise<void> {
     const files = await fs.promises.readdir(dirPath);
 
@@ -324,7 +321,7 @@ export default class RflibLoggingLwcInstrument extends SfCommand<RflibLoggingLwc
   private async instrumentLwcFile(
     filePath: string,
     isDryRun: boolean,
-    instrumentationOpts: InstrumentationOptions
+    instrumentationOpts: InstrumentationOptions,
   ): Promise<void> {
     const componentName = path.basename(path.dirname(filePath));
     this.logger.debug(`Processing LWC: ${componentName}`);
