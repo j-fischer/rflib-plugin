@@ -1,3 +1,30 @@
+## [0.6.3](https://github.com/j-fischer/rflib-plugin/compare/0.6.2...0.6.3) (2025-02-17)
+
+
+### Bug Fixes
+
+* **deps:** bump prettier-plugin-apex from 2.2.2 to 2.2.4 ([#28](https://github.com/j-fischer/rflib-plugin/issues/28)) ([cbb674c](https://github.com/j-fischer/rflib-plugin/commit/cbb674c7af86f0918c444a20d6226325c6f30cd4))
+
+
+
+## [0.6.2](https://github.com/j-fischer/rflib-plugin/compare/0.6.1...0.6.2) (2025-02-17)
+
+
+### Bug Fixes
+
+* **deps:** bump @oclif/core from 4.2.6 to 4.2.7 ([#35](https://github.com/j-fischer/rflib-plugin/issues/35)) ([545541e](https://github.com/j-fischer/rflib-plugin/commit/545541ef25bc09da2a109d22713801975cc243a5))
+
+
+
+## [0.6.1](https://github.com/j-fischer/rflib-plugin/compare/0.6.0...0.6.1) (2025-02-17)
+
+
+### Bug Fixes
+
+* **deps:** bump @salesforce/sf-plugins-core from 12.1.2 to 12.1.4 ([#31](https://github.com/j-fischer/rflib-plugin/issues/31)) ([af66bde](https://github.com/j-fischer/rflib-plugin/commit/af66bded9f7ca7625b1ef89dc35dd82a6e9375ef))
+
+
+
 # [0.6.0](https://github.com/j-fischer/rflib-plugin/compare/0.5.0...0.6.0) (2025-01-27)
 
 
