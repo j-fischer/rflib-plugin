@@ -65,6 +65,9 @@
               },
               "aura": {
                 "description": "Commands related to Aura logging"
+              },
+              "flow": {
+                "description": "description for rflib.logging.flow"
               }
             }
           }
