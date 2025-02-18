@@ -6,8 +6,10 @@
     "@oclif/core": "^4",
     "@salesforce/core": "^8",
     "@salesforce/sf-plugins-core": "^12",
+    "@types/xml2js": "^0.4.14",
     "prettier": "^3.4.2",
-    "prettier-plugin-apex": "^2.2.4"
+    "prettier-plugin-apex": "^2.2.4",
+    "xml2js": "^0.6.2"
   },
   "devDependencies": {
     "@commitlint/cli": "^19.6.1",

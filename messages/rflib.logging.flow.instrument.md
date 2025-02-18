@@ -6,13 +6,21 @@ Summary of a command.
 
 More information about a command. Don't repeat the summary. 
 
-# flags.name.summary
+# flags.sourcepath.summary
 
-Description of a flag.
+Directory containing Apex classes to instrument with logging.
 
-# flags.name.description
+# flags.sourcepath.description
 
-More information about a flag. Don't repeat the summary. 
+Path to the source directory containing Apex classes that should be instrumented with RFLIB logging statements. Test classes (ending with 'Test.cls') are automatically excluded.
+
+# flags.dryrun.summary
+
+Preview changes without modifying files.
+
+# flags.dryrun.description
+
+When enabled, shows which files would be modified without making actual changes. Useful for reviewing the impact before applying changes.
 
 # examples
 
