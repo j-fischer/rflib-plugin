@@ -10,7 +10,7 @@
     "prettier-plugin-apex": "^2.2.4"
   },
   "devDependencies": {
-    "@commitlint/cli": "^19.6.1",
+    "@commitlint/cli": "^19.8.0",
     "@istanbuljs/nyc-config-typescript": "^1.0.2",
     "@oclif/plugin-command-snapshot": "^5.2.35",
     "@salesforce/cli-plugins-testkit": "^5.3.10",
