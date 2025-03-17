@@ -22,6 +22,14 @@ Preview changes without modifying files.
 
 When enabled, shows which files would be modified without making actual changes. Useful for reviewing the impact before applying changes.
 
+# flags.skip-instrumented.summary
+
+Skips any files where a logger is already present.
+
+# flags.skip-instrumented.description
+
+When provided, the command will not add log statements to any Flows that already contains a RFLIB logging node.
+
 # examples
 
 - <%= config.bin %> <%= command.id %>
