@@ -12,10 +12,10 @@ describe('rflib logging flow instrument NUTs', () => {
     await session?.clean();
   });
 
-  it('should display provided name', () => {
-    const name = 'World';
-    const command = `rflib logging flow instrument --name ${name}`;
+  it('should execute in dry run mode', () => {
+    const command = `rflib logging flow instrument --sourcepath force-app --dryrun`;
     const output = execCmd(command, { ensureExitCode: 0 }).shellOutput.stdout;
-    expect(output).to.contain(name);
+    expect(output).to.contain('Scanning Flow files');
+    expect(output).to.contain('Instrumentation complete');
   });
 });
