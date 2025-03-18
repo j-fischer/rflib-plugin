@@ -49,3 +49,6 @@ node_modules
 .DS_Store
 .idea
 .sfdx
+
+# Claude
+CLAUDE.md
