@@ -22,7 +22,7 @@ const messages = Messages.loadMessages('rflib-plugin', 'rflib.logging.flow.instr
 // Type definition removed to fix compiler error
 // This was used to document valid Flow variable types: 'String' | 'Number' | 'Boolean' | 'SObject' | 'SObjectCollection'
 
-class FlowInstrumentationService {
+export class FlowInstrumentationService {
   private static readonly parser = new xml2js.Parser({
     explicitArray: false,
     preserveChildrenOrder: true,
@@ -67,7 +67,11 @@ class FlowInstrumentationService {
       : [flowObj.Flow.actionCalls];
 
     return actionCalls.some(
-      (action: any) => action.actionName === 'rflib:Logger' || action.name?.startsWith('RFLIB_Flow_Logger')
+      (action: any) => 
+        action.actionName === 'rflib:Logger' || 
+        action.actionName === 'rflib_LoggerFlowAction' ||
+        action.actionName === 'rflib_ApplicationEventLoggerAction' ||
+        (action.name && typeof action.name === 'string' && action.name.startsWith('RFLIB_Flow_Logger'))
     );
   }
 
@@ -205,18 +209,20 @@ class FlowInstrumentationService {
       : (variables.isInput === 'true' || variables.isCollection === 'true' ? [variables] : []);
 
     if (inputVariables.length > 0) {
-      // Create a more detailed message with variable references
-      const baseMessage = loggingAction.inputParameters.find(
-        (p: any) => p.name === 'Message'
+      // Find the message parameter - case insensitive search
+      const messageParamIndex = loggingAction.inputParameters.findIndex(
+        (p: any) => p.name?.toLowerCase() === 'message'
       );
 
-      if (baseMessage) {
+      if (messageParamIndex >= 0) {
         // Enhance the message with variable information
         const varRefs = inputVariables
           .map((v: any) => `${v.name}: {!${v.name}}`)
           .join(', ');
 
-        baseMessage.value.stringValue = `${baseMessage.value.stringValue} with ${varRefs}`;
+        const baseMessage = loggingAction.inputParameters[messageParamIndex];
+        const originalMessage = baseMessage.value.stringValue;
+        baseMessage.value.stringValue = `${originalMessage} with ${varRefs}`;
       }
     }
 
