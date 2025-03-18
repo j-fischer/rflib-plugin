@@ -1,3 +1,12 @@
+# [0.7.0](https://github.com/j-fischer/rflib-plugin/compare/0.6.4...0.7.0) (2025-03-18)
+
+
+### Features
+
+* **flow:** add Flow instrumentation with sample file and fix lint issues ([cd1c0b5](https://github.com/j-fischer/rflib-plugin/commit/cd1c0b5b834e9b6e2dc3b6641f4991ec8f47f551))
+
+
+
 ## [0.6.4](https://github.com/j-fischer/rflib-plugin/compare/0.6.3...0.6.4) (2025-03-17)
 
 
