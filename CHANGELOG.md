@@ -1,3 +1,12 @@
+## [0.7.2](https://github.com/j-fischer/rflib-plugin/compare/0.7.1...0.7.2) (2025-04-07)
+
+
+### Bug Fixes
+
+* **deps:** bump prettier-plugin-apex from 2.2.4 to 2.2.6 ([#59](https://github.com/j-fischer/rflib-plugin/issues/59)) ([5e121f5](https://github.com/j-fischer/rflib-plugin/commit/5e121f50c603f0dc55b58be200c09ed9e783410f))
+
+
+
 ## [0.7.1](https://github.com/j-fischer/rflib-plugin/compare/0.7.0...0.7.1) (2025-04-07)
 
 
