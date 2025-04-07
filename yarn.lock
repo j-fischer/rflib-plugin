@@ -1582,25 +1582,25 @@
     "@pnpm/network.ca-file" "^1.0.1"
     config-chain "^1.1.11"
 
-"@prettier-apex/apex-ast-serializer-darwin-arm64@2.2.4":
-  version "2.2.4"
-  resolved "https://registry.yarnpkg.com/@prettier-apex/apex-ast-serializer-darwin-arm64/-/apex-ast-serializer-darwin-arm64-2.2.4.tgz#5e18efff1e9d421e7a4e7e9dcf98e32689834a65"
-  integrity sha512-18MuJS1iPTgEHS2gPS1b8MfHkj2cpO5IK+ojOs3v+jh0JC5lzumO1p/CjUXb2Bd5HopOC42dFIb1HXaax5JgGQ==
+"@prettier-apex/apex-ast-serializer-darwin-arm64@2.2.6":
+  version "2.2.6"
+  resolved "https://registry.yarnpkg.com/@prettier-apex/apex-ast-serializer-darwin-arm64/-/apex-ast-serializer-darwin-arm64-2.2.6.tgz#aa196c913b55804a63398882ef0b13491a069f4a"
+  integrity sha512-XzrGnEVQq/JH/rKPktpdL8/agocjDCnSrY4MuHxMs5V3OnV/4MJdMHp0frQhqOjbhnUIjewypX5XWcVi0xqRBQ==
 
-"@prettier-apex/apex-ast-serializer-darwin-x64@2.2.4":
-  version "2.2.4"
-  resolved "https://registry.yarnpkg.com/@prettier-apex/apex-ast-serializer-darwin-x64/-/apex-ast-serializer-darwin-x64-2.2.4.tgz#8bb7d1f6e014d424f49c60e7cc6d4e86ecc8546b"
-  integrity sha512-7ieK8FP7jGLaNDtOj3dAwP+8/Cu+0DM/HBn8ntR6fmMaKt6yr5rbq1BhIgdMCjbVTph0CUdE97Uli+AQEQvxeg==
+"@prettier-apex/apex-ast-serializer-darwin-x64@2.2.6":
+  version "2.2.6"
+  resolved "https://registry.yarnpkg.com/@prettier-apex/apex-ast-serializer-darwin-x64/-/apex-ast-serializer-darwin-x64-2.2.6.tgz#d3ad65fce2329701fc470207273a3de1435d9340"
+  integrity sha512-bCOJq90UAL+qCEMbXAuFBULjK04E/PAFL+OXgO9haeNHB41HeoUgNhqAboTQdyz2szHaM3FQ1N6BOdUIjTraXg==
 
-"@prettier-apex/apex-ast-serializer-linux-x64@2.2.4":
-  version "2.2.4"
-  resolved "https://registry.yarnpkg.com/@prettier-apex/apex-ast-serializer-linux-x64/-/apex-ast-serializer-linux-x64-2.2.4.tgz#e1473bff738b6b673e29fd31c06ba68f9f4a9fbd"
-  integrity sha512-/i+PyD5/ohorLJ+iz2XzR5E4htfJ/xmE37dlvvth2WxEN4m0YNOjMRDI2sE+1HjPTZdG+m+cJuqq1UYZWmLFTg==
+"@prettier-apex/apex-ast-serializer-linux-x64@2.2.6":
+  version "2.2.6"
+  resolved "https://registry.yarnpkg.com/@prettier-apex/apex-ast-serializer-linux-x64/-/apex-ast-serializer-linux-x64-2.2.6.tgz#9dcee71150528fc8fcce0f9e08f50eb99ed2e1d5"
+  integrity sha512-sErKpugEvmF7Iwdk1wqQfWFGQ4+LFDKQ+ek5kunRJfsVLs6yQd6qIaiFqqwYxl/4vU6O6+McaON2eVhwjF8YGg==
 
-"@prettier-apex/apex-ast-serializer-win32-x64@2.2.4":
-  version "2.2.4"
-  resolved "https://registry.yarnpkg.com/@prettier-apex/apex-ast-serializer-win32-x64/-/apex-ast-serializer-win32-x64-2.2.4.tgz#ed0ff470fa85b9f512644243f3f5f31ea932d406"
-  integrity sha512-SbT9ufY8OP976Owbefr/t8jPqZM51ps/gOavWjA/cu3+thOD4r50hMJ+Ke7NgTSwh11q2rPkadicCk/x2Y9HeA==
+"@prettier-apex/apex-ast-serializer-win32-x64@2.2.6":
+  version "2.2.6"
+  resolved "https://registry.yarnpkg.com/@prettier-apex/apex-ast-serializer-win32-x64/-/apex-ast-serializer-win32-x64-2.2.6.tgz#17eca6d9cfe438f132bf282d1cc37fc1de6a84b2"
+  integrity sha512-liKeEt89l0cJb8mmgy0kU157jV/7FpF8+oUR4Ic4Tu2DainBxDRcBQICBR0+NmKJNUGTY6/MnwFbuld25laNdg==
 
 "@rtsao/scc@^1.1.0":
   version "1.1.0"
@@ -6833,18 +6833,18 @@ prelude-ls@^1.2.1:
   resolved "https://registry.yarnpkg.com/prelude-ls/-/prelude-ls-1.2.1.tgz#debc6489d7a6e6b0e7611888cec880337d316396"
   integrity sha512-vkcDPrRZo1QZLbn5RLGPpg/WmIQ65qoWWhcGKf/b5eplkkarX0m9z8ppCat4mlOqUsWpyNuYgO3VRyrYHSzX5g==
 
-prettier-plugin-apex@^2.2.4:
-  version "2.2.4"
-  resolved "https://registry.yarnpkg.com/prettier-plugin-apex/-/prettier-plugin-apex-2.2.4.tgz#cde8a1a08f68bd6b6a3b21799afaa0a8af41af0b"
-  integrity sha512-/mqsKuQ1TbGzav+WKi0EsOl+Ttappwh69KM5M04vTQXznk70jrNmEGNaCK3KvvVDMDwLSYCg8bkc9HsumWVfqg==
+prettier-plugin-apex@^2.2.6:
+  version "2.2.6"
+  resolved "https://registry.yarnpkg.com/prettier-plugin-apex/-/prettier-plugin-apex-2.2.6.tgz#c90301cce53f14ec21275a1ed4ea848036971575"
+  integrity sha512-1z1WFl2zy0FDTCTLP9f/78TdEpTJ6qBGAf9vRbT9o4KRXBOfTmWkZiEYV1+QYky8ulxl085iS18JQKUm5K9KPg==
   dependencies:
     jest-docblock "^29.0.0"
     wait-on "^8.0.0"
   optionalDependencies:
-    "@prettier-apex/apex-ast-serializer-darwin-arm64" "2.2.4"
-    "@prettier-apex/apex-ast-serializer-darwin-x64" "2.2.4"
-    "@prettier-apex/apex-ast-serializer-linux-x64" "2.2.4"
-    "@prettier-apex/apex-ast-serializer-win32-x64" "2.2.4"
+    "@prettier-apex/apex-ast-serializer-darwin-arm64" "2.2.6"
+    "@prettier-apex/apex-ast-serializer-darwin-x64" "2.2.6"
+    "@prettier-apex/apex-ast-serializer-linux-x64" "2.2.6"
+    "@prettier-apex/apex-ast-serializer-win32-x64" "2.2.6"
 
 prettier@^2.8.8:
   version "2.8.8"
