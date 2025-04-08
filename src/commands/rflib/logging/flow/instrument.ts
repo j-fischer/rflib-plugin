@@ -159,7 +159,164 @@ export class FlowInstrumentationService {
       instrumentedFlow.Flow.variables = [instrumentedFlow.Flow.variables];
     }
 
+    // Instrument decisions with logging for each outcome
+    if (instrumentedFlow.Flow.decisions) {
+      this.instrumentDecisions(instrumentedFlow, flowName);
+    }
+
     return instrumentedFlow;
+  }
+  
+  // Helper to instrument decision paths with logging
+  private static instrumentDecisions(flowObj: any, flowName: string): void {
+    if (!flowObj.Flow.decisions) {
+      return;
+    }
+
+    // Convert to array if there's only one decision
+    const decisions = Array.isArray(flowObj.Flow.decisions) 
+      ? flowObj.Flow.decisions 
+      : [flowObj.Flow.decisions];
+    
+    // Process each decision
+    decisions.forEach((decision: any) => {
+      // Skip if decision doesn't have a name
+      if (!decision.name) {
+        return;
+      }
+
+      const decisionName = decision.name;
+      const decisionLabel = decision.label || decisionName;
+      
+      // Process default connector if it exists
+      if (decision.defaultConnector?.targetReference) {
+        const defaultTarget = decision.defaultConnector.targetReference;
+        const defaultConnectorLabel = decision.defaultConnectorLabel || 'Default Outcome';
+        
+        // Create a logger for the default path
+        const defaultLogger = this.createDecisionPathLogger(
+          flowName, 
+          String(decisionName), 
+          String(decisionLabel),
+          'default',
+          String(defaultConnectorLabel)
+        );
+        
+        // Connect logger to the original target
+        defaultLogger.connector = {
+          targetReference: defaultTarget
+        };
+        
+        // Add logger to actionCalls first, before updating the decision connector
+        this.addActionCallToFlow(flowObj, defaultLogger);
+        
+        // Update the decision's default connector to point to our logger
+        // We're inside a forEach callback, so we have to modify the original object
+        /* eslint-disable no-param-reassign */
+        decision.defaultConnector.targetReference = defaultLogger.name;
+        /* eslint-enable no-param-reassign */
+      }
+      
+      // Process each rule if they exist
+      if (decision.rules) {
+        const rules = Array.isArray(decision.rules) ? decision.rules : [decision.rules];
+        
+        rules.forEach((rule: any) => {
+          // Skip if rule doesn't have a connector or name
+          if (!rule.connector?.targetReference || !rule.name) {
+            return;
+          }
+          
+          const ruleTarget = rule.connector.targetReference;
+          const ruleName = rule.name;
+          const ruleLabel = rule.label || ruleName;
+          
+          // Create a logger for this rule outcome
+          const ruleLogger = this.createDecisionPathLogger(
+            flowName, 
+            String(decisionName), 
+            String(decisionLabel),
+            String(ruleName),
+            String(ruleLabel)
+          );
+          
+          // Connect logger to the original target
+          ruleLogger.connector = {
+            targetReference: ruleTarget
+          };
+          
+          // Add logger to actionCalls first, before updating the rule connector
+          this.addActionCallToFlow(flowObj, ruleLogger);
+          
+          // Update the rule's connector to point to our logger
+          // We're inside a forEach callback, so we have to modify the original object
+          /* eslint-disable no-param-reassign */
+          rule.connector.targetReference = ruleLogger.name;
+          /* eslint-enable no-param-reassign */
+        });
+      }
+    });
+  }
+  
+  // Helper to add action calls to the flow object
+  // Note: This method does modify the parameter directly - we accepted the eslint warning
+  // since we need to modify the flow object within callback functions where returning a new value isn't possible
+  private static addActionCallToFlow(flowObj: any, actionCall: any): void {
+    /* eslint-disable no-param-reassign */
+    if (!flowObj.Flow.actionCalls) {
+      flowObj.Flow.actionCalls = actionCall;
+    } else if (Array.isArray(flowObj.Flow.actionCalls)) {
+      flowObj.Flow.actionCalls.push(actionCall);
+    } else {
+      // If only one action exists, convert to array
+      flowObj.Flow.actionCalls = [flowObj.Flow.actionCalls, actionCall];
+    }
+    /* eslint-enable no-param-reassign */
+  }
+  
+  // Helper to create a logging action for decision paths
+  private static createDecisionPathLogger(
+    flowName: string, 
+    decisionName: string, 
+    decisionLabel: string,
+    outcomeName: string,
+    outcomeLabel: string
+  ): any {
+    const loggerId = this.generateUniqueId();
+    // Ensure we're working with strings
+    const decisionNameStr = String(decisionName);
+    const decisionLabelStr = String(decisionLabel);
+    const outcomeNameStr = String(outcomeName);
+    const outcomeLabelStr = String(outcomeLabel);
+    
+    return {
+      actionName: 'rflib_LoggerFlowAction',
+      actionType: 'apex',
+      name: `RFLIB_Flow_Logger_Decision_${decisionNameStr}_${outcomeNameStr}_${loggerId}`,
+      label: `Log Decision: ${decisionLabelStr} - ${outcomeLabelStr}`,
+      locationX: 176,
+      locationY: 50,
+      inputParameters: [
+        {
+          name: 'context',
+          value: {
+            stringValue: flowName,
+          },
+        },
+        {
+          name: 'logLevel',
+          value: {
+            stringValue: 'INFO',
+          },
+        },
+        {
+          name: 'message',
+          value: {
+            stringValue: `Decision '${decisionLabelStr}' outcome: ${outcomeLabelStr}`,
+          },
+        },
+      ],
+    };
   }
 
   // Helper to generate unique IDs for new flow elements

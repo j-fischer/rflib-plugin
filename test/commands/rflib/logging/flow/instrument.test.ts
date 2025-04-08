@@ -191,5 +191,92 @@ describe('rflib logging flow instrument', () => {
       // Verify logging was added
       expect(FlowInstrumentationService.hasRFLIBLogger(instrumentedFlow)).to.be.true;
     });
+
+    it('should add logging to decision outcomes', async () => {
+      // Create a simple test flow with decision
+      const mockFlow = {
+        Flow: {
+          processType: 'Flow',
+          decisions: [
+            {
+              name: 'Test_Decision',
+              label: 'Test Decision',
+              defaultConnector: {
+                targetReference: 'Target_1'
+              },
+              defaultConnectorLabel: 'Default Path',
+              rules: [
+                {
+                  name: 'Test_Rule',
+                  label: 'Test Rule',
+                  connector: {
+                    targetReference: 'Target_2'
+                  }
+                }
+              ]
+            }
+          ]
+        }
+      };
+      
+      // Instrument the flow
+      const instrumentedFlow = FlowInstrumentationService.instrumentFlow(mockFlow, 'TestFlow');
+      
+      // Find all loggers
+      const actionCalls = Array.isArray(instrumentedFlow.Flow.actionCalls)
+        ? instrumentedFlow.Flow.actionCalls
+        : [instrumentedFlow.Flow.actionCalls];
+      
+      // Should have at least 3 loggers (flow start + 2 decision paths)
+      expect(actionCalls.length).to.be.at.least(3);
+      
+      // Find decision loggers
+      const decisionLoggers = actionCalls.filter((action: any) => {
+        // Using type guard to ensure safe return
+        if (typeof action.name === 'string') {
+          return Boolean(action.name.includes('RFLIB_Flow_Logger_Decision_'));
+        }
+        return false;
+      });
+      
+      // Should have 2 decision loggers (default + rule)
+      expect(decisionLoggers.length).to.equal(2);
+      
+      // Check the decision references are updated to point to the loggers
+      const decision = instrumentedFlow.Flow.decisions[0];
+      
+      // Decision default connector should point to a logger
+      const defaultTarget = decision.defaultConnector.targetReference;
+      const defaultLogger = actionCalls.find((a: any) => a.name === defaultTarget);
+      expect(defaultLogger).to.exist;
+      expect(defaultLogger.name).to.include('RFLIB_Flow_Logger_Decision_');
+      expect(defaultLogger.connector.targetReference).to.equal('Target_1');
+      
+      // Rule connector should point to a logger
+      const rule = Array.isArray(decision.rules) ? decision.rules[0] : decision.rules;
+      const ruleTarget = rule.connector.targetReference;
+      const ruleLogger = actionCalls.find((a: any) => a.name === ruleTarget);
+      expect(ruleLogger).to.exist;
+      expect(ruleLogger.name).to.include('RFLIB_Flow_Logger_Decision_');
+      expect(ruleLogger.connector.targetReference).to.equal('Target_2');
+      
+      // Verify the structure of the loggers
+      decisionLoggers.forEach((logger: any) => {
+        expect(logger.actionName).to.equal('rflib_LoggerFlowAction');
+        expect(logger.actionType).to.equal('apex');
+        expect(logger.label).to.include('Log Decision:');
+        
+        // Verify input parameters
+        const messageParam = logger.inputParameters.find((p: any) => p.name === 'message');
+        expect(messageParam).to.exist;
+        expect(messageParam.value.stringValue).to.include('Decision');
+        expect(messageParam.value.stringValue).to.include('outcome:');
+        
+        // Verify context is set correctly
+        const contextParam = logger.inputParameters.find((p: any) => p.name === 'context');
+        expect(contextParam).to.exist;
+        expect(contextParam.value.stringValue).to.equal('TestFlow');
+      });
+    });
   });
 });
