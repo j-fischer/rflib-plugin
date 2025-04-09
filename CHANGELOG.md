@@ -1,3 +1,12 @@
+# [0.8.0](https://github.com/j-fischer/rflib-plugin/compare/0.7.3...0.8.0) (2025-04-09)
+
+
+### Features
+
+* add logging instrumentation for Flow decision paths  ([a24bddc](https://github.com/j-fischer/rflib-plugin/commit/a24bddc56a89991c03b45b3cbbc1b04cf172b6de))
+
+
+
 ## [0.7.3](https://github.com/j-fischer/rflib-plugin/compare/0.7.2...0.7.3) (2025-04-07)
 
 
