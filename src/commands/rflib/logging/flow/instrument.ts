@@ -75,18 +75,18 @@ export class FlowInstrumentationService {
     );
   }
 
-  // Helper to check if flow is of type "Flow" that we want to instrument
+  // Helper to check if flow is of type that we want to instrument
   public static isFlowType(flowObj: any): boolean {
     return flowObj?.Flow?.processType === 'Flow';
   }
 
   // Main instrumentation function
-  public static instrumentFlow(flowObj: any, flowName: string): any {
+  public static instrumentFlow(flowObj: any, flowName: string, skipInstrumented = false): any {
     // Deep clone the object to avoid modifying the original
     const instrumentedFlow = JSON.parse(JSON.stringify(flowObj));
 
-    // Skip if already instrumented
-    if (this.hasRFLIBLogger(instrumentedFlow)) {
+    // Skip if already instrumented and skipInstrumented flag is set
+    if (skipInstrumented && this.hasRFLIBLogger(instrumentedFlow)) {
       return instrumentedFlow;
     }
 
@@ -159,22 +159,337 @@ export class FlowInstrumentationService {
       instrumentedFlow.Flow.variables = [instrumentedFlow.Flow.variables];
     }
 
+    // Instrument decisions with logging for each outcome
+    if (instrumentedFlow.Flow.decisions) {
+      this.instrumentDecisions(instrumentedFlow, flowName);
+    }
+
     return instrumentedFlow;
   }
+  
+  // Helper to instrument decision paths with logging
+  private static instrumentDecisions(flowObj: any, flowName: string): void {
+    if (!flowObj.Flow.decisions) {
+      return;
+    }
 
-  // Helper to generate unique IDs for new flow elements
+    // Convert to array if there's only one decision
+    const decisions = Array.isArray(flowObj.Flow.decisions) 
+      ? flowObj.Flow.decisions 
+      : [flowObj.Flow.decisions];
+    
+    // Process each decision
+    decisions.forEach((decision: any) => {
+      // Skip if decision doesn't have a name
+      if (!decision.name) {
+        return;
+      }
+
+      const decisionName = decision.name;
+      const decisionLabel = decision.label || decisionName;
+      
+      // Process default connector if it exists
+      if (decision.defaultConnector?.targetReference) {
+        const defaultTarget = decision.defaultConnector.targetReference;
+        const defaultConnectorLabel = decision.defaultConnectorLabel || 'Default Outcome';
+        
+        // Create a logger for the default path
+        const defaultLogger = this.createDecisionPathLogger(
+          flowName, 
+          String(decisionName), 
+          String(decisionLabel),
+          'default',
+          String(defaultConnectorLabel)
+        );
+        
+        // Connect logger to the original target
+        defaultLogger.connector = {
+          targetReference: defaultTarget
+        };
+        
+        // Add logger to actionCalls first, before updating the decision connector
+        this.addActionCallToFlow(flowObj, defaultLogger);
+        
+        // Update the decision's default connector to point to our logger
+        // We're inside a forEach callback, so we have to modify the original object
+        /* eslint-disable no-param-reassign */
+        decision.defaultConnector.targetReference = defaultLogger.name;
+        /* eslint-enable no-param-reassign */
+      }
+      
+      // Process each rule if they exist
+      if (decision.rules) {
+        const rules = Array.isArray(decision.rules) ? decision.rules : [decision.rules];
+        
+        rules.forEach((rule: any) => {
+          // Skip if rule doesn't have a connector or name
+          if (!rule.connector?.targetReference || !rule.name) {
+            return;
+          }
+          
+          const ruleTarget = rule.connector.targetReference;
+          const ruleName = rule.name;
+          const ruleLabel = rule.label || ruleName;
+          
+          // Create a logger for this rule outcome
+          const ruleLogger = this.createDecisionPathLogger(
+            flowName, 
+            String(decisionName), 
+            String(decisionLabel),
+            String(ruleName),
+            String(ruleLabel)
+          );
+          
+          // Connect logger to the original target
+          ruleLogger.connector = {
+            targetReference: ruleTarget
+          };
+          
+          // Add logger to actionCalls first, before updating the rule connector
+          this.addActionCallToFlow(flowObj, ruleLogger);
+          
+          // Update the rule's connector to point to our logger
+          // We're inside a forEach callback, so we have to modify the original object
+          /* eslint-disable no-param-reassign */
+          rule.connector.targetReference = ruleLogger.name;
+          /* eslint-enable no-param-reassign */
+        });
+      }
+    });
+  }
+  
+  // Helper to add action calls to the flow object
+  // Note: This method does modify the parameter directly - we accepted the eslint warning
+  // since we need to modify the flow object within callback functions where returning a new value isn't possible
+  private static addActionCallToFlow(flowObj: any, actionCall: any): void {
+    /* eslint-disable no-param-reassign */
+    if (!flowObj.Flow.actionCalls) {
+      flowObj.Flow.actionCalls = actionCall;
+    } else if (Array.isArray(flowObj.Flow.actionCalls)) {
+      flowObj.Flow.actionCalls.push(actionCall);
+    } else {
+      // If only one action exists, convert to array
+      flowObj.Flow.actionCalls = [flowObj.Flow.actionCalls, actionCall];
+    }
+    /* eslint-enable no-param-reassign */
+  }
+  
+  // Helper to create a logging action for decision paths
+  private static createDecisionPathLogger(
+    flowName: string, 
+    decisionName: string, 
+    decisionLabel: string,
+    outcomeName: string,
+    outcomeLabel: string
+  ): any {
+    const loggerId = this.generateUniqueId();
+    
+    // Ensure we're working with strings
+    const decisionNameStr = String(decisionName);
+    const outcomeNameStr = String(outcomeName);
+    const decisionLabelStr = String(decisionLabel);
+    const outcomeLabelStr = String(outcomeLabel);
+    
+    // Calculate maximum lengths to stay under 80 characters
+    const prefixLength = 'RFLIB_Flow_Logger_Decision_'.length;
+    const separatorsLength = 2; // Two underscores
+    const maxTotalNameLength = 80 - prefixLength - loggerId.length - separatorsLength;
+    
+    // Allocate half of available space to each name (decision and outcome)
+    const maxIndividualLength = Math.floor(maxTotalNameLength / 2);
+    
+    // Sanitize names to fit Salesforce naming rules
+    const sanitizedDecisionName = this.sanitizeForName(decisionNameStr, maxIndividualLength);
+    const sanitizedOutcomeName = this.sanitizeForName(outcomeNameStr, maxIndividualLength);
+    
+    // Create a name that's guaranteed to be under 80 chars and follow Salesforce rules
+    const name = `RFLIB_Flow_Logger_Decision_${sanitizedDecisionName}_${sanitizedOutcomeName}_${loggerId}`;
+    
+    // Create and truncate the label to ensure it's under 80 chars
+    const label = this.truncateLabel(`Log Decision: ${decisionLabelStr} - ${outcomeLabelStr}`);
+    
+    // Fallback if still too long
+    if (name.length > 80) {
+      return {
+        actionName: 'rflib_LoggerFlowAction',
+        actionType: 'apex',
+        name: `RFLIBLogDec${loggerId}`,
+        label,
+        locationX: 176,
+        locationY: 50,
+        inputParameters: [
+          {
+            name: 'context',
+            value: {
+              stringValue: flowName,
+            },
+          },
+          {
+            name: 'logLevel',
+            value: {
+              stringValue: 'INFO',
+            },
+          },
+          {
+            name: 'message',
+            value: {
+              stringValue: `Decision '${decisionLabelStr}' outcome: ${outcomeLabelStr}`,
+            },
+          },
+        ],
+      };
+    }
+    
+    return {
+      actionName: 'rflib_LoggerFlowAction',
+      actionType: 'apex',
+      name,
+      label,
+      locationX: 176,
+      locationY: 50,
+      inputParameters: [
+        {
+          name: 'context',
+          value: {
+            stringValue: flowName,
+          },
+        },
+        {
+          name: 'logLevel',
+          value: {
+            stringValue: 'INFO',
+          },
+        },
+        {
+          name: 'message',
+          value: {
+            stringValue: `Decision '${decisionLabelStr}' outcome: ${outcomeLabelStr}`,
+          },
+        },
+      ],
+    };
+  }
+
+  // Helper to generate unique IDs for new flow elements (compact for 80-char limit)
+  // that follow Salesforce Flow Action naming rules
   private static generateUniqueId(): string {
-    return `RFLIB_LOG_${Date.now().toString(36)}_${Math.random().toString(36).substring(2, 9)}`;
+    // Use timestamp in base36 + 4 random chars to keep it short but unique
+    // Ensure we don't start with a number or have consecutive/trailing underscores
+    const timestamp = Date.now().toString(36);
+    const random = Math.random().toString(36).substring(2, 6);
+    
+    // Combine parts without underscore to avoid potential consecutive underscores
+    return `ID${timestamp}${random}`;
+  }
+  
+  // Helper to sanitize and truncate text to fit within the 80-char name limit
+  // and to follow Salesforce Flow Action naming rules:
+  // - Only alphanumeric characters and underscores
+  // - Must begin with a letter
+  // - No spaces
+  // - No underscore at the end
+  // - No consecutive underscores
+  private static sanitizeForName(text: string, maxLength: number): string {
+    if (!text) {
+      return 'X'; // Default to 'X' for empty inputs to ensure we start with a letter
+    }
+    
+    // First, replace any non-alphanumeric characters with underscores
+    let sanitized = text.replace(/[^a-zA-Z0-9_]/g, '_');
+    
+    // Ensure it starts with a letter
+    if (!/^[a-zA-Z]/.test(sanitized)) {
+      sanitized = 'X' + sanitized;
+    }
+    
+    // Replace consecutive underscores with a single underscore
+    sanitized = sanitized.replace(/__+/g, '_');
+    
+    // Remove trailing underscore if present
+    sanitized = sanitized.replace(/_+$/, '');
+    
+    // If empty after sanitization, return a default value
+    if (!sanitized) {
+      return 'X';
+    }
+    
+    // Truncate if longer than maxLength
+    if (sanitized.length > maxLength) {
+      // Truncate and ensure it doesn't end with an underscore
+      sanitized = sanitized.substring(0, maxLength).replace(/_+$/, '');
+      
+      // If we removed trailing underscores and now it's empty or too short, add a fallback
+      if (sanitized.length < 1) {
+        sanitized = 'X';
+      }
+    }
+    
+    return sanitized;
+  }
+
+  // Helper to truncate label text to fit within the 80-char limit
+  private static truncateLabel(label: string, maxLength: number = 80): string {
+    if (!label || label.length <= maxLength) {
+      return label;
+    }
+    
+    // If text is too long, truncate it and add ellipsis
+    return label.substring(0, maxLength - 3) + '...';
   }
 
   // Helper to create a logging action element
   private static createLoggingAction(flowName: string): any {
     const loggerId = this.generateUniqueId();
+    
+    // Ensure name is under 80 characters and follows Salesforce naming rules
+    const prefixLength = 'RFLIB_Flow_Logger_'.length;
+    const maxFlowNameLength = 80 - prefixLength - loggerId.length - 1; // -1 for underscore
+    const sanitizedFlowName = this.sanitizeForName(flowName, maxFlowNameLength);
+    
+    // Create a name that's guaranteed to be under 80 chars and follow Salesforce rules
+    const name = `RFLIB_Flow_Logger_${sanitizedFlowName}_${loggerId}`;
+    
+    // Create and truncate the label to ensure it's under 80 chars
+    const label = this.truncateLabel(`Log Flow Invocation: ${flowName}`);
+    
+    // Verify name length
+    if (name.length > 80) {
+      // If still too long, use a simpler naming scheme (fallback)
+      return {
+        actionName: 'rflib_LoggerFlowAction',
+        actionType: 'apex',
+        name: `RFLIBLogger${loggerId}`,
+        label,
+        locationX: 176,
+        locationY: 50,
+        inputParameters: [
+          {
+            name: 'context',
+            value: {
+              stringValue: flowName,
+            },
+          },
+          {
+            name: 'logLevel',
+            value: {
+              stringValue: 'INFO',
+            },
+          },
+          {
+            name: 'message',
+            value: {
+              stringValue: `Flow ${flowName} started`,
+            },
+          },
+        ],
+      };
+    }
+    
     return {
       actionName: 'rflib_LoggerFlowAction',
       actionType: 'apex',
-      name: `RFLIB_Flow_Logger_${loggerId}`,
-      label: 'Log Flow Invocation',
+      name,
+      label,
       locationX: 176,
       locationY: 50,
       inputParameters: [
@@ -325,7 +640,7 @@ export default class RflibLoggingFlowInstrument extends SfCommand<RflibLoggingFl
         return;
       }
 
-      const instrumentedFlow = FlowInstrumentationService.instrumentFlow(flowObj, flowName);
+      const instrumentedFlow = FlowInstrumentationService.instrumentFlow(flowObj, flowName, skipInstrumented);
       const newContent = FlowInstrumentationService.buildFlowContent(instrumentedFlow);
 
       if (content !== newContent) {

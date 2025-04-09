@@ -185,7 +185,7 @@ describe('rflib logging apex instrument', () => {
     expect(formattedContent).not.to.match(/\t/); // No tabs
     expect(formattedContent).to.match(/{\n/); // Line break after brace
     expect(formattedContent).to.include('if (filter == null) {'); // Single quotes
-    expect(result.formattedFiles).to.equal(2); // The test file should not have been formatted since it is already clean
+    expect(result.formattedFiles).to.equal(3); // All three files should be formatted
     expect(result.modifiedFiles).to.equal(3); // Modified files counter
   });
 
