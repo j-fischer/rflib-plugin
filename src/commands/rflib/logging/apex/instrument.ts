@@ -346,8 +346,24 @@ export default class RflibLoggingApexInstrument extends SfCommand<RflibLoggingAp
     if (content !== originalContent) {
       this.stats.modifiedFiles++;
       if (!isDryRun) {
-        await fs.promises.writeFile(filePath, content);
-        this.logger.info(`Modified test file: ${filePath}`);
+        try {
+          const finalContent = instrumentationOpts.prettier
+            ? await ApexInstrumentationService.formatContent(content)
+            : content;
+
+          await fs.promises.writeFile(filePath, finalContent);
+
+          if (instrumentationOpts.prettier) {
+            this.stats.formattedFiles++;
+            this.logger.info(`Modified and formatted test file: ${filePath}`);
+          } else {
+            this.logger.info(`Modified test file: ${filePath}`);
+          }
+        } catch (error) {
+          this.logger.warn(`Failed to format ${filePath}: ${error instanceof Error ? error.message : String(error)}`);
+          await fs.promises.writeFile(filePath, content);
+          this.logger.info(`Modified test file without formatting: ${filePath}`);
+        }
       } else {
         this.logger.info(`Would modify test file: ${filePath}`);
       }

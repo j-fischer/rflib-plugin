@@ -156,7 +156,7 @@ describe('rflib logging flow instrument', () => {
         }
       };
       
-      const instrumentedFlow = FlowInstrumentationService.instrumentFlow(simpleFlow, 'TestFlow');
+      const instrumentedFlow = FlowInstrumentationService.instrumentFlow(simpleFlow, 'TestFlow', false);
       const loggingAction = Array.isArray(instrumentedFlow.Flow.actionCalls) 
         ? instrumentedFlow.Flow.actionCalls[0] 
         : instrumentedFlow.Flow.actionCalls;
@@ -186,10 +186,39 @@ describe('rflib logging flow instrument', () => {
         !action.actionName.includes('Logger') && !action.name?.includes('Logger')
       );
       
-      const instrumentedFlow = FlowInstrumentationService.instrumentFlow(cleanFlow, 'TestFlow');
+      const instrumentedFlow = FlowInstrumentationService.instrumentFlow(cleanFlow, 'TestFlow', false);
       
       // Verify logging was added
       expect(FlowInstrumentationService.hasRFLIBLogger(instrumentedFlow)).to.be.true;
+    });
+    
+    it('should respect skipInstrumented flag when instrumenting flows', async () => {
+      // Create a flow with existing logger
+      const flowWithLogger = JSON.parse(JSON.stringify(await FlowInstrumentationService.parseFlowContent(sampleFlowContent)));
+      
+      // Verify it has a logger
+      expect(FlowInstrumentationService.hasRFLIBLogger(flowWithLogger)).to.be.true;
+      
+      // With skipInstrumented=true, it should not add more logging
+      const skipResult = FlowInstrumentationService.instrumentFlow(flowWithLogger, 'TestFlow', true);
+      expect(skipResult).to.deep.equal(flowWithLogger);
+      
+      // With skipInstrumented=false, it should add more logging even if it already has a logger
+      const instrumentedFlow = FlowInstrumentationService.instrumentFlow(flowWithLogger, 'TestFlow', false);
+      
+      // Flow should be modified (not the same as original)
+      expect(instrumentedFlow).not.to.deep.equal(flowWithLogger);
+      
+      // Verify that a new action was added
+      const originalActionCount: number = Array.isArray(flowWithLogger.Flow.actionCalls) 
+        ? flowWithLogger.Flow.actionCalls.length 
+        : 1;
+        
+      const newActionCount: number = Array.isArray(instrumentedFlow.Flow.actionCalls) 
+        ? instrumentedFlow.Flow.actionCalls.length 
+        : 1;
+        
+      expect(newActionCount).to.be.greaterThan(originalActionCount);
     });
 
     it('should add logging to decision outcomes', async () => {
@@ -220,7 +249,7 @@ describe('rflib logging flow instrument', () => {
       };
       
       // Instrument the flow
-      const instrumentedFlow = FlowInstrumentationService.instrumentFlow(mockFlow, 'TestFlow');
+      const instrumentedFlow = FlowInstrumentationService.instrumentFlow(mockFlow, 'TestFlow', false);
       
       // Find all loggers
       const actionCalls = Array.isArray(instrumentedFlow.Flow.actionCalls)
@@ -276,6 +305,74 @@ describe('rflib logging flow instrument', () => {
         const contextParam = logger.inputParameters.find((p: any) => p.name === 'context');
         expect(contextParam).to.exist;
         expect(contextParam.value.stringValue).to.equal('TestFlow');
+      });
+    });
+    
+    it('should ensure logger names are less than 80 characters and follow Salesforce naming rules', async () => {
+      // Create a flow with a very long name, special characters, and problematic names to test sanitization
+      const problematicFlow = {
+        Flow: {
+          processType: 'Flow',
+          decisions: [
+            {
+              name: 'This-is-a-very_long__decision-name!@#$%^&*()that would normally exceed the 80_character_limit_when_combined_with_other_parts_',
+              label: 'Long Decision Label',
+              defaultConnector: {
+                targetReference: 'Target_1'
+              },
+              defaultConnectorLabel: 'Default Path',
+              rules: [
+                {
+                  name: '_This__is__a__very__long__rule__name__that would normally exceed the character ##limit## when_combined_with_other_elements_',
+                  label: 'Long Rule Label',
+                  connector: {
+                    targetReference: 'Target_2'
+                  }
+                }
+              ]
+            }
+          ]
+        }
+      };
+      
+      // Instrument the flow with a long name containing special chars, spaces, consecutive/trailing underscores
+      const instrumentedFlow = FlowInstrumentationService.instrumentFlow(
+        problematicFlow, 
+        'This is an extremely-long flow name 123 !@#$%^&*() that would normally__exceed__the_80_character_limit_', 
+        false
+      );
+      
+      // Find all action calls
+      const actionCalls = Array.isArray(instrumentedFlow.Flow.actionCalls)
+        ? instrumentedFlow.Flow.actionCalls
+        : [instrumentedFlow.Flow.actionCalls];
+      
+      // Verify that all logger names follow Salesforce naming rules
+      actionCalls.forEach((action: any) => {
+        if (typeof action.name === 'string') {
+          // 1. Must be 80 characters or less
+          expect(action.name.length).to.be.at.most(80);
+          
+          // 2. Must begin with a letter
+          expect(action.name).to.match(/^[a-zA-Z]/);
+          
+          // 3. Must contain only alphanumeric characters and underscores
+          expect(action.name).to.match(/^[a-zA-Z0-9_]+$/);
+          
+          // 4. Must not contain two consecutive underscores
+          expect(action.name).not.to.match(/__/);
+          
+          // 5. Must not end with an underscore
+          expect(action.name).not.to.match(/_$/);
+          
+          // 6. Must not contain spaces
+          expect(action.name).not.to.match(/\s/);
+          
+          // 7. Labels must also not exceed 80 characters
+          if (action.label) {
+            expect(action.label.length).to.be.at.most(80);
+          }
+        }
       });
     });
   });
