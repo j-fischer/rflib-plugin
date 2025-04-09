@@ -9,6 +9,7 @@ Plugin for Salesforce CLI to help with the adoption of [RFLIB](https://github.co
 - Automatically instruments Apex classes with RFLIB logging statements
 - Automatically instruments LWC components with RFLIB logging statements
 - Automatically instruments Aura components with RFLIB logging statements
+- Automatically instruments Salesforce Flows with RFLIB logging actions
 
 ## Installation
 
@@ -73,7 +74,7 @@ sf rflib logging lwc instrument --sourcepath force-app --skip-instrumented
 Adds RFLIB logging statements to Aura Components.
 
 ```bash
-# Add logging to all LWC files
+# Add logging to all Aura component files
 sf rflib logging aura instrument --sourcepath force-app
 
 # Preview changes without modifying files
@@ -91,6 +92,27 @@ sf rflib logging aura instrument --sourcepath force-app --skip-instrumented
 - `--sourcepath (-s)`: Directory containing Aura components to instrument
 - `--dryrun (-d)`: Preview changes without modifying files
 - `--prettier (-p)`: Format modified files using Prettier
+- `--skip-instrumented`: Do not instrument files where RFLIB logging is already present
+
+### `sf rflib logging flow instrument`
+
+Adds RFLIB logging actions to Salesforce Flows.
+
+```bash
+# Add logging to all Flow files
+sf rflib logging flow instrument --sourcepath force-app
+
+# Preview changes without modifying files
+sf rflib logging flow instrument --sourcepath force-app --dryrun
+
+# Skip instrumenting flows where logging is already present
+sf rflib logging flow instrument --sourcepath force-app --skip-instrumented
+```
+
+#### Command Options
+
+- `--sourcepath (-s)`: Directory containing Flow files to instrument
+- `--dryrun (-d)`: Preview changes without modifying files
 - `--skip-instrumented`: Do not instrument files where RFLIB logging is already present
 
 ## Contributing

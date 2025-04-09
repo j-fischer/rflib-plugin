@@ -1,18 +1,18 @@
 # summary
 
-Summary of a command.
+Adds RFLIB logging statements to Salesforce Flows.
 
 # description
 
-More information about a command. Don't repeat the summary. 
+Automatically adds RFLIB logging statements to Salesforce Flows to provide enhanced tracking and debugging capabilities. Instruments flow invocations and decision paths with logging actions.
 
 # flags.sourcepath.summary
 
-Directory containing Apex classes to instrument with logging.
+Directory containing Flow files to instrument with logging.
 
 # flags.sourcepath.description
 
-Path to the source directory containing Apex classes that should be instrumented with RFLIB logging statements. Test classes (ending with 'Test.cls') are automatically excluded.
+Path to the source directory containing Flow files that should be instrumented with RFLIB logging statements. Only processes .flow-meta.xml files with processType="Flow".
 
 # flags.dryrun.summary
 
@@ -22,15 +22,25 @@ Preview changes without modifying files.
 
 When enabled, shows which files would be modified without making actual changes. Useful for reviewing the impact before applying changes.
 
+# flags.prettier.summary
+
+Format output files with prettier.
+
+# flags.prettier.description
+
+Use prettier to format the output files.
+
 # flags.skip-instrumented.summary
 
 Skips any files where a logger is already present.
 
 # flags.skip-instrumented.description
 
-When provided, the command will not add log statements to any Flows that already contains a RFLIB logging node.
+When provided, the command will not add log statements to any Flows that already contain RFLIB logging actions.
 
 # examples
 
-- <%= config.bin %> <%= command.id %>
+- <%= config.bin %> <%= command.id %> --sourcepath force-app
+- <%= config.bin %> <%= command.id %> --sourcepath force-app --dryrun
+- <%= config.bin %> <%= command.id %> --sourcepath force-app --skip-instrumented
 
