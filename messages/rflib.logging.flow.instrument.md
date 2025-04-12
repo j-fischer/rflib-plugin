@@ -4,7 +4,7 @@ Adds RFLIB logging statements to Salesforce Flows.
 
 # description
 
-Automatically adds RFLIB logging statements to Salesforce Flows to provide enhanced tracking and debugging capabilities. Instruments flow invocations and decision paths with logging actions.
+Automatically adds RFLIB logging statements to Salesforce Flows to provide enhanced tracking and debugging capabilities. Instruments flow invocations and decision paths with logging actions. Also sets the CanvasMode to AUTO_LAYOUT_CANVAS for better flow visualization while preserving the original processType.
 
 # flags.sourcepath.summary
 

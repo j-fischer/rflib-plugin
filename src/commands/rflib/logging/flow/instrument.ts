@@ -67,8 +67,8 @@ export class FlowInstrumentationService {
       : [flowObj.Flow.actionCalls];
 
     return actionCalls.some(
-      (action: any) => 
-        action.actionName === 'rflib:Logger' || 
+      (action: any) =>
+        action.actionName === 'rflib:Logger' ||
         action.actionName === 'rflib_LoggerFlowAction' ||
         action.actionName === 'rflib_ApplicationEventLoggerAction' ||
         (action.name && typeof action.name === 'string' && action.name.startsWith('RFLIB_Flow_Logger'))
@@ -115,49 +115,18 @@ export class FlowInstrumentationService {
     if (instrumentedFlow.Flow.startElementReference) {
       // Save the original start reference
       const startNodeReference = instrumentedFlow.Flow.startElementReference;
-      
+
       // Create connector between logger and original start element
       loggingAction.connector = {
         targetReference: startNodeReference
       };
-      
+
       // Update flow startElementReference to point to our logger
       instrumentedFlow.Flow.startElementReference = loggingAction.name;
-    } else {
-      // If no start element, try to find another entry point
-      // Common patterns: decisions, screens, or first element in the process
-      if (Array.isArray(instrumentedFlow.Flow.decisions) && instrumentedFlow.Flow.decisions.length > 0) {
-        // Find the first decision and connect to it
-        const firstDecision = instrumentedFlow.Flow.decisions[0];
-        loggingAction.connector = {
-          targetReference: firstDecision.name
-        };
-      } else if (Array.isArray(instrumentedFlow.Flow.screens) && instrumentedFlow.Flow.screens.length > 0) {
-        // Find the first screen and connect to it
-        const firstScreen = instrumentedFlow.Flow.screens[0];
-        loggingAction.connector = {
-          targetReference: firstScreen.name
-        };
-      }
-
-      // Create a startElementReference pointing to our logger if none exists
-      instrumentedFlow.Flow.startElementReference = loggingAction.name;
     }
 
-    // Add interviewLabel if not present
-    if (!instrumentedFlow.Flow.interviewLabel) {
-      instrumentedFlow.Flow.interviewLabel = `${flowName} {!$Flow.CurrentDateTime}`;
-    }
-
-    // Ensure processType is set to 'Flow'
-    instrumentedFlow.Flow.processType = 'Flow';
-
-    // Add variables if not present (needed for variable references)
-    if (!instrumentedFlow.Flow.variables) {
-      instrumentedFlow.Flow.variables = [];
-    } else if (!Array.isArray(instrumentedFlow.Flow.variables)) {
-      instrumentedFlow.Flow.variables = [instrumentedFlow.Flow.variables];
-    }
+    // Set the CanvasMode to AUTO_LAYOUT_CANVAS
+    this.setCanvasMode(instrumentedFlow);
 
     // Instrument decisions with logging for each outcome
     if (instrumentedFlow.Flow.decisions) {
@@ -166,7 +135,7 @@ export class FlowInstrumentationService {
 
     return instrumentedFlow;
   }
-  
+
   // Helper to instrument decision paths with logging
   private static instrumentDecisions(flowObj: any, flowName: string): void {
     if (!flowObj.Flow.decisions) {
@@ -174,10 +143,10 @@ export class FlowInstrumentationService {
     }
 
     // Convert to array if there's only one decision
-    const decisions = Array.isArray(flowObj.Flow.decisions) 
-      ? flowObj.Flow.decisions 
+    const decisions = Array.isArray(flowObj.Flow.decisions)
+      ? flowObj.Flow.decisions
       : [flowObj.Flow.decisions];
-    
+
     // Process each decision
     decisions.forEach((decision: any) => {
       // Skip if decision doesn't have a name
@@ -187,67 +156,67 @@ export class FlowInstrumentationService {
 
       const decisionName = decision.name;
       const decisionLabel = decision.label || decisionName;
-      
+
       // Process default connector if it exists
       if (decision.defaultConnector?.targetReference) {
         const defaultTarget = decision.defaultConnector.targetReference;
         const defaultConnectorLabel = decision.defaultConnectorLabel || 'Default Outcome';
-        
+
         // Create a logger for the default path
         const defaultLogger = this.createDecisionPathLogger(
-          flowName, 
-          String(decisionName), 
+          flowName,
+          String(decisionName),
           String(decisionLabel),
           'default',
           String(defaultConnectorLabel)
         );
-        
+
         // Connect logger to the original target
         defaultLogger.connector = {
           targetReference: defaultTarget
         };
-        
+
         // Add logger to actionCalls first, before updating the decision connector
         this.addActionCallToFlow(flowObj, defaultLogger);
-        
+
         // Update the decision's default connector to point to our logger
         // We're inside a forEach callback, so we have to modify the original object
         /* eslint-disable no-param-reassign */
         decision.defaultConnector.targetReference = defaultLogger.name;
         /* eslint-enable no-param-reassign */
       }
-      
+
       // Process each rule if they exist
       if (decision.rules) {
         const rules = Array.isArray(decision.rules) ? decision.rules : [decision.rules];
-        
+
         rules.forEach((rule: any) => {
           // Skip if rule doesn't have a connector or name
           if (!rule.connector?.targetReference || !rule.name) {
             return;
           }
-          
+
           const ruleTarget = rule.connector.targetReference;
           const ruleName = rule.name;
           const ruleLabel = rule.label || ruleName;
-          
+
           // Create a logger for this rule outcome
           const ruleLogger = this.createDecisionPathLogger(
-            flowName, 
-            String(decisionName), 
+            flowName,
+            String(decisionName),
             String(decisionLabel),
             String(ruleName),
             String(ruleLabel)
           );
-          
+
           // Connect logger to the original target
           ruleLogger.connector = {
             targetReference: ruleTarget
           };
-          
+
           // Add logger to actionCalls first, before updating the rule connector
           this.addActionCallToFlow(flowObj, ruleLogger);
-          
+
           // Update the rule's connector to point to our logger
           // We're inside a forEach callback, so we have to modify the original object
           /* eslint-disable no-param-reassign */
@@ -257,7 +226,7 @@ export class FlowInstrumentationService {
       }
     });
   }
-  
+
   // Helper to add action calls to the flow object
   // Note: This method does modify the parameter directly - we accepted the eslint warning
   // since we need to modify the flow object within callback functions where returning a new value isn't possible
@@ -273,41 +242,41 @@ export class FlowInstrumentationService {
     }
     /* eslint-enable no-param-reassign */
   }
-  
+
   // Helper to create a logging action for decision paths
   private static createDecisionPathLogger(
-    flowName: string, 
-    decisionName: string, 
+    flowName: string,
+    decisionName: string,
     decisionLabel: string,
     outcomeName: string,
     outcomeLabel: string
   ): any {
     const loggerId = this.generateUniqueId();
-    
+
     // Ensure we're working with strings
     const decisionNameStr = String(decisionName);
     const outcomeNameStr = String(outcomeName);
     const decisionLabelStr = String(decisionLabel);
     const outcomeLabelStr = String(outcomeLabel);
-    
+
     // Calculate maximum lengths to stay under 80 characters
     const prefixLength = 'RFLIB_Flow_Logger_Decision_'.length;
     const separatorsLength = 2; // Two underscores
     const maxTotalNameLength = 80 - prefixLength - loggerId.length - separatorsLength;
-    
+
     // Allocate half of available space to each name (decision and outcome)
     const maxIndividualLength = Math.floor(maxTotalNameLength / 2);
-    
+
     // Sanitize names to fit Salesforce naming rules
     const sanitizedDecisionName = this.sanitizeForName(decisionNameStr, maxIndividualLength);
     const sanitizedOutcomeName = this.sanitizeForName(outcomeNameStr, maxIndividualLength);
-    
+
     // Create a name that's guaranteed to be under 80 chars and follow Salesforce rules
     const name = `RFLIB_Flow_Logger_Decision_${sanitizedDecisionName}_${sanitizedOutcomeName}_${loggerId}`;
-    
+
     // Create and truncate the label to ensure it's under 80 chars
     const label = this.truncateLabel(`Log Decision: ${decisionLabelStr} - ${outcomeLabelStr}`);
-    
+
     // Fallback if still too long
     if (name.length > 80) {
       return {
@@ -339,7 +308,7 @@ export class FlowInstrumentationService {
         ],
       };
     }
-    
+
     return {
       actionName: 'rflib_LoggerFlowAction',
       actionType: 'apex',
@@ -377,11 +346,11 @@ export class FlowInstrumentationService {
     // Ensure we don't start with a number or have consecutive/trailing underscores
     const timestamp = Date.now().toString(36);
     const random = Math.random().toString(36).substring(2, 6);
-    
+
     // Combine parts without underscore to avoid potential consecutive underscores
     return `ID${timestamp}${random}`;
   }
-  
+
   // Helper to sanitize and truncate text to fit within the 80-char name limit
   // and to follow Salesforce Flow Action naming rules:
   // - Only alphanumeric characters and underscores
@@ -393,37 +362,37 @@ export class FlowInstrumentationService {
     if (!text) {
       return 'X'; // Default to 'X' for empty inputs to ensure we start with a letter
     }
-    
+
     // First, replace any non-alphanumeric characters with underscores
     let sanitized = text.replace(/[^a-zA-Z0-9_]/g, '_');
-    
+
     // Ensure it starts with a letter
     if (!/^[a-zA-Z]/.test(sanitized)) {
       sanitized = 'X' + sanitized;
     }
-    
+
     // Replace consecutive underscores with a single underscore
     sanitized = sanitized.replace(/__+/g, '_');
-    
+
     // Remove trailing underscore if present
     sanitized = sanitized.replace(/_+$/, '');
-    
+
     // If empty after sanitization, return a default value
     if (!sanitized) {
       return 'X';
     }
-    
+
     // Truncate if longer than maxLength
     if (sanitized.length > maxLength) {
       // Truncate and ensure it doesn't end with an underscore
       sanitized = sanitized.substring(0, maxLength).replace(/_+$/, '');
-      
+
       // If we removed trailing underscores and now it's empty or too short, add a fallback
       if (sanitized.length < 1) {
         sanitized = 'X';
       }
     }
-    
+
     return sanitized;
   }
 
@@ -432,7 +401,7 @@ export class FlowInstrumentationService {
     if (!label || label.length <= maxLength) {
       return label;
     }
-    
+
     // If text is too long, truncate it and add ellipsis
     return label.substring(0, maxLength - 3) + '...';
   }
@@ -440,18 +409,18 @@ export class FlowInstrumentationService {
   // Helper to create a logging action element
   private static createLoggingAction(flowName: string): any {
     const loggerId = this.generateUniqueId();
-    
+
     // Ensure name is under 80 characters and follows Salesforce naming rules
     const prefixLength = 'RFLIB_Flow_Logger_'.length;
     const maxFlowNameLength = 80 - prefixLength - loggerId.length - 1; // -1 for underscore
     const sanitizedFlowName = this.sanitizeForName(flowName, maxFlowNameLength);
-    
+
     // Create a name that's guaranteed to be under 80 chars and follow Salesforce rules
     const name = `RFLIB_Flow_Logger_${sanitizedFlowName}_${loggerId}`;
-    
+
     // Create and truncate the label to ensure it's under 80 chars
     const label = this.truncateLabel(`Log Flow Invocation: ${flowName}`);
-    
+
     // Verify name length
     if (name.length > 80) {
       // If still too long, use a simpler naming scheme (fallback)
@@ -484,7 +453,7 @@ export class FlowInstrumentationService {
         ],
       };
     }
-    
+
     return {
       actionName: 'rflib_LoggerFlowAction',
       actionType: 'apex',
@@ -513,6 +482,40 @@ export class FlowInstrumentationService {
         },
       ],
     };
+  }
+
+  // Helper to set CanvasMode to AUTO_LAYOUT_CANVAS for better flow layout
+  private static setCanvasMode(flowObj: any): void {
+    if (!flowObj.Flow) {
+      return;
+    }
+
+    // Initialize processMetadataValues if it doesn't exist
+    if (!flowObj.Flow.processMetadataValues) {
+      flowObj.Flow.processMetadataValues = [];
+    } else if (!Array.isArray(flowObj.Flow.processMetadataValues)) {
+      // Convert single entry to array
+      flowObj.Flow.processMetadataValues = [flowObj.Flow.processMetadataValues];
+    }
+
+    // Check if CanvasMode metadata exists
+    const metadataValues = flowObj.Flow.processMetadataValues;
+    const canvasModeIndex = metadataValues.findIndex((meta: any) =>
+      meta.name === 'CanvasMode'
+    );
+
+    if (canvasModeIndex >= 0) {
+      // Update existing CanvasMode
+      metadataValues[canvasModeIndex].value.stringValue = 'AUTO_LAYOUT_CANVAS';
+    } else {
+      // Add new CanvasMode entry
+      metadataValues.push({
+        name: 'CanvasMode',
+        value: {
+          stringValue: 'AUTO_LAYOUT_CANVAS'
+        }
+      });
+    }
   }
 
   // Helper to add variable references to the logging message when available
