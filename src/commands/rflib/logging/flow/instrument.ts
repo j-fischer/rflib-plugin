@@ -75,9 +75,10 @@ export class FlowInstrumentationService {
     );
   }
 
-  // Helper to check if flow is of type that we want to instrument
-  public static isFlowType(flowObj: any): boolean {
-    return flowObj?.Flow?.processType === 'Flow';
+  // Helper to check if flow has a supported process type for instrumentation
+  public static isSupportedProcessType(flowObj: any): boolean {
+    const processType = flowObj?.Flow?.processType;
+    return processType === 'Flow' || processType === 'AutoLaunchedFlow';
   }
 
   // Main instrumentation function
@@ -631,9 +632,9 @@ export default class RflibLoggingFlowInstrument extends SfCommand<RflibLoggingFl
       const content = await fs.promises.readFile(filePath, 'utf8');
       const flowObj = await FlowInstrumentationService.parseFlowContent(content);
 
-      // Only instrument flows with processType="Flow", skip all others
-      if (!FlowInstrumentationService.isFlowType(flowObj)) {
-        this.logger.debug(`Skipping non-Flow type: ${flowName} (processType=${flowObj?.Flow?.processType || 'undefined'})`);
+      // Only instrument flows with supported process types
+      if (!FlowInstrumentationService.isSupportedProcessType(flowObj)) {
+        this.logger.debug(`Skipping unsupported flow type: ${flowName} (processType=${flowObj?.Flow?.processType || 'undefined'})`);
         return;
       }
 

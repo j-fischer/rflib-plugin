@@ -104,13 +104,18 @@ describe('rflib logging flow instrument', () => {
       expect(hasNoLogger).to.be.false;
     });
 
-    it('should detect flow type correctly', () => {
-      expect(FlowInstrumentationService.isFlowType(flowObj)).to.be.true;
-
-      // Test non-Flow type
-      const nonFlowObj = JSON.parse(JSON.stringify(flowObj));
-      nonFlowObj.Flow.processType = 'AutoLaunchedFlow';
-      expect(FlowInstrumentationService.isFlowType(nonFlowObj)).to.be.false;
+    it('should detect supported process types correctly', () => {
+      expect(FlowInstrumentationService.isSupportedProcessType(flowObj)).to.be.true;
+      
+      // Test AutoLaunchedFlow type (should be supported)
+      const autoLaunchedFlowObj = JSON.parse(JSON.stringify(flowObj));
+      autoLaunchedFlowObj.Flow.processType = 'AutoLaunchedFlow';
+      expect(FlowInstrumentationService.isSupportedProcessType(autoLaunchedFlowObj)).to.be.true;
+      
+      // Test unsupported flow type
+      const unsupportedFlowObj = JSON.parse(JSON.stringify(flowObj));
+      unsupportedFlowObj.Flow.processType = 'SomeOtherType';
+      expect(FlowInstrumentationService.isSupportedProcessType(unsupportedFlowObj)).to.be.false;
     });
 
     it('should build flow XML content correctly', () => {
@@ -438,7 +443,7 @@ describe('rflib logging flow instrument', () => {
       });
 
       it('should update CanvasMode from FREE_FORM_CANVAS to AUTO_LAYOUT_CANVAS using the sample file', async () => {
-        // Use the Flow_with_Free_Form_Layout sample file
+        // Use the Flow_with_Free_Form_Layout sample file (which is an AutoLaunchedFlow)
         const samplePath = path.join(__dirname, 'sample', 'Flow_with_Free_Form_Layout.flow-meta.xml');
         const sampleContent = await fs.promises.readFile(samplePath, 'utf8');
         const flowObj = await FlowInstrumentationService.parseFlowContent(sampleContent);
@@ -449,8 +454,9 @@ describe('rflib logging flow instrument', () => {
         ).value.stringValue;
         expect(originalCanvasModeValue).to.equal('FREE_FORM_CANVAS');
 
-        // Verify the original processType
+        // Verify the original processType is AutoLaunchedFlow and it's supported
         expect(flowObj.Flow.processType).to.equal('AutoLaunchedFlow');
+        expect(FlowInstrumentationService.isSupportedProcessType(flowObj)).to.be.true;
 
         // Instrument the flow
         const instrumentedFlow = FlowInstrumentationService.instrumentFlow(flowObj, 'Flow_with_Free_Form_Layout', false);

@@ -122,6 +122,7 @@ sf rflib logging flow instrument --sourcepath force-app --skip-instrumented
 - Sets the flow's CanvasMode to AUTO_LAYOUT_CANVAS for better visualization in Flow Builder
 - Preserves the original processType value
 - Handles both free-form and auto-layout flows, converting all to auto-layout
+- Supports both standard Flows (processType="Flow") and Auto-Launched Flows (processType="AutoLaunchedFlow")
 
 ## Contributing
 
