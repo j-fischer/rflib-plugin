@@ -44,7 +44,7 @@
     </connector>
     <object>Account</object>
     <recordTriggerType>Update</recordTriggerType>
-    <triggerType>RecordAfterSave</triggerType>
+    <triggerType>RecordBeforeSave</triggerType>
   </start>
   <status>Draft</status>
 </Flow>
