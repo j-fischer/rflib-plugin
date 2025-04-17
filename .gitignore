@@ -52,3 +52,7 @@ node_modules
 
 # Claude
 CLAUDE.md
+
+# codex
+.codex/**
+codex.md
