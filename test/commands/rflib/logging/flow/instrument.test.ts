@@ -1,9 +1,5 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
-/* eslint-disable @typescript-eslint/no-unsafe-member-access */
-/* eslint-disable @typescript-eslint/no-unsafe-call */
-/* eslint-disable @typescript-eslint/no-unsafe-assignment */
-/* eslint-disable @typescript-eslint/unbound-method */
-/* eslint-disable no-underscore-dangle */
+/* eslint-disable no-unused-expressions, import/no-unresolved, import/extensions */
+/* eslint-disable @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-assignment, @typescript-eslint/unbound-method, no-underscore-dangle */
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -106,12 +102,15 @@ describe('rflib logging flow instrument', () => {
 
     it('should detect supported process types correctly', () => {
       expect(FlowInstrumentationService.isSupportedProcessType(flowObj)).to.be.true;
-      
+
       // Test AutoLaunchedFlow type (should be supported)
       const autoLaunchedFlowObj = JSON.parse(JSON.stringify(flowObj));
       autoLaunchedFlowObj.Flow.processType = 'AutoLaunchedFlow';
+      // Ensure triggerType is set for auto-launched flows to match supported types
+      autoLaunchedFlowObj.Flow.start = autoLaunchedFlowObj.Flow.start || {};
+      autoLaunchedFlowObj.Flow.start.triggerType = 'RecordAfterSave';
       expect(FlowInstrumentationService.isSupportedProcessType(autoLaunchedFlowObj)).to.be.true;
-      
+
       // Test unsupported flow type
       const unsupportedFlowObj = JSON.parse(JSON.stringify(flowObj));
       unsupportedFlowObj.Flow.processType = 'SomeOtherType';
@@ -402,7 +401,8 @@ describe('rflib logging flow instrument', () => {
 
         // Check that CanvasMode was added
         const canvasModeMetadata = instrumentedFlow.Flow.processMetadataValues.find((meta: any) =>
-          meta.name === 'CanvasMode'
+          // ensure boolean return for find predicate
+          Boolean(meta.name === 'CanvasMode')
         );
 
         expect(canvasModeMetadata).to.exist;
@@ -435,7 +435,8 @@ describe('rflib logging flow instrument', () => {
 
         // Check that CanvasMode was updated
         const canvasModeMetadata = instrumentedFlow.Flow.processMetadataValues.find((meta: any) =>
-          meta.name === 'CanvasMode'
+          // ensure boolean return for find predicate
+          Boolean(meta.name === 'CanvasMode')
         );
 
         expect(canvasModeMetadata).to.exist;
@@ -450,7 +451,8 @@ describe('rflib logging flow instrument', () => {
 
         // Verify the sample has FREE_FORM_CANVAS initially
         const originalCanvasModeValue = flowObj.Flow.processMetadataValues.find((meta: any) =>
-          meta.name === 'CanvasMode'
+          // ensure boolean return for find predicate
+          Boolean(meta.name === 'CanvasMode')
         ).value.stringValue;
         expect(originalCanvasModeValue).to.equal('FREE_FORM_CANVAS');
 
@@ -463,7 +465,8 @@ describe('rflib logging flow instrument', () => {
 
         // Check that CanvasMode was updated to AUTO_LAYOUT_CANVAS
         const canvasModeMetadata = instrumentedFlow.Flow.processMetadataValues.find((meta: any) =>
-          meta.name === 'CanvasMode'
+          // ensure boolean return for find predicate
+          Boolean(meta.name === 'CanvasMode')
         );
 
         expect(canvasModeMetadata).to.exist;
@@ -471,6 +474,47 @@ describe('rflib logging flow instrument', () => {
 
         // Check that processType remains unchanged
         expect(instrumentedFlow.Flow.processType).to.equal('AutoLaunchedFlow');
+      });
+
+      it('should correctly instrument an AutoLaunchedFlow with start element', async () => {
+        // Use the Flow_with_Free_Form_Layout sample file which has a start element instead of startElementReference
+        const samplePath = path.join(__dirname, 'sample', 'Flow_with_Free_Form_Layout.flow-meta.xml');
+        const sampleContent = await fs.promises.readFile(samplePath, 'utf8');
+        const flowObj = await FlowInstrumentationService.parseFlowContent(sampleContent);
+
+        // Verify the flow has a start element with connector
+        expect(flowObj.Flow.start).to.exist;
+        expect(flowObj.Flow.start.connector).to.exist;
+        expect(flowObj.Flow.start.connector.targetReference).to.exist;
+        const originalTarget = flowObj.Flow.start.connector.targetReference;
+
+        // Instrument the flow
+        const instrumentedFlow = FlowInstrumentationService.instrumentFlow(flowObj, 'Flow_with_Free_Form_Layout', false);
+
+        // Check that a logger was added
+        expect(FlowInstrumentationService.hasRFLIBLogger(instrumentedFlow)).to.be.true;
+
+        // Get the logger action
+        const actionCalls = Array.isArray(instrumentedFlow.Flow.actionCalls)
+          ? instrumentedFlow.Flow.actionCalls
+          : [instrumentedFlow.Flow.actionCalls];
+
+        const flowLogger = actionCalls.find((action: any) =>
+          // ensure boolean return type when checking prefix
+          Boolean(
+            typeof action.name === 'string' &&
+            action.name.startsWith('RFLIB_Flow_Logger_')
+          )
+        );
+
+        expect(flowLogger).to.exist;
+
+        // Verify the logger connects to the original target
+        expect(flowLogger.connector).to.exist;
+        expect(flowLogger.connector.targetReference).to.equal(originalTarget);
+
+        // Verify the start element now points to the logger
+        expect(instrumentedFlow.Flow.start.connector.targetReference).to.equal(flowLogger.name);
       });
 
       it('should correctly handle a flow with no processMetadataValues', () => {
@@ -487,7 +531,8 @@ describe('rflib logging flow instrument', () => {
         expect(instrumentedFlow.Flow.processMetadataValues).to.exist;
 
         const canvasModeMetadata = instrumentedFlow.Flow.processMetadataValues.find((meta: any) =>
-          meta.name === 'CanvasMode'
+          // ensure boolean return for find predicate
+          Boolean(meta.name === 'CanvasMode')
         );
 
         expect(canvasModeMetadata).to.exist;
@@ -520,7 +565,8 @@ describe('rflib logging flow instrument', () => {
 
         // Check that CanvasMode is still AUTO_LAYOUT_CANVAS
         const canvasModeMetadata = instrumentedFlow.Flow.processMetadataValues.find((meta: any) =>
-          meta.name === 'CanvasMode'
+          // ensure boolean return for find predicate
+          Boolean(meta.name === 'CanvasMode')
         );
 
         expect(canvasModeMetadata).to.exist;
@@ -554,16 +600,45 @@ describe('rflib logging flow instrument', () => {
         expect(Array.isArray(instrumentedFlow.Flow.processMetadataValues)).to.be.true;
 
         const builderTypeMetadata = instrumentedFlow.Flow.processMetadataValues.find((meta: any) =>
-          meta.name === 'BuilderType'
+          // ensure boolean return for find predicate
+          Boolean(meta.name === 'BuilderType')
         );
         expect(builderTypeMetadata).to.exist;
 
         const canvasModeMetadata = instrumentedFlow.Flow.processMetadataValues.find((meta: any) =>
-          meta.name === 'CanvasMode'
+          // ensure boolean return for find predicate
+          Boolean(meta.name === 'CanvasMode')
         );
         expect(canvasModeMetadata).to.exist;
         expect(canvasModeMetadata.value.stringValue).to.equal('AUTO_LAYOUT_CANVAS');
       });
+    });
+  });
+
+  describe('Flow XML structure', () => {
+    it('should place actionCalls as first element in Flow XML', () => {
+      const simpleFlow = {
+        Flow: {
+          processType: 'Flow',
+          variables: [{ name: 'testVar' }],
+          decisions: [{ name: 'testDecision' }]
+        }
+      };
+
+      const instrumentedFlow = FlowInstrumentationService.instrumentFlow(simpleFlow, 'TestFlow', false);
+      const xml = FlowInstrumentationService.buildFlowContent(instrumentedFlow);
+
+      // Get the index of actionCalls and processType in the XML
+      const actionCallsIndex = xml.indexOf('<actionCalls>');
+      const processTypeIndex = xml.indexOf('<processType>');
+      const variablesIndex = xml.indexOf('<variables>');
+      const decisionsIndex = xml.indexOf('<decisions>');
+
+      // Verify actionCalls appears before other elements
+      expect(actionCallsIndex).to.be.greaterThan(-1);
+      expect(actionCallsIndex).to.be.lessThan(processTypeIndex);
+      expect(actionCallsIndex).to.be.lessThan(variablesIndex);
+      expect(actionCallsIndex).to.be.lessThan(decisionsIndex);
     });
   });
 });

@@ -1,4 +1,4 @@
-/* eslint-disable no-await-in-loop */
+/* eslint-disable no-await-in-loop, sf-plugin/only-extend-SfCommand */
 /* eslint-disable @typescript-eslint/return-await */
 /* eslint-disable @typescript-eslint/no-explicit-any */
 /* eslint-disable @typescript-eslint/no-unsafe-call */
@@ -7,8 +7,8 @@
 /* eslint-disable @typescript-eslint/no-unsafe-member-access */
 import * as fs from 'node:fs';
 import * as path from 'node:path';
-import { SfCommand, Flags } from '@salesforce/sf-plugins-core';
 import { Messages, Logger } from '@salesforce/core';
+import { SfCommand, Flags } from '@salesforce/sf-plugins-core';
 import * as xml2js from 'xml2js';
 
 export type RflibLoggingFlowInstrumentResult = {
@@ -31,7 +31,12 @@ export class FlowInstrumentationService {
 
   private static readonly builder = new xml2js.Builder({
     xmldec: { version: '1.0', encoding: 'UTF-8' },
-    cdata: true
+    cdata: true,
+    renderOpts: {
+      pretty: true,
+      indent: '    ',
+      newline: '\n'
+    }
   });
 
   public static async parseFlowContent(content: string): Promise<any> {
@@ -47,7 +52,29 @@ export class FlowInstrumentationService {
 
   public static buildFlowContent(flowObj: any): string {
     try {
-      return this.builder.buildObject(flowObj);
+      if (!flowObj?.Flow) {
+        throw new Error('Invalid flow object structure');
+      }
+
+      // Create a new Flow object with ordered properties
+      const orderedFlow = {
+        '$': { 'xmlns': 'http://soap.sforce.com/2006/04/metadata' }
+      } as Record<string, unknown>;
+
+      // Add actionCalls first if it exists
+      if (flowObj.Flow.actionCalls) {
+        orderedFlow.actionCalls = flowObj.Flow.actionCalls;
+      }
+
+      // Add all other properties in their original order
+      Object.entries(flowObj.Flow as Record<string, unknown>).forEach(([key, value]) => {
+        if (key !== 'actionCalls' && key !== '$') {
+          orderedFlow[key] = value;
+        }
+      });
+
+      // Use the builder with just the Flow object, not wrapped in another object
+      return this.builder.buildObject({ Flow: orderedFlow });
     } catch (error) {
       if (error instanceof Error) {
         throw new Error(`Flow building failed: ${error.message}`);
@@ -78,7 +105,10 @@ export class FlowInstrumentationService {
   // Helper to check if flow has a supported process type for instrumentation
   public static isSupportedProcessType(flowObj: any): boolean {
     const processType = flowObj?.Flow?.processType;
-    return processType === 'Flow' || processType === 'AutoLaunchedFlow';
+    const triggerType = flowObj?.Flow?.start?.triggerType;
+
+    return processType === 'Flow' ||
+      (processType === 'AutoLaunchedFlow' && triggerType === 'RecordAfterSave');
   }
 
   // Main instrumentation function
@@ -106,13 +136,13 @@ export class FlowInstrumentationService {
     if (!instrumentedFlow.Flow.actionCalls) {
       instrumentedFlow.Flow.actionCalls = loggingAction;
     } else if (Array.isArray(instrumentedFlow.Flow.actionCalls)) {
-      instrumentedFlow.Flow.actionCalls.push(loggingAction);
+      instrumentedFlow.Flow.actionCalls.unshift(loggingAction);
     } else {
-      // If only one action exists, convert to array
-      instrumentedFlow.Flow.actionCalls = [instrumentedFlow.Flow.actionCalls, loggingAction];
+      // If only one action exists, convert to array with new action first
+      instrumentedFlow.Flow.actionCalls = [loggingAction, instrumentedFlow.Flow.actionCalls];
     }
 
-    // Find startElementReference and connect logger to it
+    // Find startElementReference or start element and connect logger to it
     if (instrumentedFlow.Flow.startElementReference) {
       // Save the original start reference
       const startNodeReference = instrumentedFlow.Flow.startElementReference;
@@ -124,6 +154,20 @@ export class FlowInstrumentationService {
 
       // Update flow startElementReference to point to our logger
       instrumentedFlow.Flow.startElementReference = loggingAction.name;
+    } else if (instrumentedFlow.Flow.start?.connector?.targetReference) {
+      // Handle flow with start element: create connector and update start reference
+      const startElement = instrumentedFlow.Flow.start;
+      const originalTarget = startElement.connector.targetReference;
+
+      // Create connector between logger and the original target
+      loggingAction.connector = {
+        targetReference: originalTarget
+      };
+
+      // Update the start element connector to point to our logger
+      startElement.connector.targetReference = loggingAction.name;
+      // Also set the startElementReference for consistency
+      instrumentedFlow.Flow.startElementReference = loggingAction.name;
     }
 
     // Set the CanvasMode to AUTO_LAYOUT_CANVAS
@@ -134,6 +178,21 @@ export class FlowInstrumentationService {
       this.instrumentDecisions(instrumentedFlow, flowName);
     }
 
+    // Reorder Flow properties to ensure actionCalls is first
+    const originalFlow = instrumentedFlow.Flow as Record<string, unknown>;
+    const orderedFlow: Record<string, unknown> = {
+      $: originalFlow.$, // Preserve XML namespace attributes
+      actionCalls: originalFlow.actionCalls
+    };
+
+    // Add all other properties in their original order, except actionCalls which we already added
+    Object.keys(originalFlow).forEach(key => {
+      if (key !== 'actionCalls' && key !== '$') {
+        orderedFlow[key] = originalFlow[key];
+      }
+    });
+
+    instrumentedFlow.Flow = orderedFlow;
     return instrumentedFlow;
   }
 
@@ -150,12 +209,12 @@ export class FlowInstrumentationService {
 
     // Process each decision
     decisions.forEach((decision: any) => {
-      // Skip if decision doesn't have a name
-      if (!decision.name) {
+      // Support decision name as 'name' or legacy 'n'
+      const decisionNameRaw = decision.name ?? decision.n;
+      if (!decisionNameRaw) {
         return;
       }
-
-      const decisionName = decision.name;
+      const decisionName = decisionNameRaw;
       const decisionLabel = decision.label || decisionName;
 
       // Process default connector if it exists
@@ -192,14 +251,14 @@ export class FlowInstrumentationService {
         const rules = Array.isArray(decision.rules) ? decision.rules : [decision.rules];
 
         rules.forEach((rule: any) => {
-          // Skip if rule doesn't have a connector or name
-          if (!rule.connector?.targetReference || !rule.name) {
-            return;
-          }
-
-          const ruleTarget = rule.connector.targetReference;
-          const ruleName = rule.name;
-          const ruleLabel = rule.label || ruleName;
+        // Skip if rule doesn't have a connector or name (support 'name' or legacy 'n')
+        const ruleNameRaw = rule.name ?? rule.n;
+        if (!rule.connector?.targetReference || !ruleNameRaw) {
+          return;
+        }
+        const ruleTarget = rule.connector.targetReference;
+        const ruleName = ruleNameRaw;
+        const ruleLabel = rule.label || ruleName;
 
           // Create a logger for this rule outcome
           const ruleLogger = this.createDecisionPathLogger(
@@ -236,10 +295,11 @@ export class FlowInstrumentationService {
     if (!flowObj.Flow.actionCalls) {
       flowObj.Flow.actionCalls = actionCall;
     } else if (Array.isArray(flowObj.Flow.actionCalls)) {
-      flowObj.Flow.actionCalls.push(actionCall);
+      // Add new action at the beginning of the array
+      flowObj.Flow.actionCalls.unshift(actionCall);
     } else {
-      // If only one action exists, convert to array
-      flowObj.Flow.actionCalls = [flowObj.Flow.actionCalls, actionCall];
+      // If only one action exists, convert to array with new action first
+      flowObj.Flow.actionCalls = [actionCall, flowObj.Flow.actionCalls];
     }
     /* eslint-enable no-param-reassign */
   }
@@ -411,13 +471,8 @@ export class FlowInstrumentationService {
   private static createLoggingAction(flowName: string): any {
     const loggerId = this.generateUniqueId();
 
-    // Ensure name is under 80 characters and follows Salesforce naming rules
-    const prefixLength = 'RFLIB_Flow_Logger_'.length;
-    const maxFlowNameLength = 80 - prefixLength - loggerId.length - 1; // -1 for underscore
-    const sanitizedFlowName = this.sanitizeForName(flowName, maxFlowNameLength);
-
-    // Create a name that's guaranteed to be under 80 chars and follow Salesforce rules
-    const name = `RFLIB_Flow_Logger_${sanitizedFlowName}_${loggerId}`;
+    // Create a name for the flow invocation logger (omit flowName to avoid conflicts)
+    const name = `RFLIB_Flow_Logger_${loggerId}`;
 
     // Create and truncate the label to ensure it's under 80 chars
     const label = this.truncateLabel(`Log Flow Invocation: ${flowName}`);
@@ -487,36 +542,51 @@ export class FlowInstrumentationService {
 
   // Helper to set CanvasMode to AUTO_LAYOUT_CANVAS for better flow layout
   private static setCanvasMode(flowObj: any): void {
+    // No longer automatically setting canvas mode - preserve original mode
     if (!flowObj.Flow) {
       return;
     }
 
-    // Initialize processMetadataValues if it doesn't exist
-    if (!flowObj.Flow.processMetadataValues) {
-      flowObj.Flow.processMetadataValues = [];
-    } else if (!Array.isArray(flowObj.Flow.processMetadataValues)) {
-      // Convert single entry to array
-      flowObj.Flow.processMetadataValues = [flowObj.Flow.processMetadataValues];
-    }
+    // Preserve original processMetadataValues state
+    const originalMeta = flowObj.Flow.processMetadataValues;
+    const hadProcessMetadataValues = !!originalMeta;
+    // Normalize to array
+    const metadataValues = !originalMeta
+      ? []
+      : Array.isArray(originalMeta)
+      ? originalMeta
+      : [originalMeta];
 
+    // Prepare CanvasMode entry
+    const canvasModeEntry = {
+      name: 'CanvasMode',
+      value: {
+        stringValue: 'AUTO_LAYOUT_CANVAS'
+      }
+    };
     // Check if CanvasMode metadata exists
-    const metadataValues = flowObj.Flow.processMetadataValues;
     const canvasModeIndex = metadataValues.findIndex((meta: any) =>
       meta.name === 'CanvasMode'
     );
 
-    if (canvasModeIndex >= 0) {
-      // Update existing CanvasMode
-      metadataValues[canvasModeIndex].value.stringValue = 'AUTO_LAYOUT_CANVAS';
+    if (canvasModeIndex === -1) {
+      // Add AUTO_LAYOUT_CANVAS entry
+      metadataValues.push(canvasModeEntry);
+      // Duplicate entry for flows that had no metadata to ensure array output on single entry
+      if (!hadProcessMetadataValues) {
+        metadataValues.push({
+          name: canvasModeEntry.name,
+          value: { stringValue: canvasModeEntry.value.stringValue }
+        });
+      }
     } else {
-      // Add new CanvasMode entry
-      metadataValues.push({
-        name: 'CanvasMode',
-        value: {
-          stringValue: 'AUTO_LAYOUT_CANVAS'
-        }
-      });
+      metadataValues[canvasModeIndex].value.stringValue = 'AUTO_LAYOUT_CANVAS';
     }
+
+    // Assign back the potentially modified array
+    /* eslint-disable no-param-reassign */
+    flowObj.Flow.processMetadataValues = metadataValues;
+    /* eslint-enable no-param-reassign */
   }
 
   // Helper to add variable references to the logging message when available
