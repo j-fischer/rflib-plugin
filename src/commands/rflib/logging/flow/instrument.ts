@@ -19,9 +19,6 @@ export type RflibLoggingFlowInstrumentResult = {
 Messages.importMessagesDirectoryFromMetaUrl(import.meta.url);
 const messages = Messages.loadMessages('rflib-plugin', 'rflib.logging.flow.instrument');
 
-// Type definition removed to fix compiler error
-// This was used to document valid Flow variable types: 'String' | 'Number' | 'Boolean' | 'SObject' | 'SObjectCollection'
-
 export class FlowInstrumentationService {
   private static readonly parser = new xml2js.Parser({
     explicitArray: false,
@@ -138,7 +135,6 @@ export class FlowInstrumentationService {
     } else if (Array.isArray(instrumentedFlow.Flow.actionCalls)) {
       instrumentedFlow.Flow.actionCalls.unshift(loggingAction);
     } else {
-      // If only one action exists, convert to array with new action first
       instrumentedFlow.Flow.actionCalls = [loggingAction, instrumentedFlow.Flow.actionCalls];
     }
 
@@ -178,14 +174,13 @@ export class FlowInstrumentationService {
       this.instrumentDecisions(instrumentedFlow, flowName);
     }
 
-    // Reorder Flow properties to ensure actionCalls is first
+    // Reorder Flow properties
     const originalFlow = instrumentedFlow.Flow as Record<string, unknown>;
     const orderedFlow: Record<string, unknown> = {
-      $: originalFlow.$, // Preserve XML namespace attributes
+      $: originalFlow.$,
       actionCalls: originalFlow.actionCalls
     };
 
-    // Add all other properties in their original order, except actionCalls which we already added
     Object.keys(originalFlow).forEach(key => {
       if (key !== 'actionCalls' && key !== '$') {
         orderedFlow[key] = originalFlow[key];
@@ -251,14 +246,14 @@ export class FlowInstrumentationService {
         const rules = Array.isArray(decision.rules) ? decision.rules : [decision.rules];
 
         rules.forEach((rule: any) => {
-        // Skip if rule doesn't have a connector or name (support 'name' or legacy 'n')
-        const ruleNameRaw = rule.name ?? rule.n;
-        if (!rule.connector?.targetReference || !ruleNameRaw) {
-          return;
-        }
-        const ruleTarget = rule.connector.targetReference;
-        const ruleName = ruleNameRaw;
-        const ruleLabel = rule.label || ruleName;
+          // Skip if rule doesn't have a connector or name (support 'name' or legacy 'n')
+          const ruleNameRaw = rule.name ?? rule.n;
+          if (!rule.connector?.targetReference || !ruleNameRaw) {
+            return;
+          }
+          const ruleTarget = rule.connector.targetReference;
+          const ruleName = ruleNameRaw;
+          const ruleLabel = rule.label || ruleName;
 
           // Create a logger for this rule outcome
           const ruleLogger = this.createDecisionPathLogger(
@@ -554,8 +549,8 @@ export class FlowInstrumentationService {
     const metadataValues = !originalMeta
       ? []
       : Array.isArray(originalMeta)
-      ? originalMeta
-      : [originalMeta];
+        ? originalMeta
+        : [originalMeta];
 
     // Prepare CanvasMode entry
     const canvasModeEntry = {
