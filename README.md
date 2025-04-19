@@ -96,7 +96,7 @@ sf rflib logging aura instrument --sourcepath force-app --skip-instrumented
 
 ### `sf rflib logging flow instrument`
 
-Adds RFLIB logging actions to Salesforce Flows.
+Adds RFLIB logging actions to Salesforce Flows and optimizes flow layout.
 
 ```bash
 # Add logging to all Flow files
@@ -114,6 +114,15 @@ sf rflib logging flow instrument --sourcepath force-app --skip-instrumented
 - `--sourcepath (-s)`: Directory containing Flow files to instrument
 - `--dryrun (-d)`: Preview changes without modifying files
 - `--skip-instrumented`: Do not instrument files where RFLIB logging is already present
+
+#### Features
+
+- Adds logging for flow invocation at the start of the flow
+- Adds logging for decision paths to track which branch is executed
+- Sets the flow's CanvasMode to AUTO_LAYOUT_CANVAS for better visualization in Flow Builder
+- Preserves the original processType value
+- Handles both free-form and auto-layout flows, converting all to auto-layout
+- Supports both standard Flows (processType="Flow") and Auto-Launched Flows (processType="AutoLaunchedFlow")
 
 ## Contributing
 
