@@ -1,3 +1,12 @@
+# [0.9.0](https://github.com/j-fischer/rflib-plugin/compare/0.8.1...0.9.0) (2025-04-19)
+
+
+### Features
+
+* Flow instrumentation now supports After Insert/Update triggered flows ([41c0790](https://github.com/j-fischer/rflib-plugin/commit/41c0790b48da25d5bb1b39332938d9ab8b8fe43c))
+
+
+
 ## [0.8.1](https://github.com/j-fischer/rflib-plugin/compare/0.8.0...0.8.1) (2025-04-13)
 
 
