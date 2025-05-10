@@ -14,7 +14,7 @@
   "devDependencies": {
     "@commitlint/cli": "^19.8.0",
     "@istanbuljs/nyc-config-typescript": "^1.0.2",
-    "@oclif/plugin-command-snapshot": "^5.2.38",
+    "@oclif/plugin-command-snapshot": "^5.2.39",
     "@salesforce/cli-plugins-testkit": "^5.3.10",
     "@salesforce/dev-scripts": "^10.2.11",
     "c8": "^10.1.3",
