@@ -51,6 +51,7 @@ node_modules
 .sfdx
 
 # Claude
+.claude/**
 CLAUDE.md
 
 # codex
