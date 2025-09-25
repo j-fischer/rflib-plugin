@@ -1,3 +1,12 @@
+# [0.10.0](https://github.com/j-fischer/rflib-plugin/compare/0.9.1...0.10.0) (2025-09-25)
+
+
+### Features
+
+* parallelize logging instrumentation ([#134](https://github.com/j-fischer/rflib-plugin/issues/134)) ([01636f9](https://github.com/j-fischer/rflib-plugin/commit/01636f9cfe517cf6cc90d666876dc536af1dc32e))
+
+
+
 ## [0.9.1](https://github.com/j-fischer/rflib-plugin/compare/0.9.0...0.9.1) (2025-05-24)
 
 
