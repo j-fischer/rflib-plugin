@@ -1,4 +1,4 @@
-/* eslint-disable no-await-in-loop, sf-plugin/only-extend-SfCommand */
+/* eslint-disable sf-plugin/only-extend-SfCommand */
 /* eslint-disable @typescript-eslint/return-await */
 /* eslint-disable @typescript-eslint/no-explicit-any */
 /* eslint-disable @typescript-eslint/no-unsafe-call */
@@ -674,18 +674,22 @@ export default class RflibLoggingFlowInstrument extends SfCommand<RflibLoggingFl
 
   private async processDirectory(dirPath: string, isDryRun: boolean, skipInstrumented: boolean): Promise<void> {
     this.logger.debug(`Processing directory: ${dirPath}`);
-    const files = await fs.promises.readdir(dirPath);
+    const entries = await fs.promises.readdir(dirPath, { withFileTypes: true });
 
-    for (const file of files) {
-      const filePath = path.join(dirPath, file);
-      const stat = await fs.promises.stat(filePath);
+    await Promise.all(
+      entries.map(async (entry) => {
+        const filePath = path.join(dirPath, entry.name);
 
-      if (stat.isDirectory()) {
-        await this.processDirectory(filePath, isDryRun, skipInstrumented);
-      } else if (file.endsWith('.flow-meta.xml')) {
-        await this.instrumentFlowFile(filePath, isDryRun, skipInstrumented);
-      }
-    }
+        if (entry.isDirectory()) {
+          await this.processDirectory(filePath, isDryRun, skipInstrumented);
+          return;
+        }
+
+        if (entry.name.endsWith('.flow-meta.xml')) {
+          await this.instrumentFlowFile(filePath, isDryRun, skipInstrumented);
+        }
+      }),
+    );
   }
 
   private async instrumentFlowFile(filePath: string, isDryRun: boolean, skipInstrumented: boolean): Promise<void> {

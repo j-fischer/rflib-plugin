@@ -300,22 +300,27 @@ export default class RflibLoggingLwcInstrument extends SfCommand<RflibLoggingLwc
     isDryRun: boolean,
     instrumentationOpts: InstrumentationOptions,
   ): Promise<void> {
-    const files = await fs.promises.readdir(dirPath);
+    const entries = await fs.promises.readdir(dirPath, { withFileTypes: true });
 
-    for (const file of files) {
-      const filePath = path.join(dirPath, file);
-      const stat = await fs.promises.stat(filePath);
+    await Promise.all(
+      entries.map(async (entry) => {
+        const filePath = path.join(dirPath, entry.name);
 
-      if (stat.isDirectory()) {
-        await this.processDirectory(filePath, isDryRun, instrumentationOpts);
-      } else if (
-        file.endsWith('.js') &&
-        !path.dirname(filePath).includes('aura') &&
-        !path.dirname(filePath).includes('__tests__')
-      ) {
-        await this.instrumentLwcFile(filePath, isDryRun, instrumentationOpts);
-      }
-    }
+        if (entry.isDirectory()) {
+          await this.processDirectory(filePath, isDryRun, instrumentationOpts);
+          return;
+        }
+
+        const parentDir = path.dirname(filePath);
+        if (
+          entry.name.endsWith('.js') &&
+          !parentDir.includes('aura') &&
+          !parentDir.includes('__tests__')
+        ) {
+          await this.instrumentLwcFile(filePath, isDryRun, instrumentationOpts);
+        }
+      }),
+    );
   }
 
   private async instrumentLwcFile(

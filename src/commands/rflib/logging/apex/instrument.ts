@@ -1,4 +1,3 @@
-/* eslint-disable no-await-in-loop */
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { SfCommand, Flags } from '@salesforce/sf-plugins-core';
@@ -308,20 +307,27 @@ export default class RflibLoggingApexInstrument extends SfCommand<RflibLoggingAp
     instrumentationOpts: InstrumentationOptions,
   ): Promise<void> {
     this.logger.debug(`Processing directory: ${dirPath}`);
-    const files = await fs.promises.readdir(dirPath);
+    const entries = await fs.promises.readdir(dirPath, { withFileTypes: true });
 
-    for (const file of files) {
-      const filePath = path.join(dirPath, file);
-      const stat = await fs.promises.stat(filePath);
+    await Promise.all(
+      entries.map(async (entry) => {
+        const filePath = path.join(dirPath, entry.name);
 
-      if (stat.isDirectory()) {
-        await this.processDirectory(filePath, isDryRun, instrumentationOpts);
-      } else if (file.includes('Test') && file.endsWith('.cls')) {
-        await this.processTestFile(filePath, isDryRun, instrumentationOpts);
-      } else if (file.endsWith('.cls')) {
-        await this.instrumentApexClass(filePath, isDryRun, instrumentationOpts);
-      }
-    }
+        if (entry.isDirectory()) {
+          await this.processDirectory(filePath, isDryRun, instrumentationOpts);
+          return;
+        }
+
+        if (entry.name.includes('Test') && entry.name.endsWith('.cls')) {
+          await this.processTestFile(filePath, isDryRun, instrumentationOpts);
+          return;
+        }
+
+        if (entry.name.endsWith('.cls')) {
+          await this.instrumentApexClass(filePath, isDryRun, instrumentationOpts);
+        }
+      }),
+    );
   }
 
   private async processTestFile(
