@@ -197,6 +197,9 @@ describe('rflib logging flow instrument NUTs', () => {
     
     // 3. Verify the start element now points to the logger
     expect(modifiedFlow.Flow.start?.connector?.targetReference).to.equal(loggerAction?.name);
+
+    // 4. Ensure no conflicting startElementReference is present
+    expect(modifiedFlow.Flow.startElementReference).to.be.undefined;
   });
 
   it('should respect the dryrun flag', async () => {

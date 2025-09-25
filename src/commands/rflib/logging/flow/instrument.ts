@@ -162,8 +162,6 @@ export class FlowInstrumentationService {
 
       // Update the start element connector to point to our logger
       startElement.connector.targetReference = loggingAction.name;
-      // Also set the startElementReference for consistency
-      instrumentedFlow.Flow.startElementReference = loggingAction.name;
     }
 
     // Set the CanvasMode to AUTO_LAYOUT_CANVAS
