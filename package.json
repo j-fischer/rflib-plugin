@@ -13,6 +13,8 @@
   },
   "devDependencies": {
     "@commitlint/cli": "^19.8.1",
+    "@eslint/eslintrc": "^2.1.4",
+    "@eslint/js": "^8.57.1",
     "@istanbuljs/nyc-config-typescript": "^1.0.2",
     "@oclif/plugin-command-snapshot": "^5.2.40",
     "@salesforce/cli-plugins-testkit": "^5.3.10",
