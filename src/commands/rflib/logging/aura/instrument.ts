@@ -1,4 +1,3 @@
-/* eslint-disable no-await-in-loop */
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { SfCommand, Flags } from '@salesforce/sf-plugins-core';
@@ -272,17 +271,19 @@ export default class RflibLoggingAuraInstrument extends SfCommand<RflibLoggingAu
 
     const entries = await fs.promises.readdir(dirPath, { withFileTypes: true });
 
-    for (const entry of entries) {
-      const fullPath = path.join(dirPath, entry.name);
+    await Promise.all(
+      entries
+        .filter((entry) => entry.isDirectory())
+        .map(async (entry) => {
+          const fullPath = path.join(dirPath, entry.name);
 
-      if (entry.isDirectory()) {
-        if (entry.name === 'aura') {
-          await this.processAuraComponents(fullPath, isDryRun, instrumentationOpts);
-        } else {
-          await this.processDirectory(fullPath, isDryRun, instrumentationOpts);
-        }
-      }
-    }
+          if (entry.name === 'aura') {
+            await this.processAuraComponents(fullPath, isDryRun, instrumentationOpts);
+          } else {
+            await this.processDirectory(fullPath, isDryRun, instrumentationOpts);
+          }
+        }),
+    );
   }
 
   private async processAuraComponents(
@@ -297,12 +298,18 @@ export default class RflibLoggingAuraInstrument extends SfCommand<RflibLoggingAu
 
     const entries = await fs.promises.readdir(auraPath, { withFileTypes: true });
 
-    for (const entry of entries) {
-      if (entry.isDirectory()) {
-        const componentPath = path.join(auraPath, entry.name);
-        await this.processAuraComponent(componentPath, entry.name, isDryRun, instrumentationOpts);
-      }
-    }
+    await Promise.all(
+      entries
+        .filter((entry) => entry.isDirectory())
+        .map((entry) =>
+          this.processAuraComponent(
+            path.join(auraPath, entry.name),
+            entry.name,
+            isDryRun,
+            instrumentationOpts,
+          ),
+        ),
+    );
   }
 
   private async processAuraComponent(
@@ -322,9 +329,11 @@ export default class RflibLoggingAuraInstrument extends SfCommand<RflibLoggingAu
       const loggerId = await this.instrumentCmpFile(cmpPath, componentName, isDryRun);
       this.logger.debug(`Using logger ID: ${loggerId}`);
 
-      await this.instrumentJsFile(controllerPath, loggerId, isDryRun, instrumentationOpts);
-      await this.instrumentJsFile(helperPath, loggerId, isDryRun, instrumentationOpts);
-      await this.instrumentJsFile(rendererPath, loggerId, isDryRun, instrumentationOpts);
+      await Promise.all([
+        this.instrumentJsFile(controllerPath, loggerId, isDryRun, instrumentationOpts),
+        this.instrumentJsFile(helperPath, loggerId, isDryRun, instrumentationOpts),
+        this.instrumentJsFile(rendererPath, loggerId, isDryRun, instrumentationOpts),
+      ]);
     } catch (error) {
       this.logger.error(`Error processing Aura component ${componentName}`, error);
       throw error;
