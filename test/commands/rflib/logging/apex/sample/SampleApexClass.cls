@@ -9,9 +9,11 @@ public with sharing class SampleApexClass {
         if (someLimit > 100) {
             for (Integer i = 0; i < 10; i++) {
                 System.debug('Processing...');
+                System.debug(LoggingLevel.INFO, 'Iteration ' + i);
             }
         } else if (someLimit > 50) {
             System.debug('Medium batch');
+            System.debug(LoggingLevel.INFO, 'Medium batch size: ' + someLimit);
         } else {
             System.debug('Small batch');
         }
@@ -28,6 +30,7 @@ public with sharing class SampleApexClass {
         } catch (Exception ex) {
             // Missing error logging
             System.debug('Error: ' + ex.getMessage());
+            System.debug(LoggingLevel.ERROR, ex);
         }
     }
     
