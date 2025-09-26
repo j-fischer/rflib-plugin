@@ -189,10 +189,13 @@ describe('rflib logging apex instrument', () => {
     expect(result.modifiedFiles).to.equal(3); // Modified files counter
   });
 
-  it('should replace System.debug statements with LOGGER.debug', async () => {
+  it('should replace System.debug statements with logger methods', async () => {
     await RflibLoggingApexInstrument.run(['--sourcepath', testDir]);
     const modifiedContent = fs.readFileSync(sampleClassPath, 'utf8');
 
     expect(modifiedContent).to.include("LOGGER.debug('Medium batch');");
+    expect(modifiedContent).to.include("LOGGER.info('Iteration ' + i);");
+    expect(modifiedContent).to.include("LOGGER.info('Medium batch size: ' + someLimit);");
+    expect(modifiedContent).to.include('LOGGER.error(ex);');
   });
 });

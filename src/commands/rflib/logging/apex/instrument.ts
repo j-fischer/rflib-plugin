@@ -57,7 +57,22 @@ class ApexInstrumentationService {
     /if\s*\((.*?)\)\s*(?:{([^]*?(?:(?<!{){(?:[^]*?)}(?!})[^]*?)*)}|([^{].*?)(?=\s*(?:;|$));)/g;
   private static readonly ELSE_REGEX = /\s*else(?!\s*if\b)\s*(?:{((?:[^{}]|{(?:[^{}]|{[^{}]*})*})*)}|([^{;]*(?:;|$)))/g;
   private static readonly IS_INSTRUMENTED_REGEX = /(\brflib_Logger\b|\brflib_TestUtil\b)/;
-  private static readonly SYSTEM_DEBUG_REGEX = /System\.debug\s*\(\s*['"]([^'"]*)['"]\s*\)\s*;/g;
+  private static readonly SYSTEM_DEBUG_IDENTIFIER = 'System.debug';
+
+  private static readonly LOGGING_LEVEL_METHOD_MAP: Record<string, string> = {
+    ERROR: 'error',
+    FATAL: 'error',
+    WARN: 'warn',
+    WARNING: 'warn',
+    INFO: 'info',
+    DEBUG: 'debug',
+    FINE: 'debug',
+    FINER: 'debug',
+    FINEST: 'debug',
+    TRACE: 'debug',
+    ALL: 'debug',
+    NONE: 'debug',
+  };
 
   private static readonly PRIMITIVE_TYPES = new Set([
     'STRING',
@@ -191,7 +206,216 @@ class ApexInstrumentationService {
   }
 
   public static processSystemDebugStatements(content: string, loggerName: string): string {
-    return content.replace(this.SYSTEM_DEBUG_REGEX, (match, debugMessage) => `${loggerName}.debug('${debugMessage}');`);
+    let result = '';
+    let searchIndex = 0;
+
+    while (searchIndex < content.length) {
+      const debugIndex = content.indexOf(this.SYSTEM_DEBUG_IDENTIFIER, searchIndex);
+
+      if (debugIndex === -1) {
+        result += content.slice(searchIndex);
+        break;
+      }
+
+      result += content.slice(searchIndex, debugIndex);
+
+      const openParenIndex = content.indexOf('(', debugIndex + this.SYSTEM_DEBUG_IDENTIFIER.length);
+      if (openParenIndex === -1) {
+        result += content.slice(debugIndex);
+        break;
+      }
+
+      const parsedCall = this.extractSystemDebugCall(content, openParenIndex + 1);
+      if (!parsedCall) {
+        // Unable to safely parse the call, keep the original content.
+        result += content.slice(debugIndex, openParenIndex + 1);
+        searchIndex = openParenIndex + 1;
+        continue;
+      }
+
+      const { args, endIndex } = parsedCall;
+      const argList = this.splitArguments(args);
+
+      if (argList.length === 0) {
+        // No arguments found, keep the original content.
+        result += content.slice(debugIndex, endIndex);
+        searchIndex = endIndex;
+        continue;
+      }
+
+      let loggerMethod = 'debug';
+      let messageExpression = argList[0];
+
+      if (argList.length > 1 && /^LoggingLevel\./i.test(argList[0])) {
+        const level = argList[0].split('.')[1]?.trim().toUpperCase();
+        loggerMethod = this.mapLoggingLevelToLoggerMethod(level);
+        messageExpression = argList.slice(1).join(', ');
+      } else if (argList.length > 1) {
+        // Unexpected number of arguments; retain the original statement.
+        result += content.slice(debugIndex, endIndex);
+        searchIndex = endIndex;
+        continue;
+      }
+
+      result += `${loggerName}.${loggerMethod}(${messageExpression.trim()});`;
+      searchIndex = endIndex;
+    }
+
+    return result;
+  }
+
+  private static extractSystemDebugCall(
+    content: string,
+    argsStartIndex: number,
+  ): { args: string; endIndex: number } | undefined {
+    let index = argsStartIndex;
+    let depth = 1;
+    let inSingleQuote = false;
+    let inDoubleQuote = false;
+
+    while (index < content.length && depth > 0) {
+      const char = content[index];
+
+      if (inSingleQuote) {
+        if (char === '\\' && index + 1 < content.length) {
+          index += 2;
+          continue;
+        }
+        if (char === "'") {
+          inSingleQuote = false;
+        }
+      } else if (inDoubleQuote) {
+        if (char === '\\' && index + 1 < content.length) {
+          index += 2;
+          continue;
+        }
+        if (char === '"') {
+          inDoubleQuote = false;
+        }
+      } else {
+        if (char === "'") {
+          inSingleQuote = true;
+        } else if (char === '"') {
+          inDoubleQuote = true;
+        } else if (char === '(') {
+          depth++;
+        } else if (char === ')') {
+          depth--;
+          if (depth === 0) {
+            break;
+          }
+        }
+      }
+
+      index++;
+    }
+
+    if (depth !== 0) {
+      return undefined;
+    }
+
+    const args = content.slice(argsStartIndex, index).trim();
+    let endIndex = index + 1; // Skip the closing parenthesis
+
+    while (endIndex < content.length && /\s/.test(content[endIndex])) {
+      endIndex++;
+    }
+
+    if (content[endIndex] !== ';') {
+      return undefined;
+    }
+
+    endIndex += 1; // Move past the semicolon
+
+    return { args, endIndex };
+  }
+
+  private static splitArguments(args: string): string[] {
+    const result: string[] = [];
+    let current = '';
+    let depth = 0;
+    let inSingleQuote = false;
+    let inDoubleQuote = false;
+
+    for (let i = 0; i < args.length; i++) {
+      const char = args[i];
+
+      if (inSingleQuote) {
+        current += char;
+        if (char === '\\' && i + 1 < args.length) {
+          current += args[i + 1];
+          i++;
+          continue;
+        }
+        if (char === "'") {
+          inSingleQuote = false;
+        }
+        continue;
+      }
+
+      if (inDoubleQuote) {
+        current += char;
+        if (char === '\\' && i + 1 < args.length) {
+          current += args[i + 1];
+          i++;
+          continue;
+        }
+        if (char === '"') {
+          inDoubleQuote = false;
+        }
+        continue;
+      }
+
+      if (char === "'") {
+        inSingleQuote = true;
+        current += char;
+        continue;
+      }
+
+      if (char === '"') {
+        inDoubleQuote = true;
+        current += char;
+        continue;
+      }
+
+      if (char === '(' || char === '[' || char === '{' || char === '<') {
+        depth++;
+        current += char;
+        continue;
+      }
+
+      if (char === ')' || char === ']' || char === '}' || char === '>') {
+        if (depth > 0) {
+          depth--;
+        }
+        current += char;
+        continue;
+      }
+
+      if (char === ',' && depth === 0) {
+        if (current.trim() !== '') {
+          result.push(current.trim());
+        }
+        current = '';
+        continue;
+      }
+
+      current += char;
+    }
+
+    if (current.trim() !== '') {
+      result.push(current.trim());
+    }
+
+    return result;
+  }
+
+  private static mapLoggingLevelToLoggerMethod(level?: string): string {
+    if (!level) {
+      return 'debug';
+    }
+
+    return this.LOGGING_LEVEL_METHOD_MAP[level] ?? 'debug';
   }
 
   private static isComplexType(paramType: string): boolean {
