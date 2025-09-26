@@ -1,3 +1,12 @@
+## [0.10.1](https://github.com/j-fischer/rflib-plugin/compare/0.10.0...0.10.1) (2025-09-26)
+
+
+### Bug Fixes
+
+* prevented the flow instrumenter from leaving both a element and a startElementReference ([471b2c2](https://github.com/j-fischer/rflib-plugin/commit/471b2c2e07ba347882fa6d5361c12c4c29524c58))
+
+
+
 # [0.10.0](https://github.com/j-fischer/rflib-plugin/compare/0.9.1...0.10.0) (2025-09-25)
 
 
