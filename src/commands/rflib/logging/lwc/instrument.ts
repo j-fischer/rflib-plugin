@@ -34,7 +34,9 @@ class LwcInstrumentationService {
   private static readonly IMPORT_REGEX = /import\s*{\s*createLogger\s*}\s*from\s*['"]c\/rflibLogger['"]/;
   private static readonly LOGGER_REGEX = /const\s+(\w+)\s*=\s*createLogger\s*\(['"]([\w-]+)['"]\)/;
   private static readonly METHOD_REGEX =
-    /(?:async\s+)?(?!(?:if|switch|case|while|for|catch)\b)(\b\w+)\s*\((.*?)\)\s*{/g;
+    /(?:@[-\w.]+(?:\([^)]*\))?\s*)*(?:async\s+)?(?!(?:if|switch|case|while|for|catch)\b)(\b\w+)\s*\((.*?)\)\s*{/g;
+  private static readonly CLASS_FIELD_ARROW_REGEX =
+    /(?:@[-\w.]+(?:\([^)]*\))?\s*)*(\b\w+)\s*=\s*(?:async\s+)?(?:\(([^)]*)\)|([a-zA-Z_$][\w$]*))\s*=>\s*{/g;
   private static readonly EXPORT_DEFAULT_REGEX = /export\s+default\s+class\s+(\w+)/;
   private static readonly IF_STATEMENT_REGEX =
     /if\s*\((.*?)\)\s*(?:{([^]*?(?:(?<!{){(?:[^]*?)}(?!})[^]*?)*)}|([^{].*?)(?=\s*(?:;|$));)/g;
@@ -139,8 +141,8 @@ class LwcInstrumentationService {
   }
 
   public static processMethodLogging(content: string, loggerName: string, options: InstrumentationOptions): string {
-    let modified = content.replace(this.METHOD_REGEX, (match: string, methodName: string, args: string) => {
-      const parameters = args
+    const appendLogStatement = (match: string, methodName: string, rawArgs: string): string => {
+      const parameters = rawArgs
         .split(',')
         .map((p) => p.trim())
         .filter((p) => p);
@@ -148,7 +150,19 @@ class LwcInstrumentationService {
       const logArgs = parameters.length > 0 ? `, ${parameters.join(', ')}` : '';
 
       return `${match}\n        ${loggerName}.info('${methodName}(${placeholders})'${logArgs});`;
-    });
+    };
+
+    let modified = content.replace(this.METHOD_REGEX, (match: string, methodName: string, args: string) =>
+      appendLogStatement(match, methodName, args),
+    );
+
+    modified = modified.replace(
+      this.CLASS_FIELD_ARROW_REGEX,
+      (match: string, methodName: string, argsWithParens: string, singleArg: string) => {
+        const args = argsWithParens ?? singleArg ?? '';
+        return appendLogStatement(match, methodName, args);
+      },
+    );
 
     if (!options.noIf) {
       modified = this.processIfStatements(modified, loggerName);
