@@ -160,7 +160,7 @@ describe('rflib logging flow instrument NUTs', () => {
     expect(originalCanvasModeValues?.value.stringValue).to.equal('FREE_FORM_CANVAS');
 
     expect(originalFlow.Flow.processType).to.equal('AutoLaunchedFlow');
-    
+
     // Store the original target reference from the start element
     // This is important for testing the AutoLaunchedFlow start element structure
     const originalStartTarget = originalFlow.Flow.start?.connector?.targetReference;
@@ -180,21 +180,21 @@ describe('rflib logging flow instrument NUTs', () => {
     expect(modifiedCanvasModeValues?.value.stringValue).to.equal('AUTO_LAYOUT_CANVAS');
 
     expect(modifiedFlow.Flow.processType).to.equal('AutoLaunchedFlow');
-    
+
     // Verify that start element connection chain is properly set up
     // 1. Find the logger action
-    const actionCalls = Array.isArray(modifiedFlow.Flow.actionCalls) ? 
+    const actionCalls = Array.isArray(modifiedFlow.Flow.actionCalls) ?
       modifiedFlow.Flow.actionCalls : [modifiedFlow.Flow.actionCalls];
-      
+
     const loggerAction = actionCalls.find(action =>
       action?.name?.startsWith('RFLIB_Flow_Logger_') === true ||
       action?.name?.startsWith('RFLIBLogger') === true
     );
     expect(loggerAction).to.exist;
-    
+
     // 2. Verify the logger's connector points to the original target
     expect(loggerAction?.connector?.targetReference).to.equal(originalStartTarget);
-    
+
     // 3. Verify the start element now points to the logger
     expect(modifiedFlow.Flow.start?.connector?.targetReference).to.equal(loggerAction?.name);
 
@@ -247,86 +247,10 @@ describe('rflib logging flow instrument NUTs', () => {
   });
 
   it('should instrument decision paths with logging', async () => {
-    const decisionFlowContent = `<?xml version="1.0" encoding="UTF-8"?>
-<Flow xmlns="http://soap.sforce.com/2006/04/metadata">
-  <apiVersion>63.0</apiVersion>
-  <decisions>
-    <n>Check_Value</n>
-    <label>Check Value</label>
-    <locationX>182</locationX>
-    <locationY>188</locationY>
-    <defaultConnector>
-      <targetReference>Default_Action</targetReference>
-    </defaultConnector>
-    <defaultConnectorLabel>Default Outcome</defaultConnectorLabel>
-    <rules>
-      <n>Condition_True</n>
-      <conditionLogic>and</conditionLogic>
-      <conditions>
-        <leftValueReference>SomeValue</leftValueReference>
-        <operator>EqualTo</operator>
-        <rightValue>
-          <booleanValue>true</booleanValue>
-        </rightValue>
-      </conditions>
-      <connector>
-        <targetReference>True_Action</targetReference>
-      </connector>
-      <label>Value Is True</label>
-    </rules>
-  </decisions>
-  <assignments>
-    <n>Default_Action</n>
-    <label>Default Action</label>
-    <locationX>50</locationX>
-    <locationY>288</locationY>
-    <assignmentItems>
-      <assignToReference>Result</assignToReference>
-      <operator>Assign</operator>
-      <value>
-        <stringValue>Default</stringValue>
-      </value>
-    </assignmentItems>
-  </assignments>
-  <assignments>
-    <n>True_Action</n>
-    <label>True Action</label>
-    <locationX>314</locationX>
-    <locationY>288</locationY>
-    <assignmentItems>
-      <assignToReference>Result</assignToReference>
-      <operator>Assign</operator>
-      <value>
-        <stringValue>True</stringValue>
-      </value>
-    </assignmentItems>
-  </assignments>
-  <variables>
-    <n>SomeValue</n>
-    <dataType>Boolean</dataType>
-    <isCollection>false</isCollection>
-    <isInput>true</isInput>
-    <isOutput>false</isOutput>
-  </variables>
-  <variables>
-    <n>Result</n>
-    <dataType>String</dataType>
-    <isCollection>false</isCollection>
-    <isInput>false</isInput>
-    <isOutput>true</isOutput>
-  </variables>
-  <processType>Flow</processType>
-  <start>
-    <locationX>182</locationX>
-    <locationY>88</locationY>
-    <connector>
-      <targetReference>Check_Value</targetReference>
-    </connector>
-  </start>
-</Flow>`;
-
+    const sampleFilesDir = path.join(dirname, 'sample');
+    const decisionFlowSourcePath = path.join(sampleFilesDir, 'Decision_Path_Test.flow-meta.xml');
     const decisionFlowPath = path.join(srcDir, 'Decision_Path_Test.flow-meta.xml');
-    await fs.promises.writeFile(decisionFlowPath, decisionFlowContent);
+    await fs.promises.copyFile(decisionFlowSourcePath, decisionFlowPath);
 
     const command = `rflib logging flow instrument --sourcepath ${path.join(tempDir, 'force-app')}`;
     execCmd(command, { ensureExitCode: 0 });
@@ -383,7 +307,7 @@ describe('rflib logging flow instrument NUTs', () => {
 
     expect(rule.connector.targetReference).to.equal(rulePathLogger?.name);
 
-    expect(modifiedFlow.Flow.startElementReference).to.equal(flowInvocationLogger?.name);
+    expect(modifiedFlow.Flow.start?.connector?.targetReference).to.equal(flowInvocationLogger?.name);
 
     const canvasModeMetadata = modifiedFlow.Flow.processMetadataValues.find(
       (meta: FlowMetadata) => meta.name === 'CanvasMode'
