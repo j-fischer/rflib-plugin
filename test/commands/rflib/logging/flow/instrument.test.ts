@@ -515,6 +515,9 @@ describe('rflib logging flow instrument', () => {
 
         // Verify the start element now points to the logger
         expect(instrumentedFlow.Flow.start.connector.targetReference).to.equal(flowLogger.name);
+
+        // Ensure no conflicting startElementReference is present
+        expect(instrumentedFlow.Flow.startElementReference).to.be.undefined;
       });
 
       it('should correctly handle a flow with no processMetadataValues', () => {
