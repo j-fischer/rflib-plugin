@@ -209,21 +209,17 @@ class ApexInstrumentationService {
         if (inString) {
           if (isEscaped) {
             isEscaped = false;
-          } else {
-            if (char === '\\') {
-              isEscaped = true;
-            } else if (char === "'") {
-              inString = false;
-            }
+          } else if (char === '\\') {
+            isEscaped = true;
+          } else if (char === "'") {
+            inString = false;
           }
-        } else {
-          if (char === "'") {
-            inString = true;
-          } else if (char === '(') {
-            depth++;
-          } else if (char === ')') {
-            depth--;
-          }
+        } else if (char === "'") {
+          inString = true;
+        } else if (char === '(') {
+          depth++;
+        } else if (char === ')') {
+          depth--;
         }
       }
 
