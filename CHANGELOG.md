@@ -1,3 +1,12 @@
+# [0.11.0](https://github.com/j-fischer/rflib-plugin/compare/0.10.1...0.11.0) (2025-12-14)
+
+
+### Features
+
+* add `wireit` as a dev dependency ([cb8b3b7](https://github.com/j-fischer/rflib-plugin/commit/cb8b3b7452534912b5b032a94f37eb7764812397))
+
+
+
 ## [0.10.1](https://github.com/j-fischer/rflib-plugin/compare/0.10.0...0.10.1) (2025-09-26)
 
 
