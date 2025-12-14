@@ -57,8 +57,6 @@ class ApexInstrumentationService {
     /if\s*\((.*?)\)\s*(?:{([^]*?(?:(?<!{){(?:[^]*?)}(?!})[^]*?)*)}|([^{].*?)(?=\s*(?:;|$));)/g;
   private static readonly ELSE_REGEX = /\s*else(?!\s*if\b)\s*(?:{((?:[^{}]|{(?:[^{}]|{[^{}]*})*})*)}|([^{;]*(?:;|$)))/g;
   private static readonly IS_INSTRUMENTED_REGEX = /(\brflib_Logger\b|\brflib_TestUtil\b)/;
-  private static readonly SYSTEM_DEBUG_REGEX = /System\.debug\s*\(\s*['"]([^'"]*)['"]\s*\)\s*;/g;
-
   private static readonly PRIMITIVE_TYPES = new Set([
     'STRING',
     'INTEGER',
@@ -191,7 +189,91 @@ class ApexInstrumentationService {
   }
 
   public static processSystemDebugStatements(content: string, loggerName: string): string {
-    return content.replace(this.SYSTEM_DEBUG_REGEX, (match, debugMessage) => `${loggerName}.debug('${debugMessage}');`);
+    const debugStartRegex = /System\.debug\s*\(/g;
+    let match;
+    let lastIndex = 0;
+    let output = '';
+
+    while ((match = debugStartRegex.exec(content)) !== null) {
+      output += content.substring(lastIndex, match.index);
+
+      const openParenIndex = match.index + match[0].length - 1;
+      let depth = 1;
+      let i = openParenIndex + 1;
+      let inString = false;
+      let isEscaped = false;
+
+      for (; i < content.length && depth > 0; i++) {
+        const char = content[i];
+
+        if (inString) {
+          if (isEscaped) {
+            isEscaped = false;
+          } else {
+            if (char === '\\') {
+              isEscaped = true;
+            } else if (char === "'") {
+              inString = false;
+            }
+          }
+        } else {
+          if (char === "'") {
+            inString = true;
+          } else if (char === '(') {
+            depth++;
+          } else if (char === ')') {
+            depth--;
+          }
+        }
+      }
+
+      if (depth === 0) {
+        const closeParenIndex = i - 1;
+        const remaining = content.substring(closeParenIndex + 1);
+        const semiColonMatch = remaining.match(/^\s*;/);
+
+        if (semiColonMatch) {
+          const endOfStatement = closeParenIndex + 1 + semiColonMatch[0].length;
+          const args = content.substring(openParenIndex + 1, closeParenIndex);
+          const processed = this.transformSystemDebug(args, loggerName);
+          output += processed;
+          lastIndex = endOfStatement;
+          debugStartRegex.lastIndex = endOfStatement;
+        } else {
+          output += match[0];
+          lastIndex = match.index + match[0].length;
+        }
+      } else {
+        output += match[0];
+        lastIndex = match.index + match[0].length;
+      }
+    }
+
+    output += content.substring(lastIndex);
+    return output;
+  }
+
+  private static transformSystemDebug(args: string, loggerName: string): string {
+    const trimmedArgs = args.trim();
+    const levelMatch = trimmedArgs.match(/^LoggingLevel\.(\w+)\s*,\s*([\s\S]*)$/);
+
+    if (levelMatch) {
+      const level = levelMatch[1].toUpperCase();
+      const message = levelMatch[2];
+      let method = 'debug';
+
+      if (level === 'ERROR') {
+        method = 'error';
+      } else if (level === 'WARN') {
+        method = 'warn';
+      } else if (level === 'INFO') {
+        method = 'info';
+      }
+
+      return `${loggerName}.${method}(${message});`;
+    }
+
+    return `${loggerName}.debug(${trimmedArgs});`;
   }
 
   private static isComplexType(paramType: string): boolean {
