@@ -57,6 +57,9 @@ class ApexInstrumentationService {
     /if\s*\((.*?)\)\s*(?:{([^]*?(?:(?<!{){(?:[^]*?)}(?!})[^]*?)*)}|([^{].*?)(?=\s*(?:;|$));)/g;
   private static readonly ELSE_REGEX = /\s*else(?!\s*if\b)\s*(?:{((?:[^{}]|{(?:[^{}]|{[^{}]*})*})*)}|([^{;]*(?:;|$)))/g;
   private static readonly IS_INSTRUMENTED_REGEX = /(\brflib_Logger\b|\brflib_TestUtil\b)/;
+  private static readonly SYSTEM_DEBUG_START_REGEX = /System\.debug\s*\(/g;
+  private static readonly LOGGING_LEVEL_REGEX = /^LoggingLevel\.(\w+)\s*,\s*([\s\S]*)$/;
+
   private static readonly PRIMITIVE_TYPES = new Set([
     'STRING',
     'INTEGER',
@@ -189,7 +192,7 @@ class ApexInstrumentationService {
   }
 
   public static processSystemDebugStatements(content: string, loggerName: string): string {
-    const debugStartRegex = /System\.debug\s*\(/g;
+    const debugStartRegex = new RegExp(this.SYSTEM_DEBUG_START_REGEX);
     let match;
     let lastIndex = 0;
     let output = '';
@@ -251,7 +254,7 @@ class ApexInstrumentationService {
 
   private static transformSystemDebug(args: string, loggerName: string): string {
     const trimmedArgs = args.trim();
-    const levelMatch = trimmedArgs.match(/^LoggingLevel\.(\w+)\s*,\s*([\s\S]*)$/);
+    const levelMatch = trimmedArgs.match(this.LOGGING_LEVEL_REGEX);
 
     if (levelMatch) {
       const level = levelMatch[1].toUpperCase();
