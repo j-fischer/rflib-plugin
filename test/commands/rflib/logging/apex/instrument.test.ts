@@ -193,6 +193,16 @@ describe('rflib logging apex instrument', () => {
     await RflibLoggingApexInstrument.run(['--sourcepath', testDir]);
     const modifiedContent = fs.readFileSync(sampleClassPath, 'utf8');
 
-    expect(modifiedContent).to.include("LOGGER.debug('Medium batch');");
+    expect(modifiedContent).to.include("LOGGER.debug('Small batch');");
+  });
+
+  it('should replace System.debug statements with LoggingLevel overload', async () => {
+    await RflibLoggingApexInstrument.run(['--sourcepath', testDir]);
+    const modifiedContent = fs.readFileSync(sampleClassPath, 'utf8');
+
+    expect(modifiedContent).to.include("LOGGER.debug('Processing...');");
+    expect(modifiedContent).to.include("LOGGER.warn('Medium batch');");
+    expect(modifiedContent).to.include("LOGGER.info('User found: ' + userMap.get(record.Id));");
+    expect(modifiedContent).to.include("LOGGER.error('Error: ' + ex.getMessage());");
   });
 });

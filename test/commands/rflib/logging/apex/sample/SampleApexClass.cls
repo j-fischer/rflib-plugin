@@ -8,10 +8,10 @@ public with sharing class SampleApexClass {
 
         if (someLimit > 100) {
             for (Integer i = 0; i < 10; i++) {
-                System.debug('Processing...');
+                System.debug(LoggingLevel.FINE, 'Processing...');
             }
         } else if (someLimit > 50) {
-            System.debug('Medium batch');
+            System.debug(LoggingLevel.WARN, 'Medium batch');
         } else {
             System.debug('Small batch');
         }
@@ -23,11 +23,11 @@ public with sharing class SampleApexClass {
         try {
             String recordType = record.getSObjectType().getDescribe().getName();
             if (userMap.containsKey(record.Id)) {
-                // Do something
+                System.debug(LoggingLevel.INFO, 'User found: ' + userMap.get(record.Id));
             }
         } catch (Exception ex) {
             // Missing error logging
-            System.debug('Error: ' + ex.getMessage());
+            System.debug(LoggingLevel.ERROR, 'Error: ' + ex.getMessage());
         }
     }
     
