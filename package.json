@@ -3,34 +3,35 @@
   "description": "Utility commands to help with the adoption of the RFLIB open-source library for Salesforce.",
   "version": "0.11.1",
   "dependencies": {
-    "@oclif/core": "^4",
-    "@salesforce/core": "^8",
-    "@salesforce/sf-plugins-core": "^12",
+    "@oclif/core": "^4.8.0",
+    "@salesforce/core": "^8.24.0",
+    "@salesforce/sf-plugins-core": "^12.2.6",
     "@types/xml2js": "^0.4.14",
-    "prettier": "^3.6.2",
+    "prettier": "^3.7.4",
     "prettier-plugin-apex": "^2.2.6",
     "wireit": "^0.14.12",
     "xml2js": "^0.6.2"
   },
   "devDependencies": {
-    "@commitlint/cli": "^19.8.1",
+    "@commitlint/cli": "^20.2.0",
     "@eslint/eslintrc": "^2.1.4",
     "@eslint/js": "^8.57.1",
     "@istanbuljs/nyc-config-typescript": "^1.0.2",
-    "@oclif/plugin-command-snapshot": "^5.2.40",
+    "@oclif/plugin-command-snapshot": "^5.3.8",
     "@salesforce/cli-plugins-testkit": "^5.3.41",
     "@salesforce/dev-scripts": "^11.0.4",
     "c8": "^10.1.3",
-    "eslint-plugin-sf-plugin": "^1.20.24",
-    "husky": "^8.0.0",
-    "oclif": "^4.22.24",
+    "eslint": "^8.57.1",
+    "eslint-plugin-sf-plugin": "^1.20.33",
+    "husky": "^9.1.7",
+    "oclif": "^4.22.57",
     "source-map-support": "^0.5.21",
     "ts-node": "^10.9.2",
     "tsconfig-paths": "^4.2.0",
     "typescript": "^5.9.3"
   },
   "engines": {
-    "node": ">=18.0.0"
+    "node": ">=22.0.0"
   },
   "files": [
     "/lib",
@@ -90,14 +91,14 @@
     "format": "wireit",
     "link-check": "wireit",
     "lint": "wireit",
-    "postinstall": "yarn husky install || echo \"Unable to install Husky. If you are in a CI/CD job, that's ok !\"",
+    "postinstall": "yarn husky || echo \"Unable to install Husky. If you are in a CI/CD job, that's ok !\"",
     "postpack": "sf-clean --ignore-signing-artifacts",
     "prepack": "sf-prepack",
     "test": "wireit",
     "test:nuts": "wireit",
     "test:only": "wireit",
     "version": "oclif readme",
-    "prepare": "husky install"
+    "prepare": "husky"
   },
   "publishConfig": {
     "access": "public",
@@ -225,7 +226,7 @@
   "type": "module",
   "author": "Johannes Fischer",
   "volta": {
-    "node": "20.17.0",
+    "node": "24.12.0",
     "yarn": "1.22.22"
   }
 }

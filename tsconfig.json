@@ -6,8 +6,10 @@
     "esModuleInterop": true,
     "outDir": "lib",
     "rootDir": "src",
-    "moduleResolution": "Node16",
-    "module": "Node16"
+    "moduleResolution": "NodeNext",
+    "module": "NodeNext",
+    "target": "ES2022",
+    "skipLibCheck": true
   },
   "include": ["./src/**/*.ts"]
 }
