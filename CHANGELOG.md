@@ -1,3 +1,14 @@
+# [0.12.0](https://github.com/j-fischer/rflib-plugin/compare/0.11.1...0.12.0) (2025-12-27)
+
+
+### Features
+
+* lower the minimum Node.js version requirement ([4cf915e](https://github.com/j-fischer/rflib-plugin/commit/4cf915e8101e41349bb1a32c12a60d8a81603c07))
+* support System.debug LoggingLevel overload ([e1916fb](https://github.com/j-fischer/rflib-plugin/commit/e1916fb4b9b3b5bd0d6350e0bc7de401920842eb))
+* update project setup to run on Node 24 ([#148](https://github.com/j-fischer/rflib-plugin/issues/148)) ([0db551f](https://github.com/j-fischer/rflib-plugin/commit/0db551f874ae25e895526fc65dd0859fb4768dec))
+
+
+
 ## [0.11.1](https://github.com/j-fischer/rflib-plugin/compare/0.11.0...0.11.1) (2025-12-14)
 
 
