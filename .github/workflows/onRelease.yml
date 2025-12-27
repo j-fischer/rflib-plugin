@@ -27,7 +27,6 @@ jobs:
     with:
       tag: ${{ needs.getDistTag.outputs.tag || 'latest' }}
       githubTag: ${{ github.event.release.tag_name || inputs.tag }}
-      nodeVersion: '22'
 
     secrets:
       NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
