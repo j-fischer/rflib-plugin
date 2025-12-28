@@ -1,3 +1,12 @@
+# [0.13.0](https://github.com/j-fischer/rflib-plugin/compare/0.12.1...0.13.0) (2025-12-28)
+
+
+### Features
+
+* improve performance by processing files in parallel ([#152](https://github.com/j-fischer/rflib-plugin/issues/152)) ([bf64629](https://github.com/j-fischer/rflib-plugin/commit/bf64629aae1f42351c3e4cc65f1e53a07b5bdba8))
+
+
+
 ## [0.12.1](https://github.com/j-fischer/rflib-plugin/compare/0.12.0...0.12.1) (2025-12-28)
 
 
