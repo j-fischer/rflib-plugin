@@ -194,6 +194,8 @@ describe('rflib logging apex instrument', () => {
     const modifiedContent = fs.readFileSync(sampleClassPath, 'utf8');
 
     expect(modifiedContent).to.include("LOGGER.debug('Small batch');");
+    expect(modifiedContent).to.include('LOGGER.debug(JSON.serialize(userMap));');
+    expect(modifiedContent).to.include("LOGGER.debug('Fixed string');");
   });
 
   it('should replace System.debug statements with LoggingLevel overload', async () => {

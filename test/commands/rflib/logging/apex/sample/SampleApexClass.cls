@@ -24,7 +24,10 @@ public with sharing class SampleApexClass {
             String recordType = record.getSObjectType().getDescribe().getName();
             if (userMap.containsKey(record.Id)) {
                 System.debug(LoggingLevel.INFO, 'User found: ' + userMap.get(record.Id));
+                System.debug(userMap);
+                System.debug('Fixed string');
             }
+
         } catch (Exception ex) {
             // Missing error logging
             System.debug(LoggingLevel.ERROR, 'Error: ' + ex.getMessage());

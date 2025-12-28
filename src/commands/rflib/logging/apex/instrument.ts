@@ -258,7 +258,7 @@ class ApexInstrumentationService {
 
     if (levelMatch) {
       const level = levelMatch[1].toUpperCase();
-      const message = levelMatch[2];
+      const message = levelMatch[2].trim();
       let method = 'debug';
 
       if (level === 'ERROR') {
@@ -269,10 +269,12 @@ class ApexInstrumentationService {
         method = 'info';
       }
 
-      return `${loggerName}.${method}(${message});`;
+      const formattedMessage = message.startsWith("'") ? message : `JSON.serialize(${message})`;
+      return `${loggerName}.${method}(${formattedMessage});`;
     }
 
-    return `${loggerName}.debug(${trimmedArgs});`;
+    const formattedArgs = trimmedArgs.startsWith("'") ? trimmedArgs : `JSON.serialize(${trimmedArgs})`;
+    return `${loggerName}.debug(${formattedArgs});`;
   }
 
   private static isComplexType(paramType: string): boolean {
@@ -287,20 +289,20 @@ class ApexInstrumentationService {
   private static processParameters(args: string): ProcessedParameters {
     const parameters = args
       ? args
-          .replaceAll(this.GENERIC_ARGS_REGEX, '')
-          .split(',')
-          .map((param) => param.trim())
+        .replaceAll(this.GENERIC_ARGS_REGEX, '')
+        .split(',')
+        .map((param) => param.trim())
       : [];
 
     const logArgs =
       parameters.length > 0 && parameters[0] !== ''
         ? `, new Object[] { ${parameters
-            .map((p) => {
-              const [paramType, ...rest] = p.split(' ');
-              const paramName = rest.length > 0 ? rest.join(' ') : paramType;
-              return this.isComplexType(paramType) ? `JSON.serialize(${paramName})` : paramName;
-            })
-            .join(', ')} }`
+          .map((p) => {
+            const [paramType, ...rest] = p.split(' ');
+            const paramName = rest.length > 0 ? rest.join(' ') : paramType;
+            return this.isComplexType(paramType) ? `JSON.serialize(${paramName})` : paramName;
+          })
+          .join(', ')} }`
         : '';
 
     return { paramList: parameters, logArgs };
