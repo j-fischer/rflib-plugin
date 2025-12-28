@@ -370,7 +370,19 @@ export default class RflibLoggingApexInstrument extends SfCommand<RflibLoggingAp
     this.logger.debug(`Dry run mode: ${isDryRun}`);
 
     this.spinner.start('Running...');
-    await this.processDirectory(sourcePath, isDryRun, instrumentationOpts);
+
+    const files = await this.findAllApexFiles(sourcePath);
+    await Promise.all(
+      files.map(async (filePath) => {
+        const fileName = path.basename(filePath);
+        if (fileName.includes('Test')) {
+          await this.processTestFile(filePath, isDryRun, instrumentationOpts);
+        } else {
+          await this.instrumentApexClass(filePath, isDryRun, instrumentationOpts);
+        }
+      })
+    );
+
     this.spinner.stop();
 
     const duration = Date.now() - startTime;
@@ -384,33 +396,27 @@ export default class RflibLoggingApexInstrument extends SfCommand<RflibLoggingAp
     return { ...this.stats };
   }
 
-  private async processDirectory(
-    dirPath: string,
-    isDryRun: boolean,
-    instrumentationOpts: InstrumentationOptions,
-  ): Promise<void> {
-    this.logger.debug(`Processing directory: ${dirPath}`);
+  private async findAllApexFiles(dirPath: string): Promise<string[]> {
+    this.logger.debug(`Scanning directory: ${dirPath}`);
     const entries = await fs.promises.readdir(dirPath, { withFileTypes: true });
 
-    await Promise.all(
+    const results = await Promise.all(
       entries.map(async (entry) => {
         const filePath = path.join(dirPath, entry.name);
 
         if (entry.isDirectory()) {
-          await this.processDirectory(filePath, isDryRun, instrumentationOpts);
-          return;
-        }
-
-        if (entry.name.includes('Test') && entry.name.endsWith('.cls')) {
-          await this.processTestFile(filePath, isDryRun, instrumentationOpts);
-          return;
+          return this.findAllApexFiles(filePath);
         }
 
         if (entry.name.endsWith('.cls')) {
-          await this.instrumentApexClass(filePath, isDryRun, instrumentationOpts);
+          return [filePath];
         }
-      }),
+
+        return [];
+      })
     );
+
+    return results.flat();
   }
 
   private async processTestFile(
