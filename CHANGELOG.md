@@ -1,3 +1,12 @@
+## [0.12.1](https://github.com/j-fischer/rflib-plugin/compare/0.12.0...0.12.1) (2025-12-28)
+
+
+### Bug Fixes
+
+* the System.debug replacements now handle variables that aren't string ([7366a5a](https://github.com/j-fischer/rflib-plugin/commit/7366a5abf0be4fe4c3a69233ccccb608a235fb4d))
+
+
+
 # [0.12.0](https://github.com/j-fischer/rflib-plugin/compare/0.11.1...0.12.0) (2025-12-27)
 
 
