@@ -242,7 +242,14 @@ export default class RflibLoggingAuraInstrument extends SfCommand<RflibLoggingAu
     this.logger.debug(`Dry run mode: ${flags.dryrun}`);
 
     this.spinner.start('Running...');
-    await this.processDirectory(flags.sourcepath, flags.dryrun, instrumentationOpts);
+
+    const components = await this.findAllAuraComponents(flags.sourcepath);
+    await Promise.all(
+      components.map(async (component) => {
+        await this.processAuraComponent(component.path, component.name, flags.dryrun, instrumentationOpts);
+      })
+    );
+
     this.spinner.stop();
 
     this.log('\nInstrumentation complete.');
@@ -253,63 +260,46 @@ export default class RflibLoggingAuraInstrument extends SfCommand<RflibLoggingAu
     return { ...this.stats };
   }
 
-  private async processDirectory(
-    dirPath: string,
-    isDryRun: boolean,
-    instrumentationOpts: InstrumentationOptions,
-  ): Promise<void> {
-    this.logger.debug(`Processing directory: ${dirPath}`);
+  private async findAllAuraComponents(dirPath: string): Promise<Array<{ path: string; name: string }>> {
+    this.logger.debug(`Scanning directory: ${dirPath}`);
 
     const dirName = path.basename(dirPath);
-    const parentDir = path.basename(path.dirname(dirPath));
+    const parentName = path.basename(path.dirname(dirPath));
 
-    if (parentDir === 'aura') {
-      this.logger.info(`Processing single component: ${dirName}`);
-      await this.processAuraComponent(dirPath, dirName, isDryRun, instrumentationOpts);
-      return;
+    // Case 1: The sourcepath points directly to a component (inside an 'aura' folder)
+    if (parentName === 'aura') {
+         return [{
+             path: dirPath,
+             name: dirName
+         }];
     }
 
+    // Case 2: The sourcepath points to an 'aura' folder
+    if (dirName === 'aura') {
+      const entries = await fs.promises.readdir(dirPath, { withFileTypes: true });
+      const components = await Promise.all(
+        entries
+          .filter(entry => entry.isDirectory())
+          .map(entry => ({
+              path: path.join(dirPath, entry.name),
+              name: entry.name
+            }))
+      );
+      return components;
+    }
+
+    // Case 3: Recursion
     const entries = await fs.promises.readdir(dirPath, { withFileTypes: true });
-
-    await Promise.all(
-      entries
-        .filter((entry) => entry.isDirectory())
-        .map(async (entry) => {
-          const fullPath = path.join(dirPath, entry.name);
-
-          if (entry.name === 'aura') {
-            await this.processAuraComponents(fullPath, isDryRun, instrumentationOpts);
-          } else {
-            await this.processDirectory(fullPath, isDryRun, instrumentationOpts);
-          }
-        }),
+    const results = await Promise.all(
+      entries.map(async (entry) => {
+        if (entry.isDirectory()) {
+          return this.findAllAuraComponents(path.join(dirPath, entry.name));
+        }
+        return [];
+      })
     );
-  }
 
-  private async processAuraComponents(
-    auraPath: string,
-    isDryRun: boolean,
-    instrumentationOpts: InstrumentationOptions,
-  ): Promise<void> {
-    if (path.basename(auraPath) !== 'aura') {
-      this.logger.warn(`Not an aura directory: ${auraPath}`);
-      return;
-    }
-
-    const entries = await fs.promises.readdir(auraPath, { withFileTypes: true });
-
-    await Promise.all(
-      entries
-        .filter((entry) => entry.isDirectory())
-        .map((entry) =>
-          this.processAuraComponent(
-            path.join(auraPath, entry.name),
-            entry.name,
-            isDryRun,
-            instrumentationOpts,
-          ),
-        ),
-    );
+    return results.flat();
   }
 
   private async processAuraComponent(

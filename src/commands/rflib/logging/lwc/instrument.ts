@@ -284,7 +284,14 @@ export default class RflibLoggingLwcInstrument extends SfCommand<RflibLoggingLwc
     this.log(`Scanning LWC components in ${flags.sourcepath}...`);
 
     this.spinner.start('Running...');
-    await this.processDirectory(flags.sourcepath, flags.dryrun, instrumentationOpts);
+
+    const files = await this.findAllLwcFiles(flags.sourcepath);
+    await Promise.all(
+      files.map(async (filePath) => {
+        await this.instrumentLwcFile(filePath, flags.dryrun, instrumentationOpts);
+      })
+    );
+
     this.spinner.stop();
 
     this.log('\nInstrumentation complete.');
@@ -295,20 +302,16 @@ export default class RflibLoggingLwcInstrument extends SfCommand<RflibLoggingLwc
     return { ...this.stats };
   }
 
-  private async processDirectory(
-    dirPath: string,
-    isDryRun: boolean,
-    instrumentationOpts: InstrumentationOptions,
-  ): Promise<void> {
+  private async findAllLwcFiles(dirPath: string): Promise<string[]> {
+    this.logger.debug(`Scanning directory: ${dirPath}`);
     const entries = await fs.promises.readdir(dirPath, { withFileTypes: true });
 
-    await Promise.all(
+    const results = await Promise.all(
       entries.map(async (entry) => {
         const filePath = path.join(dirPath, entry.name);
 
         if (entry.isDirectory()) {
-          await this.processDirectory(filePath, isDryRun, instrumentationOpts);
-          return;
+          return this.findAllLwcFiles(filePath);
         }
 
         const parentDir = path.dirname(filePath);
@@ -317,10 +320,14 @@ export default class RflibLoggingLwcInstrument extends SfCommand<RflibLoggingLwc
           !parentDir.includes('aura') &&
           !parentDir.includes('__tests__')
         ) {
-          await this.instrumentLwcFile(filePath, isDryRun, instrumentationOpts);
+          return [filePath];
         }
-      }),
+
+        return [];
+      })
     );
+
+    return results.flat();
   }
 
   private async instrumentLwcFile(

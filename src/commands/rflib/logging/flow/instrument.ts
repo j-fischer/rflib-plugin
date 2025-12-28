@@ -657,7 +657,14 @@ export default class RflibLoggingFlowInstrument extends SfCommand<RflibLoggingFl
     this.logger.debug(`Skip instrumented: ${skipInstrumented}`);
 
     this.spinner.start('Running...');
-    await this.processDirectory(sourcePath, isDryRun, skipInstrumented);
+
+    const files = await this.findAllFlowFiles(sourcePath);
+    await Promise.all(
+      files.map(async (filePath) => {
+        await this.instrumentFlowFile(filePath, isDryRun, skipInstrumented);
+      })
+    );
+
     this.spinner.stop();
 
     const duration = Date.now() - startTime;
@@ -670,24 +677,27 @@ export default class RflibLoggingFlowInstrument extends SfCommand<RflibLoggingFl
     return { ...this.stats };
   }
 
-  private async processDirectory(dirPath: string, isDryRun: boolean, skipInstrumented: boolean): Promise<void> {
-    this.logger.debug(`Processing directory: ${dirPath}`);
+  private async findAllFlowFiles(dirPath: string): Promise<string[]> {
+    this.logger.debug(`Scanning directory: ${dirPath}`);
     const entries = await fs.promises.readdir(dirPath, { withFileTypes: true });
 
-    await Promise.all(
+    const results = await Promise.all(
       entries.map(async (entry) => {
         const filePath = path.join(dirPath, entry.name);
 
         if (entry.isDirectory()) {
-          await this.processDirectory(filePath, isDryRun, skipInstrumented);
-          return;
+          return this.findAllFlowFiles(filePath);
         }
 
         if (entry.name.endsWith('.flow-meta.xml')) {
-          await this.instrumentFlowFile(filePath, isDryRun, skipInstrumented);
+          return [filePath];
         }
-      }),
+
+        return [];
+      })
     );
+
+    return results.flat();
   }
 
   private async instrumentFlowFile(filePath: string, isDryRun: boolean, skipInstrumented: boolean): Promise<void> {
