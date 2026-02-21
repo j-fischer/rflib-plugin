@@ -7,23 +7,8 @@ import * as prettier from 'prettier';
 import { minimatch } from 'minimatch';
 import { processWithConcurrency } from '../../../../shared/concurrency.js';
 
-type InstrumentationOptions = {
-  readonly prettier: boolean;
-  readonly noIf: boolean;
-  readonly skipInstrumented: boolean;
-  readonly verbose: boolean;
-  readonly exclude?: string;
-}
-
-type LoggerInfo = {
-  readonly exists: boolean;
-  readonly variableName: string;
-}
-
-type IfCondition = {
-  readonly condition: string;
-  readonly position: number;
-}
+import { IfCondition, InstrumentationOptions, LoggerInfo } from '../../../../shared/types.js';
+import { writeInstrumentedFile } from '../../../../shared/formatting.js';
 
 export type RflibLoggingLwcInstrumentResult = {
   processedFiles: number;
@@ -36,6 +21,14 @@ Messages.importMessagesDirectoryFromMetaUrl(import.meta.url);
 const messages = Messages.loadMessages('rflib-plugin', 'rflib.logging.lwc.instrument');
 
 class LwcInstrumentationService {
+  public static readonly PRETTIER_CONFIG: prettier.Options = {
+    parser: 'babel',
+    printWidth: 120,
+    tabWidth: 4,
+    useTabs: false,
+    singleQuote: true,
+  };
+
   private static readonly IMPORT_REGEX = /import\s*{\s*createLogger\s*}\s*from\s*['"]c\/rflibLogger['"]/;
   private static readonly LOGGER_REGEX = /const\s+(\w+)\s*=\s*createLogger\s*\(['"]([\w-]+)['"]\)/;
   private static readonly METHOD_REGEX =
@@ -50,24 +43,9 @@ class LwcInstrumentationService {
   private static readonly TRY_CATCH_BLOCK_REGEX = /try\s*{[\s\S]*?}\s*catch\s*\(([^)]*)\)\s*{/g;
   private static readonly CONSOLE_LOG_REGEX = /console\.(log|debug|info|warn|error)\s*\(\s*([^)]+)\s*\)\s*;?/g;
 
-  private static readonly PRETTIER_CONFIG: prettier.Options = {
-    parser: 'babel',
-    printWidth: 120,
-    tabWidth: 4,
-    useTabs: false,
-    singleQuote: true,
-  };
 
-  public static async formatContent(content: string): Promise<string> {
-    try {
-      return await prettier.format(content, this.PRETTIER_CONFIG);
-    } catch (error) {
-      if (error instanceof Error) {
-        throw new Error(`Formatting failed: ${error.message}`);
-      }
-      throw new Error('Formatting failed with unknown error');
-    }
-  }
+
+
 
   public static isInstrumented(content: string): boolean {
     return this.IMPORT_REGEX.test(content);
@@ -388,33 +366,17 @@ export default class RflibLoggingLwcInstrument extends SfCommand<RflibLoggingLwc
       content = LwcInstrumentationService.processConsoleStatements(content, variableName);
 
       if (content !== originalContent) {
-        this.stats.modifiedFiles++;
-        this.stats.modifiedFilePaths?.push(filePath);
-        if (!isDryRun) {
-          try {
-            const finalContent = instrumentationOpts.prettier
-              ? await LwcInstrumentationService.formatContent(content)
-              : content;
-
-            await fs.promises.writeFile(filePath, finalContent);
-
-            if (instrumentationOpts.prettier) {
-              this.stats.formattedFiles++;
-              this.logger.info(`Modified and formatted: ${filePath}`);
-            } else {
-              this.logger.info(`Modified: ${filePath}`);
-            }
-          } catch (error) {
-            this.logger.warn(`Failed to format ${filePath}: ${error instanceof Error ? error.message : String(error)}`);
-            await fs.promises.writeFile(filePath, content);
-            this.logger.info(`Modified without formatting: ${filePath}`);
-          }
-        } else {
-          this.logger.info(`Would modify: ${filePath}`);
-          if (instrumentationOpts.verbose) {
-            this.log(`Would modify: ${filePath}`);
-          }
-        }
+        await writeInstrumentedFile(
+          filePath,
+          content,
+          originalContent,
+          instrumentationOpts,
+          isDryRun,
+          this.stats,
+          this.logger,
+          (msg) => this.log(msg),
+          LwcInstrumentationService.PRETTIER_CONFIG,
+        );
       }
     } catch (error) {
       this.logger.error(`Error processing LWC ${componentName}`, error);

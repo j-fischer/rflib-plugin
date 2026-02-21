@@ -5,6 +5,8 @@ import { Messages, Logger } from '@salesforce/core';
 import * as prettier from 'prettier';
 import { minimatch } from 'minimatch';
 import { processWithConcurrency } from '../../../../shared/concurrency.js';
+import { IfCondition, InstrumentationOptions, LoggerInfo } from '../../../../shared/types.js';
+import { writeInstrumentedFile } from '../../../../shared/formatting.js';
 
 type ApexMethodMatch = {
   auraEnabled?: string;
@@ -13,24 +15,6 @@ type ApexMethodMatch = {
   returnType: string;
   methodName: string;
   args: string;
-}
-
-type IfCondition = {
-  condition: string;
-  position: number;
-}
-
-type InstrumentationOptions = {
-  readonly prettier: boolean;
-  readonly noIf: boolean;
-  readonly skipInstrumented: boolean;
-  readonly verbose: boolean;
-  readonly exclude?: string;
-}
-
-type LoggerInfo = {
-  readonly exists: boolean;
-  readonly variableName: string;
 }
 
 type ProcessedParameters = {
@@ -51,6 +35,15 @@ const messages = Messages.loadMessages('rflib-plugin', 'rflib.logging.apex.instr
 class ApexInstrumentationService {
   public static readonly TEST_SETUP_REGEX =
     /@TestSetup\s+((public|private|protected|global)s+)?(?:static\s+)?void\s+(\w+)\s*\([^)]*\)\s*{/g;
+
+  public static readonly PRETTIER_CONFIG: prettier.Options = {
+    parser: 'apex',
+    plugins: ['prettier-plugin-apex'],
+    printWidth: 120,
+    tabWidth: 4,
+    useTabs: false,
+    singleQuote: true,
+  };
 
   private static readonly METHOD_REGEX =
     /(@AuraEnabled\s*[\s\S]*?)?\b(public|private|protected|global)\s+(static\s+)?(?:(\w+(?:\s*<(?:[^<>]|<[^<>]*>)*>)?)|void)\s+(\w+)\s*\(([\s\S]*?)\)\s*{/g;
@@ -78,25 +71,9 @@ class ApexInstrumentationService {
     'ID',
   ]);
 
-  private static readonly PRETTIER_CONFIG: prettier.Options = {
-    parser: 'apex',
-    plugins: ['prettier-plugin-apex'],
-    printWidth: 120,
-    tabWidth: 4,
-    useTabs: false,
-    singleQuote: true,
-  };
 
-  public static async formatContent(content: string): Promise<string> {
-    try {
-      return await prettier.format(content, this.PRETTIER_CONFIG);
-    } catch (error) {
-      if (error instanceof Error) {
-        throw new Error(`Formatting failed: ${error.message}`);
-      }
-      throw new Error('Formatting failed with unknown error');
-    }
-  }
+
+
 
   public static isInstrumented(content: string): boolean {
     return this.IS_INSTRUMENTED_REGEX.test(content);
@@ -471,33 +448,17 @@ export default class RflibLoggingApexInstrument extends SfCommand<RflibLoggingAp
     );
 
     if (content !== originalContent) {
-      this.stats.modifiedFiles++;
-      this.stats.modifiedFilePaths?.push(filePath);
-      if (!isDryRun) {
-        try {
-          const finalContent = instrumentationOpts.prettier
-            ? await ApexInstrumentationService.formatContent(content)
-            : content;
-
-          await fs.promises.writeFile(filePath, finalContent);
-
-          if (instrumentationOpts.prettier) {
-            this.stats.formattedFiles++;
-            this.logger.info(`Modified and formatted test file: ${filePath}`);
-          } else {
-            this.logger.info(`Modified test file: ${filePath}`);
-          }
-        } catch (error) {
-          this.logger.warn(`Failed to format ${filePath}: ${error instanceof Error ? error.message : String(error)}`);
-          await fs.promises.writeFile(filePath, content);
-          this.logger.info(`Modified test file without formatting: ${filePath}`);
-        }
-      } else {
-        this.logger.info(`Would modify test file: ${filePath}`);
-        if (instrumentationOpts.verbose) {
-          this.log(`Would modify test file: ${filePath}`);
-        }
-      }
+      await writeInstrumentedFile(
+        filePath,
+        content,
+        originalContent,
+        instrumentationOpts,
+        isDryRun,
+        this.stats,
+        this.logger,
+        (msg) => this.log(msg),
+        ApexInstrumentationService.PRETTIER_CONFIG,
+      );
     }
   }
 
@@ -530,33 +491,17 @@ export default class RflibLoggingApexInstrument extends SfCommand<RflibLoggingAp
       }
 
       if (content !== originalContent) {
-        this.stats.modifiedFiles++;
-        this.stats.modifiedFilePaths?.push(filePath);
-        if (!isDryRun) {
-          try {
-            const finalContent = instrumentationOpts.prettier
-              ? await ApexInstrumentationService.formatContent(content)
-              : content;
-
-            await fs.promises.writeFile(filePath, finalContent);
-
-            if (instrumentationOpts.prettier) {
-              this.stats.formattedFiles++;
-              this.logger.info(`Modified and formatted: ${filePath}`);
-            } else {
-              this.logger.info(`Modified: ${filePath}`);
-            }
-          } catch (error) {
-            this.logger.warn(`Failed to format ${filePath}: ${error instanceof Error ? error.message : String(error)}`);
-            await fs.promises.writeFile(filePath, content);
-            this.logger.info(`Modified without formatting: ${filePath}`);
-          }
-        } else {
-          this.logger.info(`Would modify: ${filePath}`);
-          if (instrumentationOpts.verbose) {
-            this.log(`Would modify: ${filePath}`);
-          }
-        }
+        await writeInstrumentedFile(
+          filePath,
+          content,
+          originalContent,
+          instrumentationOpts,
+          isDryRun,
+          this.stats,
+          this.logger,
+          (msg) => this.log(msg),
+          ApexInstrumentationService.PRETTIER_CONFIG,
+        );
       }
     } catch (error) {
       this.logger.error(`Error processing class ${className}`, error);
