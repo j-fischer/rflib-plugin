@@ -14,6 +14,7 @@ import * as xml2js from 'xml2js';
 export type RflibLoggingFlowInstrumentResult = {
   processedFiles: number;
   modifiedFiles: number;
+  modifiedFilePaths?: string[];
 };
 
 Messages.importMessagesDirectoryFromMetaUrl(import.meta.url);
@@ -635,12 +636,19 @@ export default class RflibLoggingFlowInstrument extends SfCommand<RflibLoggingFl
       description: messages.getMessage('flags.skip-instrumented.description') || 'Do not instrument flows where RFLIB logging is already present',
       default: false,
     }),
+    verbose: Flags.boolean({
+      summary: messages.getMessage('flags.verbose.summary'),
+      description: messages.getMessage('flags.verbose.description'),
+      char: 'v',
+      default: false,
+    }),
   };
 
   private logger!: Logger;
   private readonly stats: RflibLoggingFlowInstrumentResult = {
     processedFiles: 0,
     modifiedFiles: 0,
+    modifiedFilePaths: [],
   };
 
   public async run(): Promise<RflibLoggingFlowInstrumentResult> {
@@ -651,6 +659,7 @@ export default class RflibLoggingFlowInstrument extends SfCommand<RflibLoggingFl
     const sourcePath = flags.sourcepath;
     const isDryRun = flags.dryrun;
     const skipInstrumented = flags['skip-instrumented'];
+    const isVerbose = flags.verbose;
 
     this.log(`Scanning Flow files in ${sourcePath} and sub directories`);
     this.logger.debug(`Dry run mode: ${isDryRun}`);
@@ -661,7 +670,7 @@ export default class RflibLoggingFlowInstrument extends SfCommand<RflibLoggingFl
     const files = await this.findAllFlowFiles(sourcePath);
     await Promise.all(
       files.map(async (filePath) => {
-        await this.instrumentFlowFile(filePath, isDryRun, skipInstrumented);
+        await this.instrumentFlowFile(filePath, isDryRun, skipInstrumented, isVerbose);
       })
     );
 
@@ -700,7 +709,7 @@ export default class RflibLoggingFlowInstrument extends SfCommand<RflibLoggingFl
     return results.flat();
   }
 
-  private async instrumentFlowFile(filePath: string, isDryRun: boolean, skipInstrumented: boolean): Promise<void> {
+  private async instrumentFlowFile(filePath: string, isDryRun: boolean, skipInstrumented: boolean, isVerbose: boolean): Promise<void> {
     const flowName = path.basename(filePath, '.flow-meta.xml');
     this.logger.debug(`Processing flow: ${flowName}`);
 
@@ -726,11 +735,15 @@ export default class RflibLoggingFlowInstrument extends SfCommand<RflibLoggingFl
 
       if (content !== newContent) {
         this.stats.modifiedFiles++;
+        this.stats.modifiedFilePaths?.push(filePath);
         if (!isDryRun) {
           await fs.promises.writeFile(filePath, newContent);
           this.logger.info(`Modified: ${filePath}`);
         } else {
           this.logger.info(`Would modify: ${filePath}`);
+          if (isVerbose) {
+            this.log(`Would modify: ${filePath}`);
+          }
         }
       }
     } catch (error) {

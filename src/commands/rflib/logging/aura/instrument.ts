@@ -13,12 +13,14 @@ type InstrumentationOptions = {
   readonly prettier: boolean;
   readonly noIf: boolean;
   readonly skipInstrumented: boolean;
+  readonly verbose: boolean;
 }
 
 export type RflibLoggingAuraInstrumentResult = {
   processedFiles: number;
   modifiedFiles: number;
   formattedFiles: number;
+  modifiedFilePaths?: string[];
 }
 
 Messages.importMessagesDirectoryFromMetaUrl(import.meta.url);
@@ -219,6 +221,12 @@ export default class RflibLoggingAuraInstrument extends SfCommand<RflibLoggingAu
       description: messages.getMessage('flags.skip-instrumented.description'),
       default: false,
     }),
+    verbose: Flags.boolean({
+      summary: messages.getMessage('flags.verbose.summary'),
+      description: messages.getMessage('flags.verbose.description'),
+      char: 'v',
+      default: false,
+    }),
   };
 
   private logger!: Logger;
@@ -226,6 +234,7 @@ export default class RflibLoggingAuraInstrument extends SfCommand<RflibLoggingAu
     processedFiles: 0,
     modifiedFiles: 0,
     formattedFiles: 0,
+    modifiedFilePaths: [],
   };
 
   public async run(): Promise<RflibLoggingAuraInstrumentResult> {
@@ -236,6 +245,7 @@ export default class RflibLoggingAuraInstrument extends SfCommand<RflibLoggingAu
       prettier: flags.prettier,
       noIf: flags['no-if'],
       skipInstrumented: flags['skip-instrumented'],
+      verbose: flags.verbose,
     };
 
     this.log(`Starting Aura component instrumentation in ${flags.sourcepath}`);
@@ -268,10 +278,10 @@ export default class RflibLoggingAuraInstrument extends SfCommand<RflibLoggingAu
 
     // Case 1: The sourcepath points directly to a component (inside an 'aura' folder)
     if (parentName === 'aura') {
-         return [{
-             path: dirPath,
-             name: dirName
-         }];
+      return [{
+        path: dirPath,
+        name: dirName
+      }];
     }
 
     // Case 2: The sourcepath points to an 'aura' folder
@@ -281,9 +291,9 @@ export default class RflibLoggingAuraInstrument extends SfCommand<RflibLoggingAu
         entries
           .filter(entry => entry.isDirectory())
           .map(entry => ({
-              path: path.join(dirPath, entry.name),
-              name: entry.name
-            }))
+            path: path.join(dirPath, entry.name),
+            name: entry.name
+          }))
       );
       return components;
     }
@@ -316,7 +326,7 @@ export default class RflibLoggingAuraInstrument extends SfCommand<RflibLoggingAu
     const rendererPath = path.join(componentPath, `${componentName}Renderer.js`);
 
     try {
-      const loggerId = await this.instrumentCmpFile(cmpPath, componentName, isDryRun);
+      const loggerId = await this.instrumentCmpFile(cmpPath, componentName, isDryRun, instrumentationOpts);
       this.logger.debug(`Using logger ID: ${loggerId}`);
 
       await Promise.all([
@@ -330,7 +340,7 @@ export default class RflibLoggingAuraInstrument extends SfCommand<RflibLoggingAu
     }
   }
 
-  private async instrumentCmpFile(filePath: string, componentName: string, isDryRun: boolean): Promise<string> {
+  private async instrumentCmpFile(filePath: string, componentName: string, isDryRun: boolean, instrumentationOpts: InstrumentationOptions): Promise<string> {
     if (!fs.existsSync(filePath)) {
       this.logger.warn(`Component file not found: ${filePath}`);
       return 'logger';
@@ -356,11 +366,15 @@ export default class RflibLoggingAuraInstrument extends SfCommand<RflibLoggingAu
 
     if (content !== originalContent) {
       this.stats.modifiedFiles++;
+      this.stats.modifiedFilePaths?.push(filePath);
       if (!isDryRun) {
         await fs.promises.writeFile(filePath, content, 'utf8');
         this.logger.info(`Modified component file: ${filePath}`);
       } else {
         this.logger.info(`Would modify component file: ${filePath}`);
+        if (instrumentationOpts.verbose) {
+          this.log(`Would modify component file: ${filePath}`);
+        }
       }
     }
 
@@ -397,6 +411,7 @@ export default class RflibLoggingAuraInstrument extends SfCommand<RflibLoggingAu
 
     if (content !== originalContent) {
       this.stats.modifiedFiles++;
+      this.stats.modifiedFilePaths?.push(filePath);
       if (!isDryRun) {
         try {
           const finalContent = instrumentationOpts.prettier
@@ -418,6 +433,9 @@ export default class RflibLoggingAuraInstrument extends SfCommand<RflibLoggingAu
         }
       } else {
         this.logger.info(`Would modify: ${filePath}`);
+        if (instrumentationOpts.verbose) {
+          this.log(`Would modify: ${filePath}`);
+        }
       }
     }
   }

@@ -38,6 +38,14 @@ Skips any files where a logger is already present.
 
 When provided, the command will not add log statements to any Flows that already contain RFLIB logging actions.
 
+# flags.verbose.summary
+
+Enable verbose output.
+
+# flags.verbose.description
+
+When provided with --dryrun, prints the paths of the files that would be modified.
+
 # examples
 
 - <%= config.bin %> <%= command.id %> --sourcepath force-app

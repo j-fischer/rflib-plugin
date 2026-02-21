@@ -9,6 +9,7 @@ type InstrumentationOptions = {
   readonly prettier: boolean;
   readonly noIf: boolean;
   readonly skipInstrumented: boolean;
+  readonly verbose: boolean;
 }
 
 type LoggerInfo = {
@@ -25,6 +26,7 @@ export type RflibLoggingLwcInstrumentResult = {
   processedFiles: number;
   modifiedFiles: number;
   formattedFiles: number;
+  modifiedFilePaths?: string[];
 }
 
 Messages.importMessagesDirectoryFromMetaUrl(import.meta.url);
@@ -262,6 +264,12 @@ export default class RflibLoggingLwcInstrument extends SfCommand<RflibLoggingLwc
       description: messages.getMessage('flags.skip-instrumented.description'),
       default: false,
     }),
+    verbose: Flags.boolean({
+      summary: messages.getMessage('flags.verbose.summary'),
+      description: messages.getMessage('flags.verbose.description'),
+      char: 'v',
+      default: false,
+    }),
   };
 
   private logger!: Logger;
@@ -269,6 +277,7 @@ export default class RflibLoggingLwcInstrument extends SfCommand<RflibLoggingLwc
     processedFiles: 0,
     modifiedFiles: 0,
     formattedFiles: 0,
+    modifiedFilePaths: [],
   };
 
   public async run(): Promise<RflibLoggingLwcInstrumentResult> {
@@ -279,6 +288,7 @@ export default class RflibLoggingLwcInstrument extends SfCommand<RflibLoggingLwc
       prettier: flags.prettier,
       noIf: flags['no-if'],
       skipInstrumented: flags['skip-instrumented'],
+      verbose: flags.verbose,
     };
 
     this.log(`Scanning LWC components in ${flags.sourcepath}...`);
@@ -357,6 +367,7 @@ export default class RflibLoggingLwcInstrument extends SfCommand<RflibLoggingLwc
 
       if (content !== originalContent) {
         this.stats.modifiedFiles++;
+        this.stats.modifiedFilePaths?.push(filePath);
         if (!isDryRun) {
           try {
             const finalContent = instrumentationOpts.prettier
@@ -378,6 +389,9 @@ export default class RflibLoggingLwcInstrument extends SfCommand<RflibLoggingLwc
           }
         } else {
           this.logger.info(`Would modify: ${filePath}`);
+          if (instrumentationOpts.verbose) {
+            this.log(`Would modify: ${filePath}`);
+          }
         }
       }
     } catch (error) {
