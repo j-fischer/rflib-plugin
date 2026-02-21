@@ -72,6 +72,11 @@ describe('rflib logging lwc instrument', () => {
     expect(modifiedContent).to.include("const logger = createLogger('SampleComponent')");
   });
 
+  it('should accept the concurrency flag', async () => {
+    const result = await RflibLoggingLwcInstrument.run(['--sourcepath', testDir, '--concurrency', '5']);
+    expect(result.processedFiles).to.be.greaterThan(0);
+  });
+
   it('should add entry logging to methods with parameters', async () => {
     await RflibLoggingLwcInstrument.run(['--sourcepath', testDir]);
     const modifiedContent = fs.readFileSync(sampleComponentPath, 'utf8');

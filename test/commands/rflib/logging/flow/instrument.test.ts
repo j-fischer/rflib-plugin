@@ -48,6 +48,11 @@ describe('rflib logging flow instrument', () => {
       expect(result.modifiedFiles).to.equal(1);
     });
 
+    it('should accept the concurrency flag', async () => {
+      const result = await RflibLoggingFlowInstrument.run(['--sourcepath', 'force-app', '--concurrency', '5']);
+      expect(result.processedFiles).to.equal(2);
+    });
+
     it('should respect the skip-instrumented flag', async () => {
       await RflibLoggingFlowInstrument.run(['--sourcepath', 'force-app', '--skip-instrumented']);
 

@@ -88,6 +88,14 @@ Exclude files or directories from instrumentation based on a glob pattern.
 
 Exclude specific files or directories that match the provided glob pattern. For example, use --exclude "**/Generated_*.cmp" to skip auto-generated components.
 
+# flags.concurrency.summary
+
+Limits the number of files processed concurrently.
+
+# flags.concurrency.description
+
+Controls the maximum number of files to process at the same time. This is useful in very large codebases to prevent excessive memory usage or file descriptor exhaustion. Defaults to 10.
+
 # examples
 
 - Add logging to all aura files:

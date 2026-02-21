@@ -4,6 +4,7 @@ import { SfCommand, Flags } from '@salesforce/sf-plugins-core';
 import { Messages, Logger } from '@salesforce/core';
 import * as prettier from 'prettier';
 import { minimatch } from 'minimatch';
+import { processWithConcurrency } from '../../../../shared/concurrency.js';
 
 type ApexMethodMatch = {
   auraEnabled?: string;
@@ -358,6 +359,12 @@ export default class RflibLoggingApexInstrument extends SfCommand<RflibLoggingAp
       description: messages.getMessage('flags.exclude.description'),
       char: 'e',
     }),
+    concurrency: Flags.integer({
+      summary: messages.getMessage('flags.concurrency.summary'),
+      description: messages.getMessage('flags.concurrency.description'),
+      char: 'c',
+      default: 10,
+    }),
   };
 
   private logger!: Logger;
@@ -390,15 +397,17 @@ export default class RflibLoggingApexInstrument extends SfCommand<RflibLoggingAp
     this.spinner.start('Running...');
 
     const files = await this.findAllApexFiles(sourcePath, instrumentationOpts.exclude);
-    await Promise.all(
-      files.map(async (filePath) => {
+    await processWithConcurrency(
+      files,
+      flags.concurrency,
+      async (filePath) => {
         const fileName = path.basename(filePath);
         if (fileName.includes('Test')) {
           await this.processTestFile(filePath, isDryRun, instrumentationOpts);
         } else {
           await this.instrumentApexClass(filePath, isDryRun, instrumentationOpts);
         }
-      })
+      }
     );
 
     this.spinner.stop();
