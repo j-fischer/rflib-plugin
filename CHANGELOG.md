@@ -1,3 +1,12 @@
+## [0.13.1](https://github.com/j-fischer/rflib-plugin/compare/0.13.0...0.13.1) (2026-02-21)
+
+
+### Bug Fixes
+
+* **ci:** pin salesforcecli/github-workflows ([1a46c51](https://github.com/j-fischer/rflib-plugin/commit/1a46c51de5543f2558303d99d40b55e86c0ebc80))
+
+
+
 # [0.13.0](https://github.com/j-fischer/rflib-plugin/compare/0.12.1...0.13.0) (2025-12-28)
 
 
