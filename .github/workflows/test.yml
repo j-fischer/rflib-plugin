@@ -27,11 +27,11 @@ jobs:
         with:
           path: "**/node_modules"
           key: ${{ runner.os }}-build-${{ env.cache-name }}-${{ hashFiles('**/yarn.lock') }}
-      - uses: salesforcecli/github-workflows/.github/actions/yarnInstallWithRetries@main
+      - uses: salesforcecli/github-workflows/.github/actions/yarnInstallWithRetries@faf1269ce04ec5cde922dfcb0320391b58f3cb02
         if: ${{ steps.cache-nodemodules.outputs.cache-hit != 'true' }}
       - run: yarn build
       - name: yarn test
-        uses: salesforcecli/github-workflows/.github/actions/retry@main
+        uses: salesforcecli/github-workflows/.github/actions/retry@faf1269ce04ec5cde922dfcb0320391b58f3cb02
         with:
           command: yarn test
         env:
@@ -39,7 +39,7 @@ jobs:
 
   nuts:
     needs: unit-tests
-    uses: salesforcecli/github-workflows/.github/workflows/nut.yml@main
+    uses: salesforcecli/github-workflows/.github/workflows/nut.yml@faf1269ce04ec5cde922dfcb0320391b58f3cb02
     secrets: inherit
     strategy:
       matrix:

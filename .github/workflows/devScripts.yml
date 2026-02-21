@@ -6,6 +6,6 @@ on:
 
 jobs:
   update:
-    uses: salesforcecli/github-workflows/.github/workflows/devScriptsUpdate.yml@main
+    uses: salesforcecli/github-workflows/.github/workflows/devScriptsUpdate.yml@faf1269ce04ec5cde922dfcb0320391b58f3cb02
     secrets:
       SVC_CLI_BOT_GITHUB_TOKEN: ${{ secrets.SVC_CLI_BOT_GITHUB_TOKEN }}
