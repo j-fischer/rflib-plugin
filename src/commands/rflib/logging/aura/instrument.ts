@@ -6,18 +6,8 @@ import * as prettier from 'prettier';
 import { minimatch } from 'minimatch';
 import { processWithConcurrency } from '../../../../shared/concurrency.js';
 
-type IfCondition = {
-  readonly condition: string;
-  readonly position: number;
-}
-
-type InstrumentationOptions = {
-  readonly prettier: boolean;
-  readonly noIf: boolean;
-  readonly skipInstrumented: boolean;
-  readonly verbose: boolean;
-  readonly exclude?: string;
-}
+import { IfCondition, InstrumentationOptions } from '../../../../shared/types.js';
+import { writeInstrumentedFile } from '../../../../shared/formatting.js';
 
 export type RflibLoggingAuraInstrumentResult = {
   processedFiles: number;
@@ -34,6 +24,15 @@ class AuraInstrumentationService {
   public static readonly LOGGER_COMPONENT_REGEX =
     /<c:rflibLoggerCmp\s+aura:id="([^"]+)"\s+name="([^"]+)"\s+appendComponentId="([^"]+)"\s*\/>/;
 
+  public static readonly PRETTIER_CONFIG: prettier.Options = {
+    parser: 'babel',
+    printWidth: 120,
+    tabWidth: 4,
+    useTabs: false,
+    singleQuote: true,
+    trailingComma: 'none',
+  };
+
   private static readonly LOGGER_VAR_REGEX = /var\s+(\w+)\s*=\s*\w+\.find\(['"](\w+)['"]\);/;
   private static readonly METHOD_REGEX =
     /(\b\w+)\s*:\s*function\s*\((.*?)\)\s*{((?:[^{}]|{(?:[^{}]|{(?:[^{}]|{(?:[^{}]|{(?:[^{}]|{[^{}]*})*})*})*})*})*?)}/g;
@@ -45,29 +44,13 @@ class AuraInstrumentationService {
     /}\s*else(?!\s+if\b)\s*(?:{((?:[^{}]|{(?:[^{}]|{[^{}]*})*})*)}|([^{].*?)(?=\n|;|$))/g;
   private static readonly CONSOLE_LOG_REGEX = /console\.(log|debug|info|warn|error)\s*\(\s*([^)]+)\s*\)\s*;?/g;
 
-  private static readonly PRETTIER_CONFIG: prettier.Options = {
-    parser: 'babel',
-    printWidth: 120,
-    tabWidth: 4,
-    useTabs: false,
-    singleQuote: true,
-    trailingComma: 'none',
-  };
+
 
   public static isInstrumented(content: string, loggerId: string): boolean {
     return new RegExp(`\\.find\\(['"]${loggerId}['"]\\)`, 'g').test(content);
   }
 
-  public static async formatContent(content: string): Promise<string> {
-    try {
-      return await prettier.format(content, this.PRETTIER_CONFIG);
-    } catch (error) {
-      if (error instanceof Error) {
-        throw new Error(`Formatting failed: ${error.message}`);
-      }
-      throw new Error('Formatting failed with unknown error');
-    }
-  }
+
 
   public static processMethodLogging(content: string, loggerId: string, isHelper: boolean, noIf: boolean): string {
     return content.replace(this.METHOD_REGEX, (match: string, methodName: string, params: string, body: string) => {
@@ -438,33 +421,17 @@ export default class RflibLoggingAuraInstrument extends SfCommand<RflibLoggingAu
     content = AuraInstrumentationService.processTryCatchBlocks(content);
 
     if (content !== originalContent) {
-      this.stats.modifiedFiles++;
-      this.stats.modifiedFilePaths?.push(filePath);
-      if (!isDryRun) {
-        try {
-          const finalContent = instrumentationOpts.prettier
-            ? await AuraInstrumentationService.formatContent(content)
-            : content;
-
-          await fs.promises.writeFile(filePath, finalContent);
-
-          if (instrumentationOpts.prettier) {
-            this.stats.formattedFiles++;
-            this.logger.info(`Modified and formatted: ${filePath}`);
-          } else {
-            this.logger.info(`Modified: ${filePath}`);
-          }
-        } catch (error) {
-          this.logger.warn(`Failed to format ${filePath}: ${error instanceof Error ? error.message : String(error)}`);
-          await fs.promises.writeFile(filePath, content);
-          this.logger.info(`Modified without formatting: ${filePath}`);
-        }
-      } else {
-        this.logger.info(`Would modify: ${filePath}`);
-        if (instrumentationOpts.verbose) {
-          this.log(`Would modify: ${filePath}`);
-        }
-      }
+      await writeInstrumentedFile(
+        filePath,
+        content,
+        originalContent,
+        instrumentationOpts,
+        isDryRun,
+        this.stats,
+        this.logger,
+        (msg) => this.log(msg),
+        AuraInstrumentationService.PRETTIER_CONFIG,
+      );
     }
   }
 }
