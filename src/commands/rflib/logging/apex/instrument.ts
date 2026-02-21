@@ -36,6 +36,8 @@ class ApexInstrumentationService {
   public static readonly TEST_SETUP_REGEX =
     /@TestSetup\s+((public|private|protected|global)s+)?(?:static\s+)?void\s+(\w+)\s*\([^)]*\)\s*{/g;
 
+  public static readonly IS_TEST_REGEX = /@isTest\b/i;
+
   public static readonly PRETTIER_CONFIG: prettier.Options = {
     parser: 'apex',
     plugins: ['prettier-plugin-apex'],
@@ -74,6 +76,10 @@ class ApexInstrumentationService {
 
 
 
+
+  public static isTestClass(content: string): boolean {
+    return this.IS_TEST_REGEX.test(content);
+  }
 
   public static isInstrumented(content: string): boolean {
     return this.IS_INSTRUMENTED_REGEX.test(content);
@@ -378,11 +384,11 @@ export default class RflibLoggingApexInstrument extends SfCommand<RflibLoggingAp
       files,
       flags.concurrency,
       async (filePath) => {
-        const fileName = path.basename(filePath);
-        if (fileName.includes('Test')) {
-          await this.processTestFile(filePath, isDryRun, instrumentationOpts);
+        const content = await fs.promises.readFile(filePath, 'utf8');
+        if (ApexInstrumentationService.isTestClass(content)) {
+          await this.processTestFile(filePath, content, isDryRun, instrumentationOpts);
         } else {
-          await this.instrumentApexClass(filePath, isDryRun, instrumentationOpts);
+          await this.instrumentApexClass(filePath, content, isDryRun, instrumentationOpts);
         }
       }
     );
@@ -430,27 +436,28 @@ export default class RflibLoggingApexInstrument extends SfCommand<RflibLoggingAp
 
   private async processTestFile(
     filePath: string,
+    content: string,
     isDryRun: boolean,
     instrumentationOpts: InstrumentationOptions,
   ): Promise<void> {
     this.logger.debug(`Processing test file: ${filePath}`);
-    let content = await fs.promises.readFile(filePath, 'utf8');
-    const originalContent = content;
+    let fileContent = content;
+    const originalContent = fileContent;
 
-    if (instrumentationOpts.skipInstrumented && ApexInstrumentationService.isInstrumented(content)) {
+    if (instrumentationOpts.skipInstrumented && ApexInstrumentationService.isInstrumented(fileContent)) {
       this.logger.info(`Skipping instrumented test class: ${filePath}`);
       return;
     }
 
-    content = content.replace(
+    fileContent = fileContent.replace(
       ApexInstrumentationService.TEST_SETUP_REGEX,
       (match) => `${match}\n        rflib_TestUtil.prepareLoggerForUnitTests();`,
     );
 
-    if (content !== originalContent) {
+    if (fileContent !== originalContent) {
       await writeInstrumentedFile(
         filePath,
-        content,
+        fileContent,
         originalContent,
         instrumentationOpts,
         isDryRun,
@@ -464,6 +471,7 @@ export default class RflibLoggingApexInstrument extends SfCommand<RflibLoggingAp
 
   private async instrumentApexClass(
     filePath: string,
+    content: string,
     isDryRun: boolean,
     instrumentationOpts: InstrumentationOptions,
   ): Promise<void> {
@@ -472,28 +480,28 @@ export default class RflibLoggingApexInstrument extends SfCommand<RflibLoggingAp
 
     try {
       this.stats.processedFiles++;
-      let content = await fs.promises.readFile(filePath, 'utf8');
-      const originalContent = content;
+      let fileContent = content;
+      const originalContent = fileContent;
 
-      if (instrumentationOpts.skipInstrumented && ApexInstrumentationService.isInstrumented(content)) {
+      if (instrumentationOpts.skipInstrumented && ApexInstrumentationService.isInstrumented(fileContent)) {
         this.logger.info(`Skipping instrumented class: ${className}`);
         return;
       }
 
-      const { variableName } = ApexInstrumentationService.detectLogger(content);
-      content = ApexInstrumentationService.addLoggerDeclaration(content, className);
-      content = ApexInstrumentationService.processMethodDeclarations(content, variableName);
-      content = ApexInstrumentationService.processSystemDebugStatements(content, variableName);
-      content = ApexInstrumentationService.processCatchBlocks(content, variableName);
+      const { variableName } = ApexInstrumentationService.detectLogger(fileContent);
+      fileContent = ApexInstrumentationService.addLoggerDeclaration(fileContent, className);
+      fileContent = ApexInstrumentationService.processMethodDeclarations(fileContent, variableName);
+      fileContent = ApexInstrumentationService.processSystemDebugStatements(fileContent, variableName);
+      fileContent = ApexInstrumentationService.processCatchBlocks(fileContent, variableName);
 
       if (!instrumentationOpts.noIf) {
-        content = ApexInstrumentationService.processIfStatements(content, variableName);
+        fileContent = ApexInstrumentationService.processIfStatements(fileContent, variableName);
       }
 
-      if (content !== originalContent) {
+      if (fileContent !== originalContent) {
         await writeInstrumentedFile(
           filePath,
-          content,
+          fileContent,
           originalContent,
           instrumentationOpts,
           isDryRun,
