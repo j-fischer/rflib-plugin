@@ -1,3 +1,12 @@
+## [0.13.3](https://github.com/j-fischer/rflib-plugin/compare/0.13.2...0.13.3) (2026-02-21)
+
+
+### Bug Fixes
+
+* **deps:** bump prettier from 3.7.4 to 3.8.1 ([#161](https://github.com/j-fischer/rflib-plugin/issues/161)) ([bfe8c36](https://github.com/j-fischer/rflib-plugin/commit/bfe8c36051d0de93042c7d7752f38e99c2b73219))
+
+
+
 ## [0.13.2](https://github.com/j-fischer/rflib-plugin/compare/0.13.1...0.13.2) (2026-02-21)
 
 
