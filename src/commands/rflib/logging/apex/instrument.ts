@@ -3,6 +3,7 @@ import * as path from 'node:path';
 import { SfCommand, Flags } from '@salesforce/sf-plugins-core';
 import { Messages, Logger } from '@salesforce/core';
 import * as prettier from 'prettier';
+import { minimatch } from 'minimatch';
 
 type ApexMethodMatch = {
   auraEnabled?: string;
@@ -23,6 +24,7 @@ type InstrumentationOptions = {
   readonly noIf: boolean;
   readonly skipInstrumented: boolean;
   readonly verbose: boolean;
+  readonly exclude?: string;
 }
 
 type LoggerInfo = {
@@ -351,6 +353,11 @@ export default class RflibLoggingApexInstrument extends SfCommand<RflibLoggingAp
       char: 'v',
       default: false,
     }),
+    exclude: Flags.string({
+      summary: messages.getMessage('flags.exclude.summary'),
+      description: messages.getMessage('flags.exclude.description'),
+      char: 'e',
+    }),
   };
 
   private logger!: Logger;
@@ -374,6 +381,7 @@ export default class RflibLoggingApexInstrument extends SfCommand<RflibLoggingAp
       noIf: flags['no-if'],
       skipInstrumented: flags['skip-instrumented'],
       verbose: flags.verbose,
+      exclude: flags.exclude,
     };
 
     this.log(`Scanning Apex classes in ${sourcePath} and sub directories`);
@@ -381,7 +389,7 @@ export default class RflibLoggingApexInstrument extends SfCommand<RflibLoggingAp
 
     this.spinner.start('Running...');
 
-    const files = await this.findAllApexFiles(sourcePath);
+    const files = await this.findAllApexFiles(sourcePath, instrumentationOpts.exclude);
     await Promise.all(
       files.map(async (filePath) => {
         const fileName = path.basename(filePath);
@@ -406,7 +414,7 @@ export default class RflibLoggingApexInstrument extends SfCommand<RflibLoggingAp
     return { ...this.stats };
   }
 
-  private async findAllApexFiles(dirPath: string): Promise<string[]> {
+  private async findAllApexFiles(dirPath: string, excludePattern?: string): Promise<string[]> {
     this.logger.debug(`Scanning directory: ${dirPath}`);
     const entries = await fs.promises.readdir(dirPath, { withFileTypes: true });
 
@@ -414,8 +422,13 @@ export default class RflibLoggingApexInstrument extends SfCommand<RflibLoggingAp
       entries.map(async (entry) => {
         const filePath = path.join(dirPath, entry.name);
 
+        if (excludePattern && minimatch(filePath, excludePattern, { matchBase: true })) {
+          this.logger.debug(`Skipping excluded path: ${filePath}`);
+          return [];
+        }
+
         if (entry.isDirectory()) {
-          return this.findAllApexFiles(filePath);
+          return this.findAllApexFiles(filePath, excludePattern);
         }
 
         if (entry.name.endsWith('.cls')) {

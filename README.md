@@ -44,6 +44,7 @@ sf rflib logging apex instrument --sourcepath force-app --skip-instrumented
 - `--prettier (-p)`: Format modified files using Prettier
 - `--skip-instrumented`: Do not instrument files where RFLIB logging is already present
 - `--verbose (-v)`: Print paths of the files that would be modified (useful with --dryrun)
+- `--exclude (-e)`: Exclude files or directories from instrumentation based on a glob pattern
 
 ### `sf rflib logging lwc instrument`
 
@@ -70,6 +71,7 @@ sf rflib logging lwc instrument --sourcepath force-app --skip-instrumented
 - `--prettier (-p)`: Format modified files using Prettier
 - `--skip-instrumented`: Do not instrument files where RFLIB logging is already present
 - `--verbose (-v)`: Print paths of the files that would be modified (useful with --dryrun)
+- `--exclude (-e)`: Exclude files or directories from instrumentation based on a glob pattern
 
 ### `sf rflib logging aura instrument`
 
@@ -96,6 +98,7 @@ sf rflib logging aura instrument --sourcepath force-app --skip-instrumented
 - `--prettier (-p)`: Format modified files using Prettier
 - `--skip-instrumented`: Do not instrument files where RFLIB logging is already present
 - `--verbose (-v)`: Print paths of the files that would be modified (useful with --dryrun)
+- `--exclude (-e)`: Exclude files or directories from instrumentation based on a glob pattern
 
 ### `sf rflib logging flow instrument`
 
@@ -118,6 +121,7 @@ sf rflib logging flow instrument --sourcepath force-app --skip-instrumented
 - `--dryrun (-d)`: Preview changes without modifying files
 - `--skip-instrumented`: Do not instrument files where RFLIB logging is already present
 - `--verbose (-v)`: Print paths of the files that would be modified (useful with --dryrun)
+- `--exclude (-e)`: Exclude files or directories from instrumentation based on a glob pattern
 
 #### Features
 

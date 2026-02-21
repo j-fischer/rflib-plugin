@@ -4,12 +4,14 @@ import * as path from 'node:path';
 import { SfCommand, Flags } from '@salesforce/sf-plugins-core';
 import { Messages, Logger } from '@salesforce/core';
 import * as prettier from 'prettier';
+import { minimatch } from 'minimatch';
 
 type InstrumentationOptions = {
   readonly prettier: boolean;
   readonly noIf: boolean;
   readonly skipInstrumented: boolean;
   readonly verbose: boolean;
+  readonly exclude?: string;
 }
 
 type LoggerInfo = {
@@ -270,6 +272,11 @@ export default class RflibLoggingLwcInstrument extends SfCommand<RflibLoggingLwc
       char: 'v',
       default: false,
     }),
+    exclude: Flags.string({
+      summary: messages.getMessage('flags.exclude.summary'),
+      description: messages.getMessage('flags.exclude.description'),
+      char: 'e',
+    }),
   };
 
   private logger!: Logger;
@@ -289,13 +296,14 @@ export default class RflibLoggingLwcInstrument extends SfCommand<RflibLoggingLwc
       noIf: flags['no-if'],
       skipInstrumented: flags['skip-instrumented'],
       verbose: flags.verbose,
+      exclude: flags.exclude,
     };
 
     this.log(`Scanning LWC components in ${flags.sourcepath}...`);
 
     this.spinner.start('Running...');
 
-    const files = await this.findAllLwcFiles(flags.sourcepath);
+    const files = await this.findAllLwcFiles(flags.sourcepath, instrumentationOpts.exclude);
     await Promise.all(
       files.map(async (filePath) => {
         await this.instrumentLwcFile(filePath, flags.dryrun, instrumentationOpts);
@@ -312,7 +320,7 @@ export default class RflibLoggingLwcInstrument extends SfCommand<RflibLoggingLwc
     return { ...this.stats };
   }
 
-  private async findAllLwcFiles(dirPath: string): Promise<string[]> {
+  private async findAllLwcFiles(dirPath: string, excludePattern?: string): Promise<string[]> {
     this.logger.debug(`Scanning directory: ${dirPath}`);
     const entries = await fs.promises.readdir(dirPath, { withFileTypes: true });
 
@@ -320,8 +328,13 @@ export default class RflibLoggingLwcInstrument extends SfCommand<RflibLoggingLwc
       entries.map(async (entry) => {
         const filePath = path.join(dirPath, entry.name);
 
+        if (excludePattern && minimatch(filePath, excludePattern, { matchBase: true })) {
+          this.logger.debug(`Skipping excluded path: ${filePath}`);
+          return [];
+        }
+
         if (entry.isDirectory()) {
-          return this.findAllLwcFiles(filePath);
+          return this.findAllLwcFiles(filePath, excludePattern);
         }
 
         const parentDir = path.dirname(filePath);

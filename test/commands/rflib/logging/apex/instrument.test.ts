@@ -164,6 +164,17 @@ describe('rflib logging apex instrument', () => {
     expect(regularContent).to.include("LOGGER.info('getRecords({0}, {1})', new Object[] { filter, someLimit });");
   });
 
+  it('should exclude files matching the exclude pattern', async () => {
+    await RflibLoggingApexInstrument.run(['--sourcepath', testDir, '--exclude', '**/SampleApexClass.cls']);
+
+    const regularContent = fs.readFileSync(sampleClassPath, 'utf8');
+    expect(regularContent).to.equal(originalContent);
+
+    const testContent = fs.readFileSync(testClassPath, 'utf8');
+    expect(testContent).not.to.equal(originalTestContent);
+    expect(testContent).to.include('rflib_TestUtil.prepareLoggerForUnitTests()');
+  });
+
   it('should add logger setup to test classes', async () => {
     await RflibLoggingApexInstrument.run(['--sourcepath', testDir]);
     const modifiedContent = fs.readFileSync(testClassPath, 'utf8');

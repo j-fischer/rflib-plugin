@@ -74,6 +74,14 @@ Enable verbose output.
 
 When provided with --dryrun, prints the paths of the files that would be modified.
 
+# flags.exclude.summary
+
+Exclude files or directories from instrumentation based on a glob pattern.
+
+# flags.exclude.description
+
+Exclude specific files or directories that match the provided glob pattern. For example, use --exclude "**/Generated_*.js" to skip auto-generated components.
+
 # examples
 
 - Add logging to all LWC files:

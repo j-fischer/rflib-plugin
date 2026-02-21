@@ -63,6 +63,13 @@ describe('rflib logging flow instrument', () => {
       const runStub = RflibLoggingFlowInstrument.prototype.run as sinon.SinonStub;
       expect(runStub.called).to.be.true;
     });
+
+    it('should respect the exclude flag', async () => {
+      await RflibLoggingFlowInstrument.run(['--sourcepath', 'force-app', '--exclude', '**/Test_*']);
+
+      const runStub = RflibLoggingFlowInstrument.prototype.run as sinon.SinonStub;
+      expect(runStub.called).to.be.true;
+    });
   });
 
   describe('FlowInstrumentationService', () => {
