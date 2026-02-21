@@ -202,6 +202,16 @@ describe('rflib logging aura instrument', () => {
     expect(controllerContent).not.to.include("logger.debug('else");
   });
 
+  it('should exclude components matching the exclude pattern', async () => {
+    await RflibLoggingAuraInstrument.run(['--sourcepath', sourceDir, '--exclude', '**/sampleComponent']);
+
+    const regularCmpContent = fs.readFileSync(paths.sample.cmp, 'utf8');
+    const regularControllerContent = fs.readFileSync(paths.sample.controller, 'utf8');
+
+    expect(regularCmpContent).to.equal(originalContent.cmp);
+    expect(regularControllerContent).to.equal(originalContent.controller);
+  });
+
   it('should skip instrumented components when skip-instrumented flag is used', async () => {
     await RflibLoggingAuraInstrument.run(['--sourcepath', sourceDir, '--skip-instrumented']);
 

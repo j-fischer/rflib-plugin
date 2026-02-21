@@ -3,6 +3,7 @@ import * as path from 'node:path';
 import { SfCommand, Flags } from '@salesforce/sf-plugins-core';
 import { Messages, Logger } from '@salesforce/core';
 import * as prettier from 'prettier';
+import { minimatch } from 'minimatch';
 
 type IfCondition = {
   readonly condition: string;
@@ -14,6 +15,7 @@ type InstrumentationOptions = {
   readonly noIf: boolean;
   readonly skipInstrumented: boolean;
   readonly verbose: boolean;
+  readonly exclude?: string;
 }
 
 export type RflibLoggingAuraInstrumentResult = {
@@ -227,6 +229,11 @@ export default class RflibLoggingAuraInstrument extends SfCommand<RflibLoggingAu
       char: 'v',
       default: false,
     }),
+    exclude: Flags.string({
+      summary: messages.getMessage('flags.exclude.summary'),
+      description: messages.getMessage('flags.exclude.description'),
+      char: 'e',
+    }),
   };
 
   private logger!: Logger;
@@ -246,6 +253,7 @@ export default class RflibLoggingAuraInstrument extends SfCommand<RflibLoggingAu
       noIf: flags['no-if'],
       skipInstrumented: flags['skip-instrumented'],
       verbose: flags.verbose,
+      exclude: flags.exclude,
     };
 
     this.log(`Starting Aura component instrumentation in ${flags.sourcepath}`);
@@ -253,7 +261,7 @@ export default class RflibLoggingAuraInstrument extends SfCommand<RflibLoggingAu
 
     this.spinner.start('Running...');
 
-    const components = await this.findAllAuraComponents(flags.sourcepath);
+    const components = await this.findAllAuraComponents(flags.sourcepath, instrumentationOpts.exclude);
     await Promise.all(
       components.map(async (component) => {
         await this.processAuraComponent(component.path, component.name, flags.dryrun, instrumentationOpts);
@@ -270,7 +278,7 @@ export default class RflibLoggingAuraInstrument extends SfCommand<RflibLoggingAu
     return { ...this.stats };
   }
 
-  private async findAllAuraComponents(dirPath: string): Promise<Array<{ path: string; name: string }>> {
+  private async findAllAuraComponents(dirPath: string, excludePattern?: string): Promise<Array<{ path: string; name: string }>> {
     this.logger.debug(`Scanning directory: ${dirPath}`);
 
     const dirName = path.basename(dirPath);
@@ -278,6 +286,10 @@ export default class RflibLoggingAuraInstrument extends SfCommand<RflibLoggingAu
 
     // Case 1: The sourcepath points directly to a component (inside an 'aura' folder)
     if (parentName === 'aura') {
+      if (excludePattern && minimatch(dirPath, excludePattern, { matchBase: true })) {
+        this.logger.debug(`Skipping excluded path: ${dirPath}`);
+        return [];
+      }
       return [{
         path: dirPath,
         name: dirName
@@ -290,12 +302,19 @@ export default class RflibLoggingAuraInstrument extends SfCommand<RflibLoggingAu
       const components = await Promise.all(
         entries
           .filter(entry => entry.isDirectory())
-          .map(entry => ({
-            path: path.join(dirPath, entry.name),
-            name: entry.name
-          }))
+          .map(entry => {
+            const cmpPath = path.join(dirPath, entry.name);
+            if (excludePattern && minimatch(cmpPath, excludePattern, { matchBase: true })) {
+              this.logger.debug(`Skipping excluded path: ${cmpPath}`);
+              return null;
+            }
+            return {
+              path: cmpPath,
+              name: entry.name
+            };
+          })
       );
-      return components;
+      return components.filter((c): c is { path: string; name: string } => c !== null);
     }
 
     // Case 3: Recursion
@@ -303,7 +322,7 @@ export default class RflibLoggingAuraInstrument extends SfCommand<RflibLoggingAu
     const results = await Promise.all(
       entries.map(async (entry) => {
         if (entry.isDirectory()) {
-          return this.findAllAuraComponents(path.join(dirPath, entry.name));
+          return this.findAllAuraComponents(path.join(dirPath, entry.name), excludePattern);
         }
         return [];
       })

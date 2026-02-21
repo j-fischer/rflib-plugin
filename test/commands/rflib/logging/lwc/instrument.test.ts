@@ -178,6 +178,13 @@ describe('rflib logging lwc instrument', () => {
     expect(contentWithNoIf).not.to.include("logger.debug('else for if");
   });
 
+  it('should exclude files matching the exclude pattern', async () => {
+    await RflibLoggingLwcInstrument.run(['--sourcepath', testDir, '--exclude', '**/sampleComponent.js']);
+
+    const sampleContent = fs.readFileSync(sampleComponentPath, 'utf8');
+    expect(sampleContent).to.equal(originalSampleContent);
+  });
+
   // New tests for skip-instrumented flag
   it('should skip already instrumented files when skip-instrumented flag is used', async () => {
     await RflibLoggingLwcInstrument.run(['--sourcepath', testDir, '--skip-instrumented']);

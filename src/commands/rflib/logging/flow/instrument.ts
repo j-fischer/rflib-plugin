@@ -10,6 +10,7 @@ import * as path from 'node:path';
 import { Messages, Logger } from '@salesforce/core';
 import { SfCommand, Flags } from '@salesforce/sf-plugins-core';
 import * as xml2js from 'xml2js';
+import { minimatch } from 'minimatch';
 
 export type RflibLoggingFlowInstrumentResult = {
   processedFiles: number;
@@ -642,6 +643,11 @@ export default class RflibLoggingFlowInstrument extends SfCommand<RflibLoggingFl
       char: 'v',
       default: false,
     }),
+    exclude: Flags.string({
+      summary: messages.getMessage('flags.exclude.summary'),
+      description: messages.getMessage('flags.exclude.description'),
+      char: 'e',
+    }),
   };
 
   private logger!: Logger;
@@ -660,6 +666,7 @@ export default class RflibLoggingFlowInstrument extends SfCommand<RflibLoggingFl
     const isDryRun = flags.dryrun;
     const skipInstrumented = flags['skip-instrumented'];
     const isVerbose = flags.verbose;
+    const excludePattern = flags.exclude;
 
     this.log(`Scanning Flow files in ${sourcePath} and sub directories`);
     this.logger.debug(`Dry run mode: ${isDryRun}`);
@@ -667,7 +674,7 @@ export default class RflibLoggingFlowInstrument extends SfCommand<RflibLoggingFl
 
     this.spinner.start('Running...');
 
-    const files = await this.findAllFlowFiles(sourcePath);
+    const files = await this.findAllFlowFiles(sourcePath, excludePattern);
     await Promise.all(
       files.map(async (filePath) => {
         await this.instrumentFlowFile(filePath, isDryRun, skipInstrumented, isVerbose);
@@ -686,7 +693,7 @@ export default class RflibLoggingFlowInstrument extends SfCommand<RflibLoggingFl
     return { ...this.stats };
   }
 
-  private async findAllFlowFiles(dirPath: string): Promise<string[]> {
+  private async findAllFlowFiles(dirPath: string, excludePattern?: string): Promise<string[]> {
     this.logger.debug(`Scanning directory: ${dirPath}`);
     const entries = await fs.promises.readdir(dirPath, { withFileTypes: true });
 
@@ -694,8 +701,13 @@ export default class RflibLoggingFlowInstrument extends SfCommand<RflibLoggingFl
       entries.map(async (entry) => {
         const filePath = path.join(dirPath, entry.name);
 
+        if (excludePattern && minimatch(filePath, excludePattern, { matchBase: true })) {
+          this.logger.debug(`Skipping excluded path: ${filePath}`);
+          return [];
+        }
+
         if (entry.isDirectory()) {
-          return this.findAllFlowFiles(filePath);
+          return this.findAllFlowFiles(filePath, excludePattern);
         }
 
         if (entry.name.endsWith('.flow-meta.xml')) {

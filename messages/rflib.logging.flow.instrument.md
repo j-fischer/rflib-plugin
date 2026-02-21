@@ -46,6 +46,14 @@ Enable verbose output.
 
 When provided with --dryrun, prints the paths of the files that would be modified.
 
+# flags.exclude.summary
+
+Exclude files or directories from instrumentation based on a glob pattern.
+
+# flags.exclude.description
+
+Exclude specific files or directories that match the provided glob pattern. For example, use --exclude "**/Test_*.flow-meta.xml" to skip certain flows.
+
 # examples
 
 - <%= config.bin %> <%= command.id %> --sourcepath force-app
