@@ -17,9 +17,13 @@ describe('rflib logging apex instrument', () => {
   let testClassPath: string;
   let sampleClassPath: string;
   let instrumentedClassPath: string;
+  let hiddenSpecPath: string;
+  let notRealTestPath: string;
   let originalContent: string;
   let originalTestContent: string;
   let originalInstrumentedContent: string;
+  let originalHiddenSpecContent: string;
+  let originalNotRealTestContent: string;
 
   before(async () => {
     testSession = await TestSession.create();
@@ -35,6 +39,12 @@ describe('rflib logging apex instrument', () => {
 
     testClassPath = path.join(testDir, 'SampleTestClass.cls');
     originalTestContent = fs.readFileSync(path.join(__dirname, 'sample', 'SampleTestClass.cls'), 'utf8');
+
+    hiddenSpecPath = path.join(testDir, 'HiddenSpec.cls');
+    originalHiddenSpecContent = fs.readFileSync(path.join(__dirname, 'sample', 'HiddenSpec.cls'), 'utf8');
+
+    notRealTestPath = path.join(testDir, 'NotRealTest.cls');
+    originalNotRealTestContent = fs.readFileSync(path.join(__dirname, 'sample', 'NotRealTest.cls'), 'utf8');
   });
 
   // Reset the files before each test
@@ -42,6 +52,8 @@ describe('rflib logging apex instrument', () => {
     fs.writeFileSync(sampleClassPath, originalContent);
     fs.writeFileSync(instrumentedClassPath, originalInstrumentedContent);
     fs.writeFileSync(testClassPath, originalTestContent);
+    fs.writeFileSync(hiddenSpecPath, originalHiddenSpecContent);
+    fs.writeFileSync(notRealTestPath, originalNotRealTestContent);
   });
 
   afterEach(function () {
@@ -201,8 +213,8 @@ describe('rflib logging apex instrument', () => {
     expect(formattedContent).not.to.match(/\t/); // No tabs
     expect(formattedContent).to.match(/{\n/); // Line break after brace
     expect(formattedContent).to.include('if (filter == null) {'); // Single quotes
-    expect(result.formattedFiles).to.equal(3); // All three files should be formatted
-    expect(result.modifiedFiles).to.equal(3); // Modified files counter
+    expect(result.formattedFiles).to.equal(5); // All five files should be formatted
+    expect(result.modifiedFiles).to.equal(5); // Modified files counter
   });
 
   it('should replace System.debug statements with LOGGER.debug', async () => {
@@ -222,5 +234,24 @@ describe('rflib logging apex instrument', () => {
     expect(modifiedContent).to.include("LOGGER.warn('Medium batch');");
     expect(modifiedContent).to.include("LOGGER.info('User found: ' + userMap.get(record.Id));");
     expect(modifiedContent).to.include("LOGGER.error('Error: ' + ex.getMessage());");
+  });
+
+  it('should instrument a class without "Test" in the name as a test class if it has @isTest', async () => {
+    await RflibLoggingApexInstrument.run(['--sourcepath', testDir]);
+    const modifiedContent = fs.readFileSync(hiddenSpecPath, 'utf8');
+
+    expect(modifiedContent).not.to.equal(originalHiddenSpecContent);
+    expect(modifiedContent).to.include('rflib_TestUtil.prepareLoggerForUnitTests()');
+  });
+
+  it('should instrument a class with "Test" in the name as a normal class if it lacks @isTest', async () => {
+    await RflibLoggingApexInstrument.run(['--sourcepath', testDir]);
+    const modifiedContent = fs.readFileSync(notRealTestPath, 'utf8');
+
+    expect(modifiedContent).to.include(
+      "private static final rflib_Logger LOGGER = rflib_LoggerUtil.getFactory().createLogger('NotRealTest');",
+    );
+    expect(modifiedContent).to.include("LOGGER.info('getRecords({0}, {1})', new Object[] { filter, someLimit });");
+    expect(modifiedContent).to.include("LOGGER.info('Processing records');");
   });
 });
