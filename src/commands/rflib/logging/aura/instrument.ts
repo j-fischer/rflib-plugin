@@ -4,6 +4,7 @@ import { SfCommand, Flags } from '@salesforce/sf-plugins-core';
 import { Messages, Logger } from '@salesforce/core';
 import * as prettier from 'prettier';
 import { minimatch } from 'minimatch';
+import { processWithConcurrency } from '../../../../shared/concurrency.js';
 
 type IfCondition = {
   readonly condition: string;
@@ -234,6 +235,12 @@ export default class RflibLoggingAuraInstrument extends SfCommand<RflibLoggingAu
       description: messages.getMessage('flags.exclude.description'),
       char: 'e',
     }),
+    concurrency: Flags.integer({
+      summary: messages.getMessage('flags.concurrency.summary'),
+      description: messages.getMessage('flags.concurrency.description'),
+      char: 'c',
+      default: 10,
+    }),
   };
 
   private logger!: Logger;
@@ -262,10 +269,12 @@ export default class RflibLoggingAuraInstrument extends SfCommand<RflibLoggingAu
     this.spinner.start('Running...');
 
     const components = await this.findAllAuraComponents(flags.sourcepath, instrumentationOpts.exclude);
-    await Promise.all(
-      components.map(async (component) => {
+    await processWithConcurrency(
+      components,
+      flags.concurrency,
+      async (component) => {
         await this.processAuraComponent(component.path, component.name, flags.dryrun, instrumentationOpts);
-      })
+      }
     );
 
     this.spinner.stop();

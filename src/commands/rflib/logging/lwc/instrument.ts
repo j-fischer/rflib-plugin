@@ -5,6 +5,7 @@ import { SfCommand, Flags } from '@salesforce/sf-plugins-core';
 import { Messages, Logger } from '@salesforce/core';
 import * as prettier from 'prettier';
 import { minimatch } from 'minimatch';
+import { processWithConcurrency } from '../../../../shared/concurrency.js';
 
 type InstrumentationOptions = {
   readonly prettier: boolean;
@@ -277,6 +278,12 @@ export default class RflibLoggingLwcInstrument extends SfCommand<RflibLoggingLwc
       description: messages.getMessage('flags.exclude.description'),
       char: 'e',
     }),
+    concurrency: Flags.integer({
+      summary: messages.getMessage('flags.concurrency.summary'),
+      description: messages.getMessage('flags.concurrency.description'),
+      char: 'c',
+      default: 10,
+    }),
   };
 
   private logger!: Logger;
@@ -304,10 +311,12 @@ export default class RflibLoggingLwcInstrument extends SfCommand<RflibLoggingLwc
     this.spinner.start('Running...');
 
     const files = await this.findAllLwcFiles(flags.sourcepath, instrumentationOpts.exclude);
-    await Promise.all(
-      files.map(async (filePath) => {
+    await processWithConcurrency(
+      files,
+      flags.concurrency,
+      async (filePath) => {
         await this.instrumentLwcFile(filePath, flags.dryrun, instrumentationOpts);
-      })
+      }
     );
 
     this.spinner.stop();

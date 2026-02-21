@@ -11,6 +11,7 @@ import { Messages, Logger } from '@salesforce/core';
 import { SfCommand, Flags } from '@salesforce/sf-plugins-core';
 import * as xml2js from 'xml2js';
 import { minimatch } from 'minimatch';
+import { processWithConcurrency } from '../../../../shared/concurrency.js';
 
 export type RflibLoggingFlowInstrumentResult = {
   processedFiles: number;
@@ -648,6 +649,12 @@ export default class RflibLoggingFlowInstrument extends SfCommand<RflibLoggingFl
       description: messages.getMessage('flags.exclude.description'),
       char: 'e',
     }),
+    concurrency: Flags.integer({
+      summary: messages.getMessage('flags.concurrency.summary'),
+      description: messages.getMessage('flags.concurrency.description'),
+      char: 'c',
+      default: 10,
+    }),
   };
 
   private logger!: Logger;
@@ -675,10 +682,12 @@ export default class RflibLoggingFlowInstrument extends SfCommand<RflibLoggingFl
     this.spinner.start('Running...');
 
     const files = await this.findAllFlowFiles(sourcePath, excludePattern);
-    await Promise.all(
-      files.map(async (filePath) => {
+    await processWithConcurrency(
+      files,
+      flags.concurrency,
+      async (filePath) => {
         await this.instrumentFlowFile(filePath, isDryRun, skipInstrumented, isVerbose);
-      })
+      }
     );
 
     this.spinner.stop();

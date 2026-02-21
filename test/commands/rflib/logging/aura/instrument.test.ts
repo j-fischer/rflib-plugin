@@ -130,6 +130,11 @@ describe('rflib logging aura instrument', () => {
     );
   });
 
+  it('should accept the concurrency flag', async () => {
+    const result = await RflibLoggingAuraInstrument.run(['--sourcepath', paths.sample.dir, '--concurrency', '5']);
+    expect(result.processedFiles).to.be.greaterThan(0);
+  });
+
   it('should add logger initialization to controller methods', async () => {
     await RflibLoggingAuraInstrument.run(['--sourcepath', paths.sample.dir]);
     const modifiedContent = fs.readFileSync(paths.sample.controller, 'utf8');

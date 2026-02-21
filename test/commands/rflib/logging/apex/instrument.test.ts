@@ -75,6 +75,11 @@ describe('rflib logging apex instrument', () => {
     );
   });
 
+  it('should accept the concurrency flag', async () => {
+    const result = await RflibLoggingApexInstrument.run(['--sourcepath', testDir, '--concurrency', '5']);
+    expect(result.processedFiles).to.be.greaterThan(0);
+  });
+
   it('should add class level logger declaration', async () => {
     await RflibLoggingApexInstrument.run(['--sourcepath', testDir]);
     const modifiedContent = fs.readFileSync(sampleClassPath, 'utf8');
