@@ -1,3 +1,12 @@
+# [0.16.0](https://github.com/j-fischer/rflib-plugin/compare/0.15.0...0.16.0) (2026-02-21)
+
+
+### Features
+
+* implement concurrency flag for parallel file processing ([#172](https://github.com/j-fischer/rflib-plugin/issues/172)) ([d54c72f](https://github.com/j-fischer/rflib-plugin/commit/d54c72f3e277d1db3b9b2dee938d6320bfe45b72))
+
+
+
 # [0.15.0](https://github.com/j-fischer/rflib-plugin/compare/0.14.0...0.15.0) (2026-02-21)
 
 
