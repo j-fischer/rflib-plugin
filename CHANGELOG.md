@@ -1,3 +1,12 @@
+# [0.14.0](https://github.com/j-fischer/rflib-plugin/compare/0.13.3...0.14.0) (2026-02-21)
+
+
+### Features
+
+* add verbose flag for dryrun mode to logging instrument commands ([d6446f3](https://github.com/j-fischer/rflib-plugin/commit/d6446f348acfe8e702b531f3ccac216b92e8abbe))
+
+
+
 ## [0.13.3](https://github.com/j-fischer/rflib-plugin/compare/0.13.2...0.13.3) (2026-02-21)
 
 
