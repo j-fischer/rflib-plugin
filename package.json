@@ -1,7 +1,7 @@
 {
   "name": "rflib-plugin",
   "description": "Utility commands to help with the adoption of the RFLIB open-source library for Salesforce.",
-  "version": "0.14.0",
+  "version": "0.15.0",
   "dependencies": {
     "@oclif/core": "^4.8.0",
     "@salesforce/core": "^8.26.2",

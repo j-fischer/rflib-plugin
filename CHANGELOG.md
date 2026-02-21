@@ -1,3 +1,12 @@
+# [0.15.0](https://github.com/j-fischer/rflib-plugin/compare/0.14.0...0.15.0) (2026-02-21)
+
+
+### Features
+
+* implement the --exclude flag for all `sf rflib logging commands` ([#171](https://github.com/j-fischer/rflib-plugin/issues/171)) ([bbd2dd6](https://github.com/j-fischer/rflib-plugin/commit/bbd2dd63e6c8eaa22730e9d31c276c4e78009e3f))
+
+
+
 # [0.14.0](https://github.com/j-fischer/rflib-plugin/compare/0.13.3...0.14.0) (2026-02-21)
 
 
