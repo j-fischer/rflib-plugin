@@ -32,7 +32,7 @@ class LwcInstrumentationService {
   private static readonly IMPORT_REGEX = /import\s*{\s*createLogger\s*}\s*from\s*['"]c\/rflibLogger['"]/;
   private static readonly LOGGER_REGEX = /const\s+(\w+)\s*=\s*createLogger\s*\(['"]([\w-]+)['"]\)/;
   private static readonly METHOD_REGEX =
-    /(?:async\s+)?(?!(?:if|switch|case|while|for|catch)\b)(\b\w+)\s*\((.*?)\)\s*{/g;
+    /(?:async\s+)?(?!(?:if|switch|case|while|for|catch)\b)(\b\w+)\s*(?:\((.*?)\)\s*{|=\s*(?:async\s+)?(?:\((.*?)\)|(\w+))\s*=>\s*{)/g;
   private static readonly EXPORT_DEFAULT_REGEX = /export\s+default\s+class\s+(\w+)/;
   private static readonly IF_STATEMENT_REGEX =
     /if\s*\((.*?)\)\s*(?:{([^]*?(?:(?<!{){(?:[^]*?)}(?!})[^]*?)*)}|([^{].*?)(?=\s*(?:;|$));)/g;
@@ -122,8 +122,9 @@ class LwcInstrumentationService {
   }
 
   public static processMethodLogging(content: string, loggerName: string, options: InstrumentationOptions): string {
-    let modified = content.replace(this.METHOD_REGEX, (match: string, methodName: string, args: string) => {
-      const parameters = args
+    let modified = content.replace(this.METHOD_REGEX, (match: string, methodName: string, namedArgs: string, arrowArgsParens: string, arrowArgNoParens: string) => {
+      const rawArgs = namedArgs ?? arrowArgsParens ?? arrowArgNoParens ?? '';
+      const parameters = rawArgs
         .split(',')
         .map((p) => p.trim())
         .filter((p) => p);

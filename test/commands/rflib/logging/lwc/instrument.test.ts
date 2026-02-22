@@ -84,6 +84,9 @@ describe('rflib logging lwc instrument', () => {
     expect(modifiedContent).to.include("logger.info('handleClick({0})', event)");
     expect(modifiedContent).to.include("logger.info('loadData()')");
     expect(modifiedContent).to.include("logger.info('setTitle()')");
+    expect(modifiedContent).to.include("logger.info('testArrowFunction()')");
+    expect(modifiedContent).to.include("logger.info('testArrowFunctionWithArgs({0}, {1})', arg1, arg2)");
+    expect(modifiedContent).to.include("logger.info('testArrowFunctionAsync()')");
   });
 
   it('should add logging to promise then blocks', async () => {
