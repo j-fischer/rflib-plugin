@@ -1,0 +1,553 @@
+"FYI: Setting UTF-8 character encoding in alias.bat file." 
+Active code page: 65001
+yarn run v1.22.22
+$ wireit
+Analyzing
+ 33% [1 / 3] [2 running] lint
+ 67% [2 / 3] [1 running] test:only
+
+❌ [test:only] exited with exit code 1. Output:
+
+(node:31416) ExperimentalWarning: `--experimental-loader` may be removed in the future; instead use `register()`:
+--import 'data:text/javascript,import { register } from "node:module"; import { pathToFileURL } from "node:url"; register("ts-node/esm", pathToFileURL("./"));'
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:31416) [DEP0180] DeprecationWarning: fs.Stats constructor is deprecated.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+(node:41904) ExperimentalWarning: `--experimental-loader` may be removed in the future; instead use `register()`:
+--import 'data:text/javascript,import { register } from "node:module"; import { pathToFileURL } from "node:url"; register("ts-node/esm", pathToFileURL("./"));'
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:41904) [DEP0180] DeprecationWarning: fs.Stats constructor is deprecated.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+
+[0m[0m
+[0m  rflib logging apex instrument[0m
+Scanning Apex classes in c:\Users\fisch\Projects\Salesforce\rflib-plugin\test_session_1771715442268a35a8bdab5cf893b\force-app and sub directories
+Running...... done
+
+Instrumentation complete.
+Processed files: 3
+Modified files: 5
+Formatted files: 0
+  [32m  [32m√[39m[0m[90m should recursively navigate folders[0m[33m (47ms)[0m
+Scanning Apex classes in c:\Users\fisch\Projects\Salesforce\rflib-plugin\test_session_1771715442268a35a8bdab5cf893b\force-app\main\default\classes and sub directories
+Running...... done
+
+Instrumentation complete.
+Processed files: 3
+Modified files: 5
+Formatted files: 0
+  [32m  [32m√[39m[0m[90m should accept the concurrency flag[0m
+Scanning Apex classes in c:\Users\fisch\Projects\Salesforce\rflib-plugin\test_session_1771715442268a35a8bdab5cf893b\force-app\main\default\classes and sub directories
+Running...... done
+
+Instrumentation complete.
+Processed files: 3
+Modified files: 5
+Formatted files: 0
+  [32m  [32m√[39m[0m[90m should add class level logger declaration[0m
+Scanning Apex classes in c:\Users\fisch\Projects\Salesforce\rflib-plugin\test_session_1771715442268a35a8bdab5cf893b\force-app\main\default\classes and sub directories
+Running...... done
+
+Instrumentation complete.
+Processed files: 3
+Modified files: 5
+Formatted files: 0
+  [32m  [32m√[39m[0m[90m should add entry logging to methods with parameters[0m
+Scanning Apex classes in c:\Users\fisch\Projects\Salesforce\rflib-plugin\test_session_1771715442268a35a8bdab5cf893b\force-app\main\default\classes and sub directories
+Running...... done
+
+Instrumentation complete.
+Processed files: 3
+Modified files: 5
+Formatted files: 0
+  [32m  [32m√[39m[0m[90m should add error logging to catch blocks[0m
+Scanning Apex classes in c:\Users\fisch\Projects\Salesforce\rflib-plugin\test_session_1771715442268a35a8bdab5cf893b\force-app\main\default\classes and sub directories
+Running...... done
+
+Instrumentation complete.
+Processed files: 3
+Modified files: 5
+Formatted files: 0
+  [32m  [32m√[39m[0m[90m should add log statements to simple if blocks[0m
+Scanning Apex classes in c:\Users\fisch\Projects\Salesforce\rflib-plugin\test_session_1771715442268a35a8bdab5cf893b\force-app\main\default\classes and sub directories
+Running...... done
+
+Instrumentation complete.
+Processed files: 3
+Modified files: 5
+Formatted files: 0
+  [32m  [32m√[39m[0m[90m should convert single line if statements to blocks[0m
+Scanning Apex classes in c:\Users\fisch\Projects\Salesforce\rflib-plugin\test_session_1771715442268a35a8bdab5cf893b\force-app\main\default\classes and sub directories
+Running...... done
+
+Instrumentation complete.
+Processed files: 3
+Modified files: 5
+Formatted files: 0
+  [32m  [32m√[39m[0m[90m should add log statements to if blocks with nested content[0m
+Scanning Apex classes in c:\Users\fisch\Projects\Salesforce\rflib-plugin\test_session_1771715442268a35a8bdab5cf893b\force-app\main\default\classes and sub directories
+Running...... done
+
+Instrumentation complete.
+Processed files: 3
+Modified files: 5
+Formatted files: 0
+  [32m  [32m√[39m[0m[90m should add log statements to else blocks[0m
+Scanning Apex classes in c:\Users\fisch\Projects\Salesforce\rflib-plugin\test_session_1771715442268a35a8bdab5cf893b\force-app\main\default\classes and sub directories
+Running...... done
+(node:41904) MaxListenersExceededWarning: Possible EventEmitter memory leak detected. 11 SIGINT listeners added to [process]. MaxListeners is 10. Use emitter.setMaxListeners() to increase limit
+(node:41904) MaxListenersExceededWarning: Possible EventEmitter memory leak detected. 11 SIGTERM listeners added to [process]. MaxListeners is 10. Use emitter.setMaxListeners() to increase limit
+(node:41904) MaxListenersExceededWarning: Possible EventEmitter memory leak detected. 11 SIGHUP listeners added to [process]. MaxListeners is 10. Use emitter.setMaxListeners() to increase limit
+
+Instrumentation complete.
+Processed files: 3
+Modified files: 5
+Formatted files: 0
+  [32m  [32m√[39m[0m[90m should skip if statement instrumentation when no-if flag is used[0m
+Scanning Apex classes in c:\Users\fisch\Projects\Salesforce\rflib-plugin\test_session_1771715442268a35a8bdab5cf893b\force-app\main\default\classes and sub directories
+Running...... done
+(node:41904) MaxListenersExceededWarning: Possible EventEmitter memory leak detected. 11 SIGBREAK listeners added to [process]. MaxListeners is 10. Use emitter.setMaxListeners() to increase limit
+
+Instrumentation complete.
+Processed files: 3
+Modified files: 4
+Formatted files: 0
+  [32m  [32m√[39m[0m[90m should skip instrumented classes when skip-instrumented flag is used[0m
+Scanning Apex classes in c:\Users\fisch\Projects\Salesforce\rflib-plugin\test_session_1771715442268a35a8bdab5cf893b\force-app\main\default\classes and sub directories
+Running...... done
+
+Instrumentation complete.
+Processed files: 2
+Modified files: 4
+Formatted files: 0
+  [32m  [32m√[39m[0m[90m should exclude files matching the exclude pattern[0m
+Scanning Apex classes in c:\Users\fisch\Projects\Salesforce\rflib-plugin\test_session_1771715442268a35a8bdab5cf893b\force-app\main\default\classes and sub directories
+Running...... done
+
+Instrumentation complete.
+Processed files: 3
+Modified files: 5
+Formatted files: 0
+  [32m  [32m√[39m[0m[90m should add logger setup to test classes[0m
+Scanning Apex classes in c:\Users\fisch\Projects\Salesforce\rflib-plugin\test_session_1771715442268a35a8bdab5cf893b\force-app\main\default\classes and sub directories
+Running...... done
+
+Instrumentation complete.
+Processed files: 3
+Modified files: 5
+Formatted files: 5
+  [31m  1) should format modified files when prettier flag is used[0m
+Scanning Apex classes in c:\Users\fisch\Projects\Salesforce\rflib-plugin\test_session_1771715442268a35a8bdab5cf893b\force-app\main\default\classes and sub directories
+Running...... done
+
+Instrumentation complete.
+Processed files: 3
+Modified files: 5
+Formatted files: 0
+  [32m  [32m√[39m[0m[90m should replace System.debug statements with LOGGER.debug[0m
+Scanning Apex classes in c:\Users\fisch\Projects\Salesforce\rflib-plugin\test_session_1771715442268a35a8bdab5cf893b\force-app\main\default\classes and sub directories
+Running...... done
+
+Instrumentation complete.
+Processed files: 3
+Modified files: 5
+Formatted files: 0
+  [32m  [32m√[39m[0m[90m should replace System.debug statements with LoggingLevel overload[0m
+Scanning Apex classes in c:\Users\fisch\Projects\Salesforce\rflib-plugin\test_session_1771715442268a35a8bdab5cf893b\force-app\main\default\classes and sub directories
+Running...... done
+
+Instrumentation complete.
+Processed files: 3
+Modified files: 5
+Formatted files: 0
+  [32m  [32m√[39m[0m[90m should instrument a class without "Test" in the name as a test class if it has @isTest[0m
+Scanning Apex classes in c:\Users\fisch\Projects\Salesforce\rflib-plugin\test_session_1771715442268a35a8bdab5cf893b\force-app\main\default\classes and sub directories
+Running...... done
+
+Instrumentation complete.
+Processed files: 3
+Modified files: 5
+Formatted files: 0
+  [32m  [32m√[39m[0m[90m should instrument a class with "Test" in the name as a normal class if it lacks @isTest[0m
+
+[0m  rflib logging aura instrument[0m
+Starting Aura component instrumentation in c:\Users\fisch\Projects\Salesforce\rflib-plugin\test_session_177171544277330fe4d193226b256\force-app\main\default\aura\sampleComponent
+Running...... done
+
+Instrumentation complete.
+Processed files: 3
+Modified files: 3
+Formatted files: 0
+  [32m  [32m√[39m[0m[90m should add logger component to cmp file[0m
+Starting Aura component instrumentation in c:\Users\fisch\Projects\Salesforce\rflib-plugin\test_session_177171544277330fe4d193226b256\force-app\main\default\aura\sampleComponent
+Running...... done
+
+Instrumentation complete.
+Processed files: 3
+Modified files: 3
+Formatted files: 0
+  [32m  [32m√[39m[0m[90m should accept the concurrency flag[0m
+Starting Aura component instrumentation in c:\Users\fisch\Projects\Salesforce\rflib-plugin\test_session_177171544277330fe4d193226b256\force-app\main\default\aura\sampleComponent
+Running...... done
+
+Instrumentation complete.
+Processed files: 3
+Modified files: 3
+Formatted files: 0
+  [32m  [32m√[39m[0m[90m should add logger initialization to controller methods[0m
+Starting Aura component instrumentation in c:\Users\fisch\Projects\Salesforce\rflib-plugin\test_session_177171544277330fe4d193226b256\force-app\main\default\aura\sampleComponent
+Running...... done
+
+Instrumentation complete.
+Processed files: 3
+Modified files: 3
+Formatted files: 0
+  [32m  [32m√[39m[0m[90m should add logger initialization to helper methods[0m
+Starting Aura component instrumentation in c:\Users\fisch\Projects\Salesforce\rflib-plugin\test_session_177171544277330fe4d193226b256\force-app\main\default\aura\sampleComponent
+Running...... done
+
+Instrumentation complete.
+Processed files: 3
+Modified files: 3
+Formatted files: 0
+  [32m  [32m√[39m[0m[90m should add error logging to catch blocks[0m
+Starting Aura component instrumentation in c:\Users\fisch\Projects\Salesforce\rflib-plugin\test_session_177171544277330fe4d193226b256\force-app\main\default\aura\sampleComponent
+Running...... done
+
+Instrumentation complete.
+Processed files: 3
+Modified files: 3
+Formatted files: 0
+  [32m  [32m√[39m[0m[90m should convert single line if statements to blocks[0m
+Starting Aura component instrumentation in c:\Users\fisch\Projects\Salesforce\rflib-plugin\test_session_177171544277330fe4d193226b256\force-app\main\default\aura\sampleComponent
+Running...... done
+
+Instrumentation complete.
+Processed files: 3
+Modified files: 3
+Formatted files: 0
+  [32m  [32m√[39m[0m[90m should process aura in dry run mode[0m
+Starting Aura component instrumentation in c:\Users\fisch\Projects\Salesforce\rflib-plugin\test_session_177171544277330fe4d193226b256\force-app\main\default\aura\sampleComponent
+Running...... done
+
+Instrumentation complete.
+Processed files: 3
+Modified files: 3
+Formatted files: 2
+  [32m  [32m√[39m[0m[90m should format modified files when prettier flag is used[0m[31m (120ms)[0m
+Starting Aura component instrumentation in c:\Users\fisch\Projects\Salesforce\rflib-plugin\test_session_177171544277330fe4d193226b256\force-app\main\default\aura\sampleComponent
+Running...... done
+
+Instrumentation complete.
+Processed files: 3
+Modified files: 3
+Formatted files: 0
+  [32m  [32m√[39m[0m[90m should skip if statement instrumentation when no-if flag is used[0m
+Starting Aura component instrumentation in c:\Users\fisch\Projects\Salesforce\rflib-plugin\test_session_177171544277330fe4d193226b256\force-app
+Running...... done
+
+Instrumentation complete.
+Processed files: 3
+Modified files: 2
+Formatted files: 0
+  [32m  [32m√[39m[0m[90m should exclude components matching the exclude pattern[0m
+Starting Aura component instrumentation in c:\Users\fisch\Projects\Salesforce\rflib-plugin\test_session_177171544277330fe4d193226b256\force-app
+Running...... done
+
+Instrumentation complete.
+Processed files: 6
+Modified files: 3
+Formatted files: 0
+  [32m  [32m√[39m[0m[90m should skip instrumented components when skip-instrumented flag is used[0m
+Starting Aura component instrumentation in c:\Users\fisch\Projects\Salesforce\rflib-plugin\test_session_177171544277330fe4d193226b256\force-app
+Running...... done
+
+Instrumentation complete.
+Processed files: 6
+Modified files: 3
+Formatted files: 0
+  [32m  [32m√[39m[0m[90m should handle mixed instrumentation states when skip-instrumented flag is used[0m
+Starting Aura component instrumentation in c:\Users\fisch\Projects\Salesforce\rflib-plugin\test_session_177171544277330fe4d193226b256\force-app\main\default\aura\sampleComponent
+Running...... done
+
+Instrumentation complete.
+Processed files: 3
+Modified files: 3
+Formatted files: 0
+  [32m  [32m√[39m[0m[90m should add log statements to if blocks[0m
+Starting Aura component instrumentation in c:\Users\fisch\Projects\Salesforce\rflib-plugin\test_session_177171544277330fe4d193226b256\force-app\main\default\aura\sampleComponent
+Running...... done
+
+Instrumentation complete.
+Processed files: 3
+Modified files: 3
+Formatted files: 0
+  [32m  [32m√[39m[0m[90m should add log statements to else blocks[0m
+Starting Aura component instrumentation in c:\Users\fisch\Projects\Salesforce\rflib-plugin\test_session_177171544277330fe4d193226b256\force-app\main\default\aura\sampleComponent
+Running...... done
+
+Instrumentation complete.
+Processed files: 3
+Modified files: 3
+Formatted files: 0
+  [32m  [32m√[39m[0m[90m should process aura in dry run mode[0m
+Starting Aura component instrumentation in c:\Users\fisch\Projects\Salesforce\rflib-plugin\test_session_177171544277330fe4d193226b256\force-app\main\default\aura\sampleComponent
+Running...... done
+
+Instrumentation complete.
+Processed files: 3
+Modified files: 3
+Formatted files: 2
+  [32m  [32m√[39m[0m[90m should format modified files when prettier flag is used[0m
+Starting Aura component instrumentation in c:\Users\fisch\Projects\Salesforce\rflib-plugin\test_session_177171544277330fe4d193226b256\force-app
+Running...... done
+
+Instrumentation complete.
+Processed files: 6
+Modified files: 3
+Formatted files: 0
+  [32m  [32m√[39m[0m[90m should skip instrumented components when skip-instrumented flag is used[0m
+Starting Aura component instrumentation in c:\Users\fisch\Projects\Salesforce\rflib-plugin\test_session_177171544277330fe4d193226b256\force-app
+Running...... done
+
+Instrumentation complete.
+Processed files: 6
+Modified files: 5
+Formatted files: 0
+  [32m  [32m√[39m[0m[90m should use existing logger var if available[0m
+Starting Aura component instrumentation in c:\Users\fisch\Projects\Salesforce\rflib-plugin\test_session_177171544277330fe4d193226b256\force-app
+Running...... done
+
+Instrumentation complete.
+Processed files: 6
+Modified files: 5
+Formatted files: 0
+  [32m  [32m√[39m[0m[90m should replace console log statements in functions[0m
+Starting Aura component instrumentation in c:\Users\fisch\Projects\Salesforce\rflib-plugin\test_session_177171544277330fe4d193226b256\force-app
+Running...... done
+
+Instrumentation complete.
+Processed files: 6
+Modified files: 5
+Formatted files: 0
+  [32m  [32m√[39m[0m[90m should replace console log statements in promises[0m
+
+[0m  rflib logging flow instrument[0m
+[0m    command execution[0m
+    [32m  [32m√[39m[0m[90m should scan flow files in the specified directory[0m
+    [32m  [32m√[39m[0m[90m should accept the concurrency flag[0m
+    [32m  [32m√[39m[0m[90m should respect the skip-instrumented flag[0m
+    [32m  [32m√[39m[0m[90m should pass the dry-run flag correctly[0m
+    [32m  [32m√[39m[0m[90m should respect the exclude flag[0m
+[0m    FlowInstrumentationService[0m
+    [32m  [32m√[39m[0m[90m should correctly parse flow XML content[0m
+    [32m  [32m√[39m[0m[90m should detect when a flow already has RFLIB logging[0m
+    [32m  [32m√[39m[0m[90m should detect supported process types correctly[0m
+    [32m  [32m√[39m[0m[90m should build flow XML content correctly[0m
+    [32m  [32m√[39m[0m[90m should handle error cases gracefully[0m
+    [32m  [32m√[39m[0m[90m should enhance logging with variables when available[0m
+[0m    instrumentFlow[0m
+    [32m  [32m√[39m[0m[90m should add logging to a flow without existing logger[0m
+    [32m  [32m√[39m[0m[90m should respect skipInstrumented flag when instrumenting flows[0m
+    [32m  [32m√[39m[0m[90m should add logging to decision outcomes[0m
+    [32m  [32m√[39m[0m[90m should ensure logger names are less than 80 characters and follow Salesforce naming rules[0m
+[0m      CanvasMode functionality[0m
+      [32m  [32m√[39m[0m[90m should set CanvasMode to AUTO_LAYOUT_CANVAS when instrumenting a flow without existing CanvasMode[0m
+      [32m  [32m√[39m[0m[90m should update existing CanvasMode to AUTO_LAYOUT_CANVAS[0m
+      [32m  [32m√[39m[0m[90m should update CanvasMode from FREE_FORM_CANVAS to AUTO_LAYOUT_CANVAS using the sample file[0m
+      [32m  [32m√[39m[0m[90m should correctly instrument an AutoLaunchedFlow with start element[0m
+      [32m  [32m√[39m[0m[90m should correctly handle a flow with no processMetadataValues[0m
+      [32m  [32m√[39m[0m[90m should maintain existing AUTO_LAYOUT_CANVAS setting[0m
+      [32m  [32m√[39m[0m[90m should handle a flow with single processMetadataValue (non-array)[0m
+[0m    Flow XML structure[0m
+    [32m  [32m√[39m[0m[90m should place actionCalls as first element in Flow XML[0m
+
+[0m  rflib logging lwc instrument[0m
+Scanning LWC components in c:\Users\fisch\Projects\Salesforce\rflib-plugin\test_session_1771715443565b1628ccab392e8bb\force-app\main\default\lwc...
+Running...... done
+
+Instrumentation complete.
+Processed files: 2
+Modified files: 2
+Formatted files: 0
+  [32m  [32m√[39m[0m[90m should add logger import and initialization[0m
+Scanning LWC components in c:\Users\fisch\Projects\Salesforce\rflib-plugin\test_session_1771715443565b1628ccab392e8bb\force-app\main\default\lwc...
+Running...... done
+
+Instrumentation complete.
+Processed files: 2
+Modified files: 2
+Formatted files: 0
+  [32m  [32m√[39m[0m[90m should accept the concurrency flag[0m
+Scanning LWC components in c:\Users\fisch\Projects\Salesforce\rflib-plugin\test_session_1771715443565b1628ccab392e8bb\force-app\main\default\lwc...
+Running...... done
+
+Instrumentation complete.
+Processed files: 2
+Modified files: 2
+Formatted files: 0
+  [32m  [32m√[39m[0m[90m should add entry logging to methods with parameters[0m
+Scanning LWC components in c:\Users\fisch\Projects\Salesforce\rflib-plugin\test_session_1771715443565b1628ccab392e8bb\force-app\main\default\lwc...
+Running...... done
+
+Instrumentation complete.
+Processed files: 2
+Modified files: 2
+Formatted files: 0
+  [32m  [32m√[39m[0m[90m should add logging to promise then blocks[0m
+Scanning LWC components in c:\Users\fisch\Projects\Salesforce\rflib-plugin\test_session_1771715443565b1628ccab392e8bb\force-app\main\default\lwc...
+Running...... done
+
+Instrumentation complete.
+Processed files: 2
+Modified files: 2
+Formatted files: 0
+  [32m  [32m√[39m[0m[90m should add logging to promise catch blocks[0m
+Scanning LWC components in c:\Users\fisch\Projects\Salesforce\rflib-plugin\test_session_1771715443565b1628ccab392e8bb\force-app\main\default\lwc...
+Running...... done
+
+Instrumentation complete.
+Processed files: 2
+Modified files: 2
+Formatted files: 0
+  [32m  [32m√[39m[0m[90m should add logging to promise finally blocks[0m
+Scanning LWC components in c:\Users\fisch\Projects\Salesforce\rflib-plugin\test_session_1771715443565b1628ccab392e8bb\force-app\main\default\lwc...
+Running...... done
+
+Instrumentation complete.
+Processed files: 2
+Modified files: 2
+Formatted files: 0
+  [32m  [32m√[39m[0m[90m should handle single line promise chains[0m
+Scanning LWC components in c:\Users\fisch\Projects\Salesforce\rflib-plugin\test_session_1771715443565b1628ccab392e8bb\force-app\main\default\lwc...
+Running...... done
+
+Instrumentation complete.
+Processed files: 2
+Modified files: 2
+Formatted files: 0
+  [32m  [32m√[39m[0m[90m should handle template literals in promise chains[0m
+Scanning LWC components in c:\Users\fisch\Projects\Salesforce\rflib-plugin\test_session_1771715443565b1628ccab392e8bb\force-app\main\default\lwc...
+Running...... done
+
+Instrumentation complete.
+Processed files: 2
+Modified files: 2
+Formatted files: 0
+  [32m  [32m√[39m[0m[90m should add log statements to if blocks[0m
+Scanning LWC components in c:\Users\fisch\Projects\Salesforce\rflib-plugin\test_session_1771715443565b1628ccab392e8bb\force-app\main\default\lwc...
+Running...... done
+
+Instrumentation complete.
+Processed files: 2
+Modified files: 2
+Formatted files: 0
+  [32m  [32m√[39m[0m[90m should convert single line if statements to blocks[0m
+Scanning LWC components in c:\Users\fisch\Projects\Salesforce\rflib-plugin\test_session_1771715443565b1628ccab392e8bb\force-app\main\default\lwc...
+Running...... done
+
+Instrumentation complete.
+Processed files: 2
+Modified files: 2
+Formatted files: 0
+  [32m  [32m√[39m[0m[90m should add log statements to else blocks[0m
+Scanning LWC components in c:\Users\fisch\Projects\Salesforce\rflib-plugin\test_session_1771715443565b1628ccab392e8bb\force-app\main\default\lwc...
+Running...... done
+
+Instrumentation complete.
+Processed files: 2
+Modified files: 2
+Formatted files: 0
+  [32m  [32m√[39m[0m[90m should process lwc in dry run mode[0m
+Scanning LWC components in c:\Users\fisch\Projects\Salesforce\rflib-plugin\test_session_1771715443565b1628ccab392e8bb\force-app\main\default\lwc...
+Running...... done
+
+Instrumentation complete.
+Processed files: 2
+Modified files: 2
+Formatted files: 2
+  [32m  [32m√[39m[0m[90m should format modified files when prettier flag is used[0m[33m (51ms)[0m
+Scanning LWC components in c:\Users\fisch\Projects\Salesforce\rflib-plugin\test_session_1771715443565b1628ccab392e8bb\force-app\main\default\lwc...
+Running...... done
+
+Instrumentation complete.
+Processed files: 2
+Modified files: 2
+Formatted files: 0
+  [32m  [32m√[39m[0m[90m should skip if statement instrumentation when no-if flag is used[0m
+Scanning LWC components in c:\Users\fisch\Projects\Salesforce\rflib-plugin\test_session_1771715443565b1628ccab392e8bb\force-app\main\default\lwc...
+Running...... done
+
+Instrumentation complete.
+Processed files: 1
+Modified files: 1
+Formatted files: 0
+  [32m  [32m√[39m[0m[90m should exclude files matching the exclude pattern[0m
+Scanning LWC components in c:\Users\fisch\Projects\Salesforce\rflib-plugin\test_session_1771715443565b1628ccab392e8bb\force-app\main\default\lwc...
+Running...... done
+
+Instrumentation complete.
+Processed files: 2
+Modified files: 1
+Formatted files: 0
+  [32m  [32m√[39m[0m[90m should skip already instrumented files when skip-instrumented flag is used[0m
+Scanning LWC components in c:\Users\fisch\Projects\Salesforce\rflib-plugin\test_session_1771715443565b1628ccab392e8bb\force-app\main\default\lwc...
+Running...... done
+
+Instrumentation complete.
+Processed files: 2
+Modified files: 2
+Formatted files: 0
+  [32m  [32m√[39m[0m[90m should process all files when skip-instrumented flag is not used[0m
+Scanning LWC components in c:\Users\fisch\Projects\Salesforce\rflib-plugin\test_session_1771715443565b1628ccab392e8bb\force-app\main\default\lwc...
+Running...... done
+
+Instrumentation complete.
+Processed files: 2
+Modified files: 2
+Formatted files: 0
+  [32m  [32m√[39m[0m[90m should replace console log statements in functions[0m
+
+[0m  concurrency[0m
+  [32m  [32m√[39m[0m[90m should process all items with correct concurrency[0m[33m (48ms)[0m
+  [32m  [32m√[39m[0m[90m should handle empty lists[0m
+  [32m  [32m√[39m[0m[90m should handle zero or negative concurrency limits by defaulting to 1[0m[33m (45ms)[0m
+  [32m  [32m√[39m[0m[90m should propagate errors from the action[0m
+
+
+[92m [0m[32m 82 passing[0m[90m (2s)[0m
+[31m  1 failing[0m
+
+[0m  1) rflib logging apex instrument
+       should format modified files when prettier flag is used:
+
+      [31mAssertionError: expected 5 to equal 3[0m
+      [32m+ expected[0m [31m- actual[0m
+
+      [31m-5[0m
+      [32m+3[0m
+      [0m[90m
+      at Context.<anonymous> (file:///c:/Users/fisch/Projects/Salesforce/rflib-plugin/test/commands/rflib/logging/apex/instrument.test.ts:160:42)
+[0m
+
+
+-----------------------------|---------|----------|---------|---------|-----------------------------
+File                         | % Stmts | % Branch | % Funcs | % Lines | Uncovered Line #s           
+-----------------------------|---------|----------|---------|---------|-----------------------------
+[32;1mAll files                   [0m | [32;1m  88.25[0m | [32;1m   80.22[0m | [32;1m  94.52[0m | [32;1m  88.25[0m | [31;1m                           [0m 
+[32;1m commands/rflib/logging/apex[0m | [32;1m  96.53[0m | [32;1m   83.69[0m | [32;1m    100[0m | [32;1m  96.53[0m | [31;1m                           [0m 
+[32;1m  instrument.ts             [0m | [32;1m  96.53[0m | [32;1m   83.69[0m | [32;1m    100[0m | [32;1m  96.53[0m | [31;1m...,429-430,448-450,515-517[0m 
+[32;1m commands/rflib/logging/aura[0m | [32;1m  96.56[0m | [32;1m      84[0m | [32;1m    100[0m | [32;1m  96.56[0m | [31;1m                           [0m 
+[32;1m  instrument.ts             [0m | [32;1m  96.56[0m | [32;1m      84[0m | [32;1m    100[0m | [32;1m  96.56[0m | [31;1m...,349-351,356-358,387-388[0m 
+[33;1m commands/rflib/logging/flow[0m | [33;1m  75.87[0m | [33;1m   75.72[0m | [32;1m     85[0m | [33;1m  75.87[0m | [31;1m                           [0m 
+[33;1m  instrument.ts             [0m | [33;1m  75.87[0m | [33;1m   75.72[0m | [32;1m     85[0m | [33;1m  75.87[0m | [31;1m...,668-703,706-731,734-774[0m 
+[32;1m commands/rflib/logging/lwc [0m | [32;1m   97.4[0m | [33;1m   78.87[0m | [32;1m    100[0m | [32;1m   97.4[0m | [31;1m                           [0m 
+[32;1m  instrument.ts             [0m | [32;1m   97.4[0m | [33;1m   78.87[0m | [32;1m    100[0m | [32;1m   97.4[0m | [31;1m...,193-194,335-336,382-384[0m 
+[33;1m shared                     [0m | [33;1m  69.07[0m | [33;1m   77.77[0m | [32;1m     80[0m | [33;1m  69.07[0m | [31;1m                           [0m 
+[32;1m  concurrency.ts            [0m | [32;1m    100[0m | [32;1m     100[0m | [32;1m    100[0m | [32;1m    100[0m | [33;1m                           [0m 
+[33;1m  formatting.ts             [0m | [33;1m  77.96[0m | [33;1m   72.72[0m | [32;1m    100[0m | [33;1m  77.96[0m | [31;1m11-15,46-51,55-56          [0m 
+[31;1m  types.ts                  [0m | [31;1m      0[0m | [31;1m       0[0m | [31;1m      0[0m | [31;1m      0[0m | [31;1m1-17                       [0m 
+-----------------------------|---------|----------|---------|---------|-----------------------------
+❌ 1 script failed.
+error Command failed with exit code 1.
+info Visit https://yarnpkg.com/en/docs/cli/run for documentation about this command.
