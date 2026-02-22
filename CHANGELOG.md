@@ -1,3 +1,12 @@
+## [0.16.1](https://github.com/j-fischer/rflib-plugin/compare/0.16.0...0.16.1) (2026-02-22)
+
+
+### Bug Fixes
+
+* **apex:** change test class detection to use annotation ([#174](https://github.com/j-fischer/rflib-plugin/issues/174)) ([3a6c37d](https://github.com/j-fischer/rflib-plugin/commit/3a6c37d5859de2d7937c1ebbf277f57dffa0e5c3))
+
+
+
 # [0.16.0](https://github.com/j-fischer/rflib-plugin/compare/0.15.0...0.16.0) (2026-02-21)
 
 
