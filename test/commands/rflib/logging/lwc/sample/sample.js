@@ -66,4 +66,16 @@ export default class SampleComponent extends LightningElement {
     var anObject = {};
     console.log(anObject);
   }
+
+  testArrowFunction = () => {
+    console.log('Arrow function');
+  }
+
+  testArrowFunctionWithArgs = (arg1, arg2) => {
+    console.log('Arrow function with args');
+  }
+
+  testArrowFunctionAsync = async () => {
+    console.log('Async arrow function');
+  }
 }
