@@ -280,6 +280,7 @@ export default class RflibLoggingLwcInstrument extends SfCommand<RflibLoggingLwc
     const instrumentationOpts: InstrumentationOptions = {
       prettier: flags.prettier,
       noIf: flags['no-if'],
+      noCatch: false,
       skipInstrumented: flags['skip-instrumented'],
       verbose: flags.verbose,
       exclude: flags.exclude,

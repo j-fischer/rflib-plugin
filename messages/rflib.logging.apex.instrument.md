@@ -45,6 +45,14 @@ Exclude the instrumentation of if-else statements.
 When provided, the command will not add log statements inside of `if` and `else` blocks.
 
 
+# flags.no-catch.summary
+
+Exclude the instrumentation of catch blocks.
+
+# flags.no-catch.description
+
+When provided, the command will not add error log statements inside of `catch` blocks.
+
 # flags.skip-instrumented.summary
 
 Skips any files where a logger is already present.
