@@ -97,6 +97,7 @@
     "postpack": "sf-clean --ignore-signing-artifacts",
     "prepack": "sf-prepack",
     "test": "wireit",
+    "test:e2e": "node --loader ts-node/esm --no-warnings=ExperimentalWarning scripts/e2e-test.ts",
     "test:nuts": "wireit",
     "test:only": "wireit",
     "version": "oclif readme",
