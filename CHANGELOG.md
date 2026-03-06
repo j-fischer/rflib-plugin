@@ -1,3 +1,22 @@
+## [0.17.1](https://github.com/j-fischer/rflib-plugin/compare/0.17.0...0.17.1) (2026-03-06)
+
+
+### Bug Fixes
+
+* **deps:** bump @salesforce/core from 8.26.2 to 8.26.3 ([#180](https://github.com/j-fischer/rflib-plugin/issues/180)) ([580cb75](https://github.com/j-fischer/rflib-plugin/commit/580cb75138ec707495341dad980a02b0784b61a1))
+* **deps:** bump minimatch from 10.2.2 to 10.2.4 ([#177](https://github.com/j-fischer/rflib-plugin/issues/177)) ([c0a82b7](https://github.com/j-fischer/rflib-plugin/commit/c0a82b75d2ba1c3e52fcab810b887f2467fe8507))
+
+
+
+# [0.17.0](https://github.com/j-fischer/rflib-plugin/compare/0.16.1...0.17.0) (2026-03-06)
+
+
+### Features
+
+* add --no-catch flag to skip catch block instrumentation ([#181](https://github.com/j-fischer/rflib-plugin/issues/181)) ([5713191](https://github.com/j-fischer/rflib-plugin/commit/5713191976256889a78868c533b82a4edd7ff05c)), closes [#12](https://github.com/j-fischer/rflib-plugin/issues/12)
+
+
+
 ## [0.16.1](https://github.com/j-fischer/rflib-plugin/compare/0.16.0...0.16.1) (2026-02-22)
 
 

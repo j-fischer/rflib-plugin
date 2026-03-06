@@ -216,7 +216,7 @@ Both `createDecisionPathLogger` and `createLoggingAction` construct nearly ident
 | 5 | Apex, LWC, Aura | Functionality | Medium | To do |
 | 6 | All | UX | Low | To do |
 | 8 | Apex | Stability | High | Done |
-| 9 | Apex | Functionality | Low | To do |
+| 9 | Apex | Functionality | Low | Done |
 | 10 | Apex | Stability | Medium | To do |
 | 11 | LWC | Functionality | Medium | To do |
 | 12 | LWC | Stability | High | Done |

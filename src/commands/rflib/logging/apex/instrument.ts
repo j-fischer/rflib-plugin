@@ -326,6 +326,11 @@ export default class RflibLoggingApexInstrument extends SfCommand<RflibLoggingAp
       description: messages.getMessage('flags.no-if.description'),
       default: false,
     }),
+    'no-catch': Flags.boolean({
+      summary: messages.getMessage('flags.no-catch.summary'),
+      description: messages.getMessage('flags.no-catch.description'),
+      default: false,
+    }),
     'skip-instrumented': Flags.boolean({
       summary: messages.getMessage('flags.skip-instrumented.summary'),
       description: messages.getMessage('flags.skip-instrumented.description'),
@@ -369,6 +374,7 @@ export default class RflibLoggingApexInstrument extends SfCommand<RflibLoggingAp
     const instrumentationOpts: InstrumentationOptions = {
       prettier: flags.prettier,
       noIf: flags['no-if'],
+      noCatch: flags['no-catch'],
       skipInstrumented: flags['skip-instrumented'],
       verbose: flags.verbose,
       exclude: flags.exclude,
@@ -492,7 +498,10 @@ export default class RflibLoggingApexInstrument extends SfCommand<RflibLoggingAp
       fileContent = ApexInstrumentationService.addLoggerDeclaration(fileContent, className);
       fileContent = ApexInstrumentationService.processMethodDeclarations(fileContent, variableName);
       fileContent = ApexInstrumentationService.processSystemDebugStatements(fileContent, variableName);
-      fileContent = ApexInstrumentationService.processCatchBlocks(fileContent, variableName);
+
+      if (!instrumentationOpts.noCatch) {
+        fileContent = ApexInstrumentationService.processCatchBlocks(fileContent, variableName);
+      }
 
       if (!instrumentationOpts.noIf) {
         fileContent = ApexInstrumentationService.processIfStatements(fileContent, variableName);

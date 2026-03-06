@@ -168,6 +168,24 @@ describe('rflib logging apex instrument', () => {
     expect(contentWithNoIf).not.to.include("LOGGER.debug('else for if");
   });
 
+  it('should skip catch block instrumentation when no-catch flag is used', async () => {
+    // Reset the test file
+    fs.writeFileSync(sampleClassPath, originalContent);
+
+    await RflibLoggingApexInstrument.run(['--sourcepath', testDir, '--no-catch']);
+
+    const contentWithNoCatch = fs.readFileSync(sampleClassPath, 'utf8');
+
+    // Should still have method entry logging
+    expect(contentWithNoCatch).to.include("LOGGER.info('getRecords({0}, {1})'");
+
+    // Should still have if statement logging
+    expect(contentWithNoCatch).to.include("LOGGER.debug('if (filter == null)");
+
+    // Should not have catch block error logging
+    expect(contentWithNoCatch).not.to.include("LOGGER.error('An error occurred in processRecord()', ex);");
+  });
+
   it('should skip instrumented classes when skip-instrumented flag is used', async () => {
     await RflibLoggingApexInstrument.run(['--sourcepath', testDir, '--skip-instrumented']);
 
