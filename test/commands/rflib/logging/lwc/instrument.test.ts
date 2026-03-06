@@ -244,4 +244,13 @@ describe('rflib logging lwc instrument', () => {
     // IIFE assignments like `data = (() => { ... })();` must not be treated as methods
     expect(modifiedContent).not.to.include("logger.info('data(");
   });
+
+  it('should not instrument module-level arrow functions', async () => {
+    await RflibLoggingLwcInstrument.run(['--sourcepath', testDir]);
+    const modifiedContent = fs.readFileSync(sampleComponentPath, 'utf8');
+
+    // Module level variables should not be treated as methods
+    expect(modifiedContent).not.to.include("logger.info('localHelper(");
+    expect(modifiedContent).not.to.include("logger.info('exportedHelper(");
+  });
 });

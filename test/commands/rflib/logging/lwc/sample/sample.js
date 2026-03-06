@@ -1,5 +1,13 @@
 import { LightningElement } from 'lwc';
 
+const localHelper = () => {
+    console.log('local module helper');
+};
+
+export const exportedHelper = (data) => {
+    return data;
+};
+
 export default class SampleComponent extends LightningElement {
   isEnabled = false;
   loading = false;
