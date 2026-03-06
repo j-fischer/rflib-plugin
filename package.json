@@ -7,7 +7,7 @@
     "@salesforce/core": "^8.26.2",
     "@salesforce/sf-plugins-core": "^12.2.6",
     "@types/xml2js": "^0.4.14",
-    "minimatch": "^10.2.2",
+    "minimatch": "^10.2.4",
     "prettier": "^3.8.1",
     "prettier-plugin-apex": "^2.2.6",
     "wireit": "^0.14.12",
