@@ -62,7 +62,16 @@ async function main() {
 
   if (fs.existsSync(DEMO_DIR)) {
     console.log('Cleaning up existing demo directory...');
-    fs.rmSync(DEMO_DIR, { recursive: true, force: true });
+    try {
+      fs.rmSync(DEMO_DIR, { recursive: true, force: true });
+    } catch (e: any) {
+      console.log(`Fallback cleanup due to: ${e.message}`);
+      if (process.platform === 'win32') {
+        runCmd('cmd.exe', ['/c', 'rmdir', '/s', '/q', DEMO_DIR]);
+      } else {
+        runCmd('rm', ['-rf', DEMO_DIR]);
+      }
+    }
   }
   if (!fs.existsSync(TMP_DIR)) {
     fs.mkdirSync(TMP_DIR);
