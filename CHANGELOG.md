@@ -1,3 +1,12 @@
+# [0.17.0](https://github.com/j-fischer/rflib-plugin/compare/0.16.1...0.17.0) (2026-03-06)
+
+
+### Features
+
+* add --no-catch flag to skip catch block instrumentation ([#181](https://github.com/j-fischer/rflib-plugin/issues/181)) ([5713191](https://github.com/j-fischer/rflib-plugin/commit/5713191976256889a78868c533b82a4edd7ff05c)), closes [#12](https://github.com/j-fischer/rflib-plugin/issues/12)
+
+
+
 ## [0.16.1](https://github.com/j-fischer/rflib-plugin/compare/0.16.0...0.16.1) (2026-02-22)
 
 
