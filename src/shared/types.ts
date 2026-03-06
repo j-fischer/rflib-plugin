@@ -1,6 +1,7 @@
 export type InstrumentationOptions = {
   readonly prettier: boolean;
   readonly noIf: boolean;
+  readonly noCatch: boolean;
   readonly skipInstrumented: boolean;
   readonly verbose: boolean;
   readonly exclude?: string;

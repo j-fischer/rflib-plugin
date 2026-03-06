@@ -60,4 +60,19 @@ export default class SampleComponent extends LightningElement {
       }) // checkUserPermissions must complete before the settings are loaded
       .finally(() => this.loadCustomSettings());
   }
+
+  testArrowFunction = () => {
+        this.logger.info('testArrowFunction()');
+    this.logger.debug('Arrow function');
+  }
+
+  testArrowFunctionWithArgs = (arg1, arg2) => {
+        this.logger.info('testArrowFunctionWithArgs({0}, {1})', arg1, arg2);
+    this.logger.debug('Arrow function with args');
+  }
+
+  testArrowFunctionAsync = async () => {
+        this.logger.info('testArrowFunctionAsync()');
+    this.logger.debug('Async arrow function');
+  }
 }
