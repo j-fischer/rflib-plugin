@@ -1538,10 +1538,10 @@
     wordwrap "^1.0.0"
     wrap-ansi "^7.0.0"
 
-"@oclif/plugin-command-snapshot@^5.3.10":
-  version "5.3.10"
-  resolved "https://registry.yarnpkg.com/@oclif/plugin-command-snapshot/-/plugin-command-snapshot-5.3.10.tgz#7146eccb3ec4f66fb27bf5a362add7d0697ba2b1"
-  integrity sha512-pGKxLQzE3NYsl63WmwiCndrskKFsQXZ8P5trvycqGHJ1YmffL4xPpfiDcMtiKuK0MX2vSnTkQ0k7n5kchmx+vA==
+"@oclif/plugin-command-snapshot@^5.3.11":
+  version "5.3.11"
+  resolved "https://registry.yarnpkg.com/@oclif/plugin-command-snapshot/-/plugin-command-snapshot-5.3.11.tgz#d844efb206856cd7475b763e5c815301ced421a8"
+  integrity sha512-GlSVuVs7wwx0Yoa4U6MXTTJIjWhXmXx5Mzh8zPebjzHARNKTeozQMxMnWCW7p0b6QAYl6XUnTng/usQ8GAxtVA==
   dependencies:
     "@oclif/core" "^4"
     ansis "^3.17.0"
@@ -6219,13 +6219,6 @@ minimatch@9.0.3:
   integrity sha512-RHiac9mvaRw0x3AYRgDC1CxAP7HTcNrrECeA8YYJeWnpo+2Q5CegtZjaotWTWxDG3UeGA1coE05iH1mPjT/2mg==
   dependencies:
     brace-expansion "^2.0.1"
-
-minimatch@^10.2.4:
-  version "10.2.4"
-  resolved "https://registry.yarnpkg.com/minimatch/-/minimatch-10.2.4.tgz#465b3accbd0218b8281f5301e27cedc697f96fde"
-  integrity sha512-oRjTw/97aTBN0RHbYCdtF1MQfvusSIBQM0IZEgzl6426+8jSC0nF1a/GmnVLpfB9yyr6g6FTqWqiZVbxrtaCIg==
-  dependencies:
-    brace-expansion "^5.0.2"
 
 minimatch@^10.2.4:
   version "10.2.4"
