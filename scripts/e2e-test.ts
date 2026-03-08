@@ -104,10 +104,13 @@ async function main() {
   const sourcePath = path.join(DEMO_DIR, 'force-app');
 
   // Instrumentation commands based on user request (with --prettier flag)
-  runCmd('sf', ['rflib', 'logging', 'apex', 'instrument', '--sourcepath', sourcePath, '--prettier']);
-  runCmd('sf', ['rflib', 'logging', 'aura', 'instrument', '--sourcepath', sourcePath, '--prettier']);
-  runCmd('sf', ['rflib', 'logging', 'lwc', 'instrument', '--sourcepath', sourcePath, '--prettier']);
-  runCmd('sf', ['rflib', 'logging', 'flow', 'instrument', '--sourcepath', sourcePath]);
+  const devExecutable = path.resolve('bin', 'dev.js');
+  const nodeArgs = ['--loader', 'ts-node/esm', '--no-warnings=ExperimentalWarning', devExecutable];
+
+  runCmd('node', [...nodeArgs, 'rflib', 'logging', 'apex', 'instrument', '--sourcepath', sourcePath, '--prettier']);
+  runCmd('node', [...nodeArgs, 'rflib', 'logging', 'aura', 'instrument', '--sourcepath', sourcePath, '--prettier']);
+  runCmd('node', [...nodeArgs, 'rflib', 'logging', 'lwc', 'instrument', '--sourcepath', sourcePath, '--prettier']);
+  runCmd('node', [...nodeArgs, 'rflib', 'logging', 'flow', 'instrument', '--sourcepath', sourcePath]);
 
   console.log('Deploying instrumented demo source...');
   // Notice --ignore-conflicts might be needed again or not depending on scratch org tracking,
