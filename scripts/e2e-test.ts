@@ -5,7 +5,7 @@ import * as path from 'node:path';
 import * as https from 'node:https';
 
 const TMP_DIR = path.resolve('tmp');
-const DEMO_DIR = path.join(TMP_DIR, 'rflib-demo');
+const DEFAULT_REPO_URL = 'https://github.com/j-fischer/rflib-demo.git';
 
 function runCmd(cmd: string, args: string[], cwd?: string, abortOnError = true): void {
   console.log(`Executing: ${cmd} ${args.join(' ')}`);
@@ -57,12 +57,28 @@ async function askQuestion(query: string): Promise<string> {
   return answer;
 }
 
+function getArgValue(flag: string): string | undefined {
+  const idx = process.argv.indexOf(flag);
+  return idx !== -1 ? process.argv[idx + 1] : undefined;
+}
+
 async function main() {
   const isAutoCleanup = process.argv.includes('--auto-cleanup');
+  const useDefaultDevHub = process.argv.includes('--default-devhub');
 
-  const devHubAlias = await askQuestion('Enter DevHub alias (leave empty for default): ');
+  const repoUrl = getArgValue('--repo-url') ?? DEFAULT_REPO_URL;
+  const repoDirName = path.basename(repoUrl, '.git');
+  const DEMO_DIR = path.join(TMP_DIR, repoDirName);
+
+  const devHubAlias = useDefaultDevHub
+    ? ''
+    : await askQuestion('Enter DevHub alias (leave empty for default): ');
+
   const scratchOrgAlias = 'rflib-e2e-org';
   console.log(`Using scratch org alias: ${scratchOrgAlias}`);
+  if (useDefaultDevHub) {
+    console.log('Using default DevHub org.');
+  }
 
   if (fs.existsSync(DEMO_DIR)) {
     console.log('Demo directory already exists. Skipping org creation and package installation...');
@@ -73,8 +89,8 @@ async function main() {
     if (!fs.existsSync(TMP_DIR)) {
       fs.mkdirSync(TMP_DIR);
     }
-    console.log('Cloning rflib-demo...');
-    runCmd('git', ['clone', 'https://github.com/j-fischer/rflib-demo.git', DEMO_DIR]);
+    console.log(`Cloning ${repoUrl}...`);
+    runCmd('git', ['clone', repoUrl, DEMO_DIR]);
 
     console.log('Creating scratch org...');
     const orgCreateArgs = ['org', 'create', 'scratch', '-a', scratchOrgAlias, '-d', '-f', 'config/project-scratch-def.json', '-y', '1'];
