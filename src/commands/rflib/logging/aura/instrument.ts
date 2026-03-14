@@ -21,8 +21,8 @@ const messages = Messages.loadMessages('rflib-plugin', 'rflib.logging.aura.instr
 
 class AuraInstrumentationService {
   public static readonly ATTRIBUTE_REGEX = /<aura:attribute[^>]*>/g;
-  public static readonly LOGGER_COMPONENT_REGEX =
-    /<c:rflibLoggerCmp\s+aura:id="([^"]+)"\s+name="([^"]+)"\s+appendComponentId="([^"]+)"\s*\/>/;
+  public static readonly LOGGER_COMPONENT_REGEX = /<c:rflibLoggerCmp\b[^>]*\/?>/i;
+  public static readonly LOGGER_AURA_ID_REGEX = /aura:id=["']([^"']+)["']/;
 
   public static readonly PRETTIER_CONFIG: prettier.Options = {
     parser: 'babel',
@@ -367,7 +367,8 @@ export default class RflibLoggingAuraInstrument extends SfCommand<RflibLoggingAu
 
     const loggerMatch = content.match(AuraInstrumentationService.LOGGER_COMPONENT_REGEX);
     if (loggerMatch) {
-      return loggerMatch[1];
+      const idMatch = loggerMatch[0].match(AuraInstrumentationService.LOGGER_AURA_ID_REGEX);
+      return idMatch ? idMatch[1] : 'logger';
     }
 
     const lastAttributeMatch = [...content.matchAll(AuraInstrumentationService.ATTRIBUTE_REGEX)].pop();

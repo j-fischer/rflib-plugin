@@ -1,0 +1,10 @@
+<aura:component>
+    <!-- attributes out of order to test regex leniency -->
+    <c:rflibLoggerCmp appendComponentId="false" name="outOfOrderSample" aura:id="outOfOrderLogger" />
+    
+    <aura:attribute name="myString" type="String" />
+
+    <div>
+        Hello World
+    </div>
+</aura:component>

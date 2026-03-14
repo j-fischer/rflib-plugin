@@ -32,6 +32,11 @@ describe('rflib logging aura instrument', () => {
       cmp: string;
       controller: string;
     };
+    outOfOrder: {
+      dir: string;
+      cmp: string;
+      controller: string;
+    };
   };
   let originalContent: { [key: string]: string };
 
@@ -58,12 +63,18 @@ describe('rflib logging aura instrument', () => {
         cmp: '',
         controller: '',
       },
+      outOfOrder: {
+        dir: path.join(sourceDir, 'main', 'default', 'aura', 'outOfOrderSample'),
+        cmp: '',
+        controller: '',
+      },
     };
 
     // Create component directories
     fs.mkdirSync(paths.sample.dir, { recursive: true });
     fs.mkdirSync(paths.instrumented.dir, { recursive: true });
     fs.mkdirSync(paths.noAttribute.dir, { recursive: true });
+    fs.mkdirSync(paths.outOfOrder.dir, { recursive: true });
 
     // Set file paths
     paths.sample.cmp = path.join(paths.sample.dir, 'sampleComponent.cmp');
@@ -76,6 +87,9 @@ describe('rflib logging aura instrument', () => {
 
     paths.noAttribute.cmp = path.join(paths.noAttribute.dir, 'noAttributeComponent.cmp');
     paths.noAttribute.controller = path.join(paths.noAttribute.dir, 'noAttributeComponentController.js');
+
+    paths.outOfOrder.cmp = path.join(paths.outOfOrder.dir, 'outOfOrderSample.cmp');
+    paths.outOfOrder.controller = path.join(paths.outOfOrder.dir, 'outOfOrderSampleController.js');
 
     // Load original content
     originalContent = {
@@ -96,6 +110,11 @@ describe('rflib logging aura instrument', () => {
         path.join(__dirname, 'noAttributeSample', 'noAttributeSampleController.js'),
         'utf8',
       ),
+      outOfOrderCmp: fs.readFileSync(path.join(__dirname, 'outOfOrderSample', 'outOfOrderSample.cmp'), 'utf8'),
+      outOfOrderController: fs.readFileSync(
+        path.join(__dirname, 'outOfOrderSample', 'outOfOrderSampleController.js'),
+        'utf8',
+      ),
     };
 
     // Write sample files
@@ -107,6 +126,8 @@ describe('rflib logging aura instrument', () => {
     fs.writeFileSync(paths.instrumented.helper, originalContent.instrumentedHelper);
     fs.writeFileSync(paths.noAttribute.cmp, originalContent.noAttributeCmp);
     fs.writeFileSync(paths.noAttribute.controller, originalContent.noAttributeController);
+    fs.writeFileSync(paths.outOfOrder.cmp, originalContent.outOfOrderCmp);
+    fs.writeFileSync(paths.outOfOrder.controller, originalContent.outOfOrderController);
   });
 
   beforeEach(() => {
@@ -119,6 +140,8 @@ describe('rflib logging aura instrument', () => {
     fs.writeFileSync(paths.instrumented.helper, originalContent.instrumentedHelper);
     fs.writeFileSync(paths.noAttribute.cmp, originalContent.noAttributeCmp);
     fs.writeFileSync(paths.noAttribute.controller, originalContent.noAttributeController);
+    fs.writeFileSync(paths.outOfOrder.cmp, originalContent.outOfOrderCmp);
+    fs.writeFileSync(paths.outOfOrder.controller, originalContent.outOfOrderController);
   });
 
   afterEach(function () {
@@ -380,5 +403,21 @@ describe('rflib logging aura instrument', () => {
     expect(instrumentedController).to.include("customLogger.error('An error occurred in testIfInstrumentationWithCustomLoggerVar', err);");
     // The handleClick method uses the default logger variable
     expect(instrumentedController).to.include("logger.error('An error occurred in handleClick', error);");
+  });
+
+  it('should not add a duplicate logger if attributes are out of order or on multiple lines', async () => {
+    await RflibLoggingAuraInstrument.run(['--sourcepath', paths.outOfOrder.dir]);
+
+    const modifiedCmpContent = fs.readFileSync(paths.outOfOrder.cmp, 'utf8');
+
+    // Make sure 'outOfOrderLogger' appears only once
+    const loggerOccurrences = (modifiedCmpContent.match(/<c:rflibLoggerCmp/g) ?? []).length;
+    expect(loggerOccurrences).to.equal(1);
+    
+    expect(modifiedCmpContent).to.include('aura:id="outOfOrderLogger"');
+    
+    // Check if the preexisting logger was correctly found when transforming JS
+    const modifiedControllerContent = fs.readFileSync(paths.outOfOrder.controller, 'utf8');
+    expect(modifiedControllerContent).to.include("logger.info('handleClick({0})', [event]);");
   });
 });
