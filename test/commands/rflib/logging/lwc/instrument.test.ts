@@ -18,9 +18,11 @@ describe('rflib logging lwc instrument', () => {
   let sampleComponentPath: string;
   let instrumentedComponentPath: string;
   let navigationMixinComponentPath: string;
+  let ifConditionComponentPath: string;
   let originalSampleContent: string;
   let originalInstrumentedContent: string;
   let originalNavigationMixinContent: string;
+  let originalIfConditionContent: string;
 
   before(async () => {
     testSession = await TestSession.create();
@@ -28,24 +30,29 @@ describe('rflib logging lwc instrument', () => {
     fs.mkdirSync(path.join(testDir, 'sampleComponent'), { recursive: true });
     fs.mkdirSync(path.join(testDir, 'instrumentedComponent'), { recursive: true });
     fs.mkdirSync(path.join(testDir, 'navigationMixinSample'), { recursive: true });
+    fs.mkdirSync(path.join(testDir, 'ifConditionSample'), { recursive: true });
 
     sampleComponentPath = path.join(testDir, 'sampleComponent', 'sampleComponent.js');
     instrumentedComponentPath = path.join(testDir, 'instrumentedComponent', 'instrumentedComponent.js');
     navigationMixinComponentPath = path.join(testDir, 'navigationMixinSample', 'navigationMixinSample.js');
+    ifConditionComponentPath = path.join(testDir, 'ifConditionSample', 'ifConditionSample.js');
 
     originalSampleContent = fs.readFileSync(path.join(__dirname, 'sample', 'sample.js'), 'utf8');
     originalInstrumentedContent = fs.readFileSync(path.join(__dirname, 'sample', 'instrumented.js'), 'utf8');
     originalNavigationMixinContent = fs.readFileSync(path.join(__dirname, 'sample', 'navigationMixinSample.js'), 'utf8');
+    originalIfConditionContent = fs.readFileSync(path.join(__dirname, 'sample', 'ifConditionSample.js'), 'utf8');
 
     fs.writeFileSync(sampleComponentPath, originalSampleContent);
     fs.writeFileSync(instrumentedComponentPath, originalInstrumentedContent);
     fs.writeFileSync(navigationMixinComponentPath, originalNavigationMixinContent);
+    fs.writeFileSync(ifConditionComponentPath, originalIfConditionContent);
   });
 
   beforeEach(() => {
     fs.writeFileSync(sampleComponentPath, originalSampleContent);
     fs.writeFileSync(instrumentedComponentPath, originalInstrumentedContent);
     fs.writeFileSync(navigationMixinComponentPath, originalNavigationMixinContent);
+    fs.writeFileSync(ifConditionComponentPath, originalIfConditionContent);
   });
 
   afterEach(function () {
@@ -171,9 +178,9 @@ describe('rflib logging lwc instrument', () => {
     expect(formattedContent).to.include("var x = 'format-this';");
     expect(formattedContent).to.match(/\n {4}/); // Check for 4-space indentation
 
-    expect(result.processedFiles).to.equal(3);
-    expect(result.modifiedFiles).to.equal(3);
-    expect(result.formattedFiles).to.equal(3);
+    expect(result.processedFiles).to.equal(4);
+    expect(result.modifiedFiles).to.equal(4);
+    expect(result.formattedFiles).to.equal(4);
   });
 
   it('should skip if statement instrumentation when no-if flag is used', async () => {
@@ -269,5 +276,16 @@ describe('rflib logging lwc instrument', () => {
     expect(modifiedContent).not.to.include("logger.info('NavigationMixin(");
     // The actual method should still be instrumented
     expect(modifiedContent).to.include("logger.info('navigateToContact()')");
+  });
+
+  it('should not instrument function calls nested inside if conditions', async () => {
+    await RflibLoggingLwcInstrument.run(['--sourcepath', testDir]);
+    const modifiedContent = fs.readFileSync(ifConditionComponentPath, 'utf8');
+
+    // Function calls inside if expressions should not be treated as methods
+    expect(modifiedContent).not.to.include("logger.info('customCheck(");
+    expect(modifiedContent).not.to.include("logger.info('isArray(");
+    // The actual method should still be instrumented
+    expect(modifiedContent).to.include("logger.info('handleEvent({0})', event)");
   });
 });
