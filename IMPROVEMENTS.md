@@ -221,9 +221,9 @@ Both `createDecisionPathLogger` and `createLoggingAction` construct nearly ident
 | 11 | LWC | Functionality | Medium | To do |
 | 12 | LWC | Stability | High | Done |
 | 13 | LWC | UX | Low | To do |
-| 14 | Aura | Stability | High | To do |
-| 17 | Aura | Stability | High | To do |
-| 18 | Aura | UX | Medium | To do |
+| 14 | Aura | Stability | High | Done |
+| 15 | Aura | Stability | High | Done |
+| 16 | Aura | UX | Medium | Done |
 | 19 | Flow | Functionality | Medium | To do |
 | 20 | Flow | Consistency | Low | To do |
 | 21 | Flow (internal) | Maintainability | Medium | To do |

@@ -15,7 +15,11 @@
 
     var data = event.getParam('data');
     if (data.isValid) {
-      component.set('v.value', data.value);
+      try {
+        component.set('v.value', data.value);
+      } catch (err) {
+        console.error(err);
+      }
     } else {
       component.set('v.value', null);
     }
