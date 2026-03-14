@@ -32,7 +32,7 @@ class LwcInstrumentationService {
   private static readonly IMPORT_REGEX = /import\s*{\s*createLogger\s*}\s*from\s*['"]c\/rflibLogger['"]/;
   private static readonly LOGGER_REGEX = /const\s+(\w+)\s*=\s*createLogger\s*\(['"]([\w-]+)['"]\)/;
   private static readonly METHOD_REGEX =
-    /(?:async\s+)?(?!(?:if|switch|case|while|for|catch)\b)(?<!(?:const|let|var|function|export)\s+)(\b\w+)\s*(?:\((.*?)\)\s*{|=\s*(?:async\s+)?(?!\(\s*(?:async\s+)?\()(?:\((.*?)\)|(\w+))\s*=>\s*{)/g;
+    /(?:async\s+)?(?!(?:if|switch|case|while|for|catch)\b)(?<!(?:const|let|var|function|export|extends)\s+)(\b\w+)\s*(?:\((.*?)\)\s*{|=\s*(?:async\s+)?(?!\(\s*(?:async\s+)?\()(?:\((.*?)\)|(\w+))\s*=>\s*{)/g;
   private static readonly EXPORT_DEFAULT_REGEX = /export\s+default\s+class\s+(\w+)/;
   private static readonly IF_STATEMENT_REGEX =
     /if\s*\((.*?)\)\s*(?:{([^]*?(?:(?<!{){(?:[^]*?)}(?!})[^]*?)*)}|([^{].*?)(?=\s*(?:;|$));)/g;

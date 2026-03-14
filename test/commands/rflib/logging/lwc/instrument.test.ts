@@ -17,28 +17,35 @@ describe('rflib logging lwc instrument', () => {
   let testDir: string;
   let sampleComponentPath: string;
   let instrumentedComponentPath: string;
+  let navigationMixinComponentPath: string;
   let originalSampleContent: string;
   let originalInstrumentedContent: string;
+  let originalNavigationMixinContent: string;
 
   before(async () => {
     testSession = await TestSession.create();
     testDir = path.join(testSession.dir, 'force-app', 'main', 'default', 'lwc');
     fs.mkdirSync(path.join(testDir, 'sampleComponent'), { recursive: true });
     fs.mkdirSync(path.join(testDir, 'instrumentedComponent'), { recursive: true });
+    fs.mkdirSync(path.join(testDir, 'navigationMixinSample'), { recursive: true });
 
     sampleComponentPath = path.join(testDir, 'sampleComponent', 'sampleComponent.js');
     instrumentedComponentPath = path.join(testDir, 'instrumentedComponent', 'instrumentedComponent.js');
+    navigationMixinComponentPath = path.join(testDir, 'navigationMixinSample', 'navigationMixinSample.js');
 
     originalSampleContent = fs.readFileSync(path.join(__dirname, 'sample', 'sample.js'), 'utf8');
     originalInstrumentedContent = fs.readFileSync(path.join(__dirname, 'sample', 'instrumented.js'), 'utf8');
+    originalNavigationMixinContent = fs.readFileSync(path.join(__dirname, 'sample', 'navigationMixinSample.js'), 'utf8');
 
     fs.writeFileSync(sampleComponentPath, originalSampleContent);
     fs.writeFileSync(instrumentedComponentPath, originalInstrumentedContent);
+    fs.writeFileSync(navigationMixinComponentPath, originalNavigationMixinContent);
   });
 
   beforeEach(() => {
     fs.writeFileSync(sampleComponentPath, originalSampleContent);
     fs.writeFileSync(instrumentedComponentPath, originalInstrumentedContent);
+    fs.writeFileSync(navigationMixinComponentPath, originalNavigationMixinContent);
   });
 
   afterEach(function () {
@@ -164,9 +171,9 @@ describe('rflib logging lwc instrument', () => {
     expect(formattedContent).to.include("var x = 'format-this';");
     expect(formattedContent).to.match(/\n {4}/); // Check for 4-space indentation
 
-    expect(result.processedFiles).to.equal(2);
-    expect(result.modifiedFiles).to.equal(2);
-    expect(result.formattedFiles).to.equal(2);
+    expect(result.processedFiles).to.equal(3);
+    expect(result.modifiedFiles).to.equal(3);
+    expect(result.formattedFiles).to.equal(3);
   });
 
   it('should skip if statement instrumentation when no-if flag is used', async () => {
@@ -252,5 +259,15 @@ describe('rflib logging lwc instrument', () => {
     // Module level variables should not be treated as methods
     expect(modifiedContent).not.to.include("logger.info('localHelper(");
     expect(modifiedContent).not.to.include("logger.info('exportedHelper(");
+  });
+
+  it('should not instrument NavigationMixin in class extends clause', async () => {
+    await RflibLoggingLwcInstrument.run(['--sourcepath', testDir]);
+    const modifiedContent = fs.readFileSync(navigationMixinComponentPath, 'utf8');
+
+    // NavigationMixin(LightningElement) in `extends` must not be treated as a method
+    expect(modifiedContent).not.to.include("logger.info('NavigationMixin(");
+    // The actual method should still be instrumented
+    expect(modifiedContent).to.include("logger.info('navigateToContact()')");
   });
 });
