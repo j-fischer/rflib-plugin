@@ -21,8 +21,8 @@ const messages = Messages.loadMessages('rflib-plugin', 'rflib.logging.aura.instr
 
 class AuraInstrumentationService {
   public static readonly ATTRIBUTE_REGEX = /<aura:attribute[^>]*>/g;
-  public static readonly LOGGER_COMPONENT_REGEX =
-    /<c:rflibLoggerCmp\s+aura:id="([^"]+)"\s+name="([^"]+)"\s+appendComponentId="([^"]+)"\s*\/>/;
+  public static readonly LOGGER_COMPONENT_REGEX = /<c:rflibLoggerCmp\b[^>]*\/?>/i;
+  public static readonly LOGGER_AURA_ID_REGEX = /aura:id=["']([^"']+)["']/;
 
   public static readonly PRETTIER_CONFIG: prettier.Options = {
     parser: 'babel',
@@ -80,6 +80,7 @@ class AuraInstrumentationService {
       }
 
       bodyContent = AuraInstrumentationService.processPromiseChains(bodyContent, loggerVar);
+      bodyContent = AuraInstrumentationService.processTryCatchBlocks(bodyContent, loggerVar, methodName);
       bodyContent = AuraInstrumentationService.processConsoleStatements(bodyContent, loggerVar);
 
       return `${methodName}: function(${params}) {${bodyContent}}`;
@@ -97,13 +98,13 @@ class AuraInstrumentationService {
     );
   }
 
-  public static processTryCatchBlocks(content: string): string {
+  public static processTryCatchBlocks(content: string, loggerVar: string, methodName: string): string {
     return content.replace(this.TRY_CATCH_BLOCK_REGEX, (match: string, exceptionVar: string) => {
       const errorVar = exceptionVar.trim().split(' ')[0] || 'error';
       return match.replace(
         /catch\s*\(([^)]*)\)\s*{/,
         `catch(${exceptionVar}) {
-            logger.error('An error occurred', ${errorVar});`,
+            ${loggerVar}.error('An error occurred in ${methodName}', ${errorVar});`
       );
     });
   }
@@ -366,7 +367,8 @@ export default class RflibLoggingAuraInstrument extends SfCommand<RflibLoggingAu
 
     const loggerMatch = content.match(AuraInstrumentationService.LOGGER_COMPONENT_REGEX);
     if (loggerMatch) {
-      return loggerMatch[1];
+      const idMatch = loggerMatch[0].match(AuraInstrumentationService.LOGGER_AURA_ID_REGEX);
+      return idMatch ? idMatch[1] : 'logger';
     }
 
     const lastAttributeMatch = [...content.matchAll(AuraInstrumentationService.ATTRIBUTE_REGEX)].pop();
@@ -374,6 +376,13 @@ export default class RflibLoggingAuraInstrument extends SfCommand<RflibLoggingAu
       const insertPosition = lastAttributeMatch.index + lastAttributeMatch[0].length;
       const loggerComponent = `\n    <c:rflibLoggerCmp aura:id="logger" name="${componentName}" appendComponentId="false" />`;
       content = content.slice(0, insertPosition) + loggerComponent + content.slice(insertPosition);
+    } else {
+      const componentMatch = content.match(/<aura:component[^>]*>/);
+      if (componentMatch) {
+        const insertPosition = componentMatch.index! + componentMatch[0].length;
+        const loggerComponent = `\n    <c:rflibLoggerCmp aura:id="logger" name="${componentName}" appendComponentId="false" />`;
+        content = content.slice(0, insertPosition) + loggerComponent + content.slice(insertPosition);
+      }
     }
 
     if (content !== originalContent) {
@@ -419,7 +428,6 @@ export default class RflibLoggingAuraInstrument extends SfCommand<RflibLoggingAu
 
     // Process methods and other patterns
     content = AuraInstrumentationService.processMethodLogging(content, loggerId, isHelper, instrumentationOpts.noIf);
-    content = AuraInstrumentationService.processTryCatchBlocks(content);
 
     if (content !== originalContent) {
       await writeInstrumentedFile(

@@ -27,6 +27,16 @@ describe('rflib logging aura instrument', () => {
       controller: string;
       helper: string;
     };
+    noAttribute: {
+      dir: string;
+      cmp: string;
+      controller: string;
+    };
+    outOfOrder: {
+      dir: string;
+      cmp: string;
+      controller: string;
+    };
   };
   let originalContent: { [key: string]: string };
 
@@ -48,11 +58,23 @@ describe('rflib logging aura instrument', () => {
         controller: '',
         helper: '',
       },
+      noAttribute: {
+        dir: path.join(sourceDir, 'main', 'default', 'aura', 'noAttributeComponent'),
+        cmp: '',
+        controller: '',
+      },
+      outOfOrder: {
+        dir: path.join(sourceDir, 'main', 'default', 'aura', 'outOfOrderSample'),
+        cmp: '',
+        controller: '',
+      },
     };
 
     // Create component directories
     fs.mkdirSync(paths.sample.dir, { recursive: true });
     fs.mkdirSync(paths.instrumented.dir, { recursive: true });
+    fs.mkdirSync(paths.noAttribute.dir, { recursive: true });
+    fs.mkdirSync(paths.outOfOrder.dir, { recursive: true });
 
     // Set file paths
     paths.sample.cmp = path.join(paths.sample.dir, 'sampleComponent.cmp');
@@ -62,6 +84,12 @@ describe('rflib logging aura instrument', () => {
     paths.instrumented.cmp = path.join(paths.instrumented.dir, 'instrumentedComponent.cmp');
     paths.instrumented.controller = path.join(paths.instrumented.dir, 'instrumentedComponentController.js');
     paths.instrumented.helper = path.join(paths.instrumented.dir, 'instrumentedComponentHelper.js');
+
+    paths.noAttribute.cmp = path.join(paths.noAttribute.dir, 'noAttributeComponent.cmp');
+    paths.noAttribute.controller = path.join(paths.noAttribute.dir, 'noAttributeComponentController.js');
+
+    paths.outOfOrder.cmp = path.join(paths.outOfOrder.dir, 'outOfOrderSample.cmp');
+    paths.outOfOrder.controller = path.join(paths.outOfOrder.dir, 'outOfOrderSampleController.js');
 
     // Load original content
     originalContent = {
@@ -77,6 +105,16 @@ describe('rflib logging aura instrument', () => {
         path.join(__dirname, 'instrumentedSample', 'instrumentedSampleHelper.js'),
         'utf8',
       ),
+      noAttributeCmp: fs.readFileSync(path.join(__dirname, 'noAttributeSample', 'noAttributeSample.cmp'), 'utf8'),
+      noAttributeController: fs.readFileSync(
+        path.join(__dirname, 'noAttributeSample', 'noAttributeSampleController.js'),
+        'utf8',
+      ),
+      outOfOrderCmp: fs.readFileSync(path.join(__dirname, 'outOfOrderSample', 'outOfOrderSample.cmp'), 'utf8'),
+      outOfOrderController: fs.readFileSync(
+        path.join(__dirname, 'outOfOrderSample', 'outOfOrderSampleController.js'),
+        'utf8',
+      ),
     };
 
     // Write sample files
@@ -86,6 +124,10 @@ describe('rflib logging aura instrument', () => {
     fs.writeFileSync(paths.instrumented.cmp, originalContent.instrumentedCmp);
     fs.writeFileSync(paths.instrumented.controller, originalContent.instrumentedController);
     fs.writeFileSync(paths.instrumented.helper, originalContent.instrumentedHelper);
+    fs.writeFileSync(paths.noAttribute.cmp, originalContent.noAttributeCmp);
+    fs.writeFileSync(paths.noAttribute.controller, originalContent.noAttributeController);
+    fs.writeFileSync(paths.outOfOrder.cmp, originalContent.outOfOrderCmp);
+    fs.writeFileSync(paths.outOfOrder.controller, originalContent.outOfOrderController);
   });
 
   beforeEach(() => {
@@ -96,6 +138,10 @@ describe('rflib logging aura instrument', () => {
     fs.writeFileSync(paths.instrumented.cmp, originalContent.instrumentedCmp);
     fs.writeFileSync(paths.instrumented.controller, originalContent.instrumentedController);
     fs.writeFileSync(paths.instrumented.helper, originalContent.instrumentedHelper);
+    fs.writeFileSync(paths.noAttribute.cmp, originalContent.noAttributeCmp);
+    fs.writeFileSync(paths.noAttribute.controller, originalContent.noAttributeController);
+    fs.writeFileSync(paths.outOfOrder.cmp, originalContent.outOfOrderCmp);
+    fs.writeFileSync(paths.outOfOrder.controller, originalContent.outOfOrderController);
   });
 
   afterEach(function () {
@@ -156,7 +202,7 @@ describe('rflib logging aura instrument', () => {
     await RflibLoggingAuraInstrument.run(['--sourcepath', paths.sample.dir]);
     const modifiedContent = fs.readFileSync(paths.sample.controller, 'utf8');
 
-    expect(modifiedContent).to.include("logger.error('An error occurred', error)");
+    expect(modifiedContent).to.include("logger.error('An error occurred in handleClick', error)");
   });
 
   it('should convert single line if statements to blocks', async () => {
@@ -199,7 +245,7 @@ describe('rflib logging aura instrument', () => {
     // Should have regular logging
     expect(controllerContent).to.include("logger.info('handleClick({0})', [event])");
     expect(helperContent).to.include("logger.info('loadData({0}, {1})', [component, params])");
-    expect(controllerContent).to.include("logger.error('An error occurred', error)");
+    expect(controllerContent).to.include("logger.error('An error occurred in handleClick', error)");
 
     // Should not have if/else logging
     expect(controllerContent).not.to.include("logger.debug('if (data.isValid)");
@@ -334,5 +380,44 @@ describe('rflib logging aura instrument', () => {
     expect(sampleHelper).to.include("logger.debug('Promise resolved: ' + data);");
     expect(sampleHelper).to.include("logger.error('Promise rejected: ' + error);");
     expect(sampleHelper).to.include("logger.debug('Promise finally');");
+  });
+
+  it('should add logger component after opening tag when no aura:attribute tags are present', async () => {
+    await RflibLoggingAuraInstrument.run(['--sourcepath', paths.noAttribute.dir]);
+
+    const modifiedCmpContent = fs.readFileSync(paths.noAttribute.cmp, 'utf8');
+
+    expect(modifiedCmpContent).to.include(
+      '<c:rflibLoggerCmp aura:id="logger" name="noAttributeComponent" appendComponentId="false" />',
+    );
+    // Logger must be inserted after <aura:component> (no attributes to anchor to)
+    expect(modifiedCmpContent).to.match(/<aura:component>\s*<c:rflibLoggerCmp/);
+  });
+
+  it('should use the method-scoped logger variable in catch blocks', async () => {
+    await RflibLoggingAuraInstrument.run(['--sourcepath', sourceDir]);
+
+    const instrumentedController = fs.readFileSync(paths.instrumented.controller, 'utf8');
+
+    // The testIfInstrumentationWithCustomLoggerVar method uses customLogger, so catch blocks should also use it
+    expect(instrumentedController).to.include("customLogger.error('An error occurred in testIfInstrumentationWithCustomLoggerVar', err);");
+    // The handleClick method uses the default logger variable
+    expect(instrumentedController).to.include("logger.error('An error occurred in handleClick', error);");
+  });
+
+  it('should not add a duplicate logger if attributes are out of order or on multiple lines', async () => {
+    await RflibLoggingAuraInstrument.run(['--sourcepath', paths.outOfOrder.dir]);
+
+    const modifiedCmpContent = fs.readFileSync(paths.outOfOrder.cmp, 'utf8');
+
+    // Make sure 'outOfOrderLogger' appears only once
+    const loggerOccurrences = (modifiedCmpContent.match(/<c:rflibLoggerCmp/g) ?? []).length;
+    expect(loggerOccurrences).to.equal(1);
+    
+    expect(modifiedCmpContent).to.include('aura:id="outOfOrderLogger"');
+    
+    // Check if the preexisting logger was correctly found when transforming JS
+    const modifiedControllerContent = fs.readFileSync(paths.outOfOrder.controller, 'utf8');
+    expect(modifiedControllerContent).to.include("logger.info('handleClick({0})', [event]);");
   });
 });
