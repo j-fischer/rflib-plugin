@@ -109,7 +109,7 @@ describe('rflib logging aura instrument NUTs', () => {
     // Check controller modifications
     expect(controllerContent).to.include("var logger = component.find('logger')");
     expect(controllerContent).to.include("logger.info('handleClick({0})', [event])");
-    expect(controllerContent).to.include("logger.error('An error occurred', error)");
+    expect(controllerContent).to.include("logger.error('An error occurred in handleClick', error)");
     expect(controllerContent).to.include("logger.info('processResult({0})', [event])");
 
     // Check helper modifications
