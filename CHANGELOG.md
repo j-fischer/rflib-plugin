@@ -1,3 +1,12 @@
+## [0.17.2](https://github.com/j-fischer/rflib-plugin/compare/0.17.1...0.17.2) (2026-03-14)
+
+
+### Bug Fixes
+
+* detect existing rflibLoggerCmp regardless of attribute order in Aura components ([#185](https://github.com/j-fischer/rflib-plugin/issues/185)) ([0d8e5df](https://github.com/j-fischer/rflib-plugin/commit/0d8e5df6aa9b0c278a68d36226e7753b289b7740))
+
+
+
 ## [0.17.1](https://github.com/j-fischer/rflib-plugin/compare/0.17.0...0.17.1) (2026-03-06)
 
 
