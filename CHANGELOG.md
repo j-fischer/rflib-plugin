@@ -1,3 +1,12 @@
+## [0.17.4](https://github.com/j-fischer/rflib-plugin/compare/0.17.3...0.17.4) (2026-03-15)
+
+
+### Bug Fixes
+
+* **deps:** bump @oclif/core from 4.8.3 to 4.9.0 ([#186](https://github.com/j-fischer/rflib-plugin/issues/186)) ([2c6a375](https://github.com/j-fischer/rflib-plugin/commit/2c6a375004c94fd151651b03b6fd10114199d710))
+
+
+
 ## [0.17.3](https://github.com/j-fischer/rflib-plugin/compare/0.17.2...0.17.3) (2026-03-14)
 
 
