@@ -1,3 +1,12 @@
+## [0.17.5](https://github.com/j-fischer/rflib-plugin/compare/0.17.4...0.17.5) (2026-03-18)
+
+
+### Bug Fixes
+
+* **lwc:** prevent false-positive method instrumentation in LWC components ([#191](https://github.com/j-fischer/rflib-plugin/issues/191)) ([1091e89](https://github.com/j-fischer/rflib-plugin/commit/1091e89c4222c81aff84403c139715c1dd826a5e))
+
+
+
 ## [0.17.4](https://github.com/j-fischer/rflib-plugin/compare/0.17.3...0.17.4) (2026-03-15)
 
 
