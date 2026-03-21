@@ -3,7 +3,7 @@
   "description": "Utility commands to help with the adoption of the RFLIB open-source library for Salesforce.",
   "version": "0.17.5",
   "dependencies": {
-    "@oclif/core": "^4.9.0",
+    "@oclif/core": "^4.10.2",
     "@salesforce/core": "^8.27.0",
     "@salesforce/sf-plugins-core": "^12.2.6",
     "@types/xml2js": "^0.4.14",
