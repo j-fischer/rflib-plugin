@@ -100,7 +100,7 @@ The `transformSystemDebug` method checks if the argument starts with a single qu
 
 ## LWC-Specific Improvements
 
-### 11. Support TypeScript `.ts` files in LWC components
+### 11. Support TypeScript `.ts` files in LWC components (Completed)
 
 **Applies to:** `sf rflib logging lwc instrument`
 **Type:** Functionality

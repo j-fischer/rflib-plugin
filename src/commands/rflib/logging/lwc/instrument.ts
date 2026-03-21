@@ -32,7 +32,7 @@ class LwcInstrumentationService {
   private static readonly IMPORT_REGEX = /import\s*{\s*createLogger\s*}\s*from\s*['"]c\/rflibLogger['"]/;
   private static readonly LOGGER_REGEX = /const\s+(\w+)\s*=\s*createLogger\s*\(['"]([\w-]+)['"]\)/;
   private static readonly METHOD_REGEX =
-    /(?:async\s+)?(?!(?:if|switch|case|while|for|catch)\b)(?<!(?:const|let|var|function|export|extends|return|new|typeof|delete|await|throw|yield)\s+)(?<![.(!+*\x2F%=<>&|^?:-]\s*)(\b\w+)\s*(?:\((.*?)\)\s*{|=\s*(?:async\s+)?(?!\(\s*(?:async\s+)?\()(?:\((.*?)\)|(\w+))\s*=>\s*{)/g;
+    /(?:(?:public|private|protected)\s+)?(?:async\s+)?(?!(?:if|switch|case|while|for|catch)\b)(?<!(?:const|let|var|function|export|extends|return|new|typeof|delete|await|throw|yield)\s+)(?<![.(!+*\x2F%=<>&|^?:-]\s*)(\b\w+)\s*(?:\((.*?)\)\s*(?::\s*[\w<>[\]]+\s*)?{|=\s*(?:async\s+)?(?!\(\s*(?:async\s+)?\()(?:\((.*?)\)|(\w+))\s*(?::\s*[\w<>[\]]+\s*)?=>\s*{)/g;
   private static readonly EXPORT_DEFAULT_REGEX = /export\s+default\s+class\s+(\w+)/;
   private static readonly IF_STATEMENT_REGEX =
     /if\s*\((.*?)\)\s*(?:{([^]*?(?:(?<!{){(?:[^]*?)}(?!})[^]*?)*)}|([^{].*?)(?=\s*(?:;|$));)/g;
@@ -126,7 +126,7 @@ class LwcInstrumentationService {
       const rawArgs = namedArgs ?? arrowArgsParens ?? arrowArgNoParens ?? '';
       const parameters = rawArgs
         .split(',')
-        .map((p) => p.trim())
+        .map((p) => p.split(':')[0].trim()) // Extract param name, ignore TS types
         .filter((p) => p);
       const placeholders = parameters.map((_, i) => `{${i}}`).join(', ');
       const logArgs = parameters.length > 0 ? `, ${parameters.join(', ')}` : '';
@@ -144,7 +144,7 @@ class LwcInstrumentationService {
   public static processTryCatchBlocks(content: string, loggerName: string): string {
     return content.replace(this.TRY_CATCH_BLOCK_REGEX, (match: string, exceptionVar: string, offset: number) => {
       const methodName = this.findEnclosingMethod(content, offset);
-      const errorVar = exceptionVar.trim().split(' ')[0] || 'error';
+      const errorVar = exceptionVar.split(':')[0].trim().split(' ')[0] || 'error';
 
       return match.replace(
         /catch\s*\(([^)]*)\)\s*{/,
@@ -159,7 +159,8 @@ class LwcInstrumentationService {
       this.PROMISE_CHAIN_REGEX,
       (match, type, param, blockBody, singleLineBody, offset: number) => {
         const methodName = this.findEnclosingMethod(content, offset);
-        const paramName = typeof param === 'string' ? param.trim() : type === 'then' ? 'result' : 'error';
+        const rawParamName = typeof param === 'string' ? param.split(':')[0].trim() : type === 'then' ? 'result' : 'error';
+        const paramName = rawParamName.split(' ')[0]; // handle "result: any" separating by spaces too just in case
         const indentation = match.match(/\n\s*/)?.[0] ?? '\n        ';
 
         let logStatement: string;
@@ -328,7 +329,7 @@ export default class RflibLoggingLwcInstrument extends SfCommand<RflibLoggingLwc
 
         const parentDir = path.dirname(filePath);
         if (
-          entry.name.endsWith('.js') &&
+          (entry.name.endsWith('.js') || entry.name.endsWith('.ts')) &&
           !parentDir.includes('aura') &&
           !parentDir.includes('__tests__')
         ) {
@@ -368,6 +369,11 @@ export default class RflibLoggingLwcInstrument extends SfCommand<RflibLoggingLwc
       content = LwcInstrumentationService.processConsoleStatements(content, variableName);
 
       if (content !== originalContent) {
+        let currentPrettierConfig = LwcInstrumentationService.PRETTIER_CONFIG;
+        if (filePath.endsWith('.ts')) {
+          currentPrettierConfig = { ...LwcInstrumentationService.PRETTIER_CONFIG, parser: 'babel-ts' };
+        }
+
         await writeInstrumentedFile(
           filePath,
           content,
@@ -377,7 +383,7 @@ export default class RflibLoggingLwcInstrument extends SfCommand<RflibLoggingLwc
           this.stats,
           this.logger,
           (msg) => this.log(msg),
-          LwcInstrumentationService.PRETTIER_CONFIG,
+          currentPrettierConfig,
         );
       }
     } catch (error) {
