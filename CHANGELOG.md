@@ -1,3 +1,17 @@
+# [0.18.0](https://github.com/j-fischer/rflib-plugin/compare/0.17.5...0.18.0) (2026-03-24)
+
+
+### Bug Fixes
+
+* **deps:** bump @salesforce/core from 8.27.0 to 8.27.1 ([#195](https://github.com/j-fischer/rflib-plugin/issues/195)) ([979e148](https://github.com/j-fischer/rflib-plugin/commit/979e148496c71a701bf64fd2a7ae716fc7848d6a))
+
+
+### Features
+
+* support TypeScript in LWC instrumentation ([#11](https://github.com/j-fischer/rflib-plugin/issues/11)) ([#197](https://github.com/j-fischer/rflib-plugin/issues/197)) ([230c8a6](https://github.com/j-fischer/rflib-plugin/commit/230c8a665dd1971ca54e7f4517e723aa5d9b1b37))
+
+
+
 ## [0.17.5](https://github.com/j-fischer/rflib-plugin/compare/0.17.4...0.17.5) (2026-03-18)
 
 
