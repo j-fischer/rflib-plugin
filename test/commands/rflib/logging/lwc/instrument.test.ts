@@ -23,6 +23,10 @@ describe('rflib logging lwc instrument', () => {
   let originalInstrumentedContent: string;
   let originalNavigationMixinContent: string;
   let originalIfConditionContent: string;
+  let originalSampleTsContent: string;
+  let unformattedSampleTsContent: string;
+
+  let sampleTsComponentPath: string;
 
   before(async () => {
     testSession = await TestSession.create();
@@ -31,21 +35,26 @@ describe('rflib logging lwc instrument', () => {
     fs.mkdirSync(path.join(testDir, 'instrumentedComponent'), { recursive: true });
     fs.mkdirSync(path.join(testDir, 'navigationMixinSample'), { recursive: true });
     fs.mkdirSync(path.join(testDir, 'ifConditionSample'), { recursive: true });
+    fs.mkdirSync(path.join(testDir, 'sampleTsComponent'), { recursive: true });
 
     sampleComponentPath = path.join(testDir, 'sampleComponent', 'sampleComponent.js');
     instrumentedComponentPath = path.join(testDir, 'instrumentedComponent', 'instrumentedComponent.js');
     navigationMixinComponentPath = path.join(testDir, 'navigationMixinSample', 'navigationMixinSample.js');
     ifConditionComponentPath = path.join(testDir, 'ifConditionSample', 'ifConditionSample.js');
+    sampleTsComponentPath = path.join(testDir, 'sampleTsComponent', 'sampleTsComponent.ts');
 
     originalSampleContent = fs.readFileSync(path.join(__dirname, 'sample', 'sample.js'), 'utf8');
     originalInstrumentedContent = fs.readFileSync(path.join(__dirname, 'sample', 'instrumented.js'), 'utf8');
     originalNavigationMixinContent = fs.readFileSync(path.join(__dirname, 'sample', 'navigationMixinSample.js'), 'utf8');
     originalIfConditionContent = fs.readFileSync(path.join(__dirname, 'sample', 'ifConditionSample.js'), 'utf8');
+    originalSampleTsContent = fs.readFileSync(path.join(__dirname, 'sample', 'sampleTs.ts'), 'utf8');
+    unformattedSampleTsContent = originalSampleTsContent.replace(/ {4}/g, '  '); // simple unformatting
 
     fs.writeFileSync(sampleComponentPath, originalSampleContent);
     fs.writeFileSync(instrumentedComponentPath, originalInstrumentedContent);
     fs.writeFileSync(navigationMixinComponentPath, originalNavigationMixinContent);
     fs.writeFileSync(ifConditionComponentPath, originalIfConditionContent);
+    fs.writeFileSync(sampleTsComponentPath, originalSampleTsContent);
   });
 
   beforeEach(() => {
@@ -53,6 +62,7 @@ describe('rflib logging lwc instrument', () => {
     fs.writeFileSync(instrumentedComponentPath, originalInstrumentedContent);
     fs.writeFileSync(navigationMixinComponentPath, originalNavigationMixinContent);
     fs.writeFileSync(ifConditionComponentPath, originalIfConditionContent);
+    fs.writeFileSync(sampleTsComponentPath, originalSampleTsContent);
   });
 
   afterEach(function () {
@@ -173,14 +183,15 @@ describe('rflib logging lwc instrument', () => {
   });
 
   it('should format modified files when prettier flag is used', async () => {
+    fs.writeFileSync(sampleTsComponentPath, unformattedSampleTsContent); // Use an unformatted file as a starting point
     const result = await RflibLoggingLwcInstrument.run(['--sourcepath', testDir, '--prettier']);
     const formattedContent = fs.readFileSync(sampleComponentPath, 'utf8');
     expect(formattedContent).to.include("var x = 'format-this';");
     expect(formattedContent).to.match(/\n {4}/); // Check for 4-space indentation
 
-    expect(result.processedFiles).to.equal(4);
-    expect(result.modifiedFiles).to.equal(4);
-    expect(result.formattedFiles).to.equal(4);
+    expect(result.processedFiles).to.equal(5);
+    expect(result.modifiedFiles).to.equal(5);
+    expect(result.formattedFiles).to.equal(5);
   });
 
   it('should skip if statement instrumentation when no-if flag is used', async () => {
@@ -287,5 +298,23 @@ describe('rflib logging lwc instrument', () => {
     expect(modifiedContent).not.to.include("logger.info('isArray(");
     // The actual method should still be instrumented
     expect(modifiedContent).to.include("logger.info('handleEvent({0})', event)");
+  });
+
+  it('should instrument TypeScript files (.ts) accurately', async () => {
+    await RflibLoggingLwcInstrument.run(['--sourcepath', testDir]);
+    const modifiedContent = fs.readFileSync(sampleTsComponentPath, 'utf8');
+
+    // Make sure logger was created
+    expect(modifiedContent).to.include("import { createLogger } from 'c/rflibLogger'");
+    expect(modifiedContent).to.include("const logger = createLogger('SampleTs')");
+
+    // Make sure methods with types are instrumented correctly
+    expect(modifiedContent).to.include("logger.info('initComponent()')");
+    expect(modifiedContent).to.include("logger.info('loadData({0})', param)");
+    expect(modifiedContent).to.include("logger.info('handleClick({0})', event)");
+    expect(modifiedContent).to.include("logger.info('processEvent({0})', event)");
+
+    // Catch blocks
+    expect(modifiedContent).to.include("logger.error('An error occurred in function loadData()', error)");
   });
 });
