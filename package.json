@@ -78,6 +78,23 @@
                 "description": "description for rflib.logging.flow"
               }
             }
+          },
+          "mcp": {
+            "description": "Commands to interact with the RFLIB MCP server deployed in a Salesforce org",
+            "subtopics": {
+              "applicationevents": {
+                "description": "Commands related to RFLIB Application Events"
+              },
+              "logarchives": {
+                "description": "Commands related to RFLIB log archives"
+              },
+              "loggersettings": {
+                "description": "Commands related to RFLIB Logger Settings"
+              },
+              "userpermissions": {
+                "description": "Commands related to Salesforce user permissions"
+              }
+            }
           }
         }
       }
