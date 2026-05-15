@@ -1,73 +1,151 @@
-/* eslint-disable @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-assignment */
-import type { Connection } from '@salesforce/core';
 import { expect } from 'chai';
-import { callMcpTool } from '../../../../../src/shared/mcpClient.js';
+import { getUserPermissions } from '../../../../../src/shared/orgClient.js';
+import { buildMockConnection } from '../../../../helpers/mockConnection.js';
 
-type McpRequest = { method: string; url: string; body: string; headers: Record<string, string> };
-type McpBody = { params: { name: string; arguments: Record<string, unknown> } };
-type McpResponse = { jsonrpc: string; id: number; result?: { content?: Array<{ type: string; text: string }> } };
+const VALID_USER_ID = '005000000000001';
+const PROFILE_ID = '00e000000ProfA1';
 
-const buildSuccessResponse = (text: string): McpResponse => ({
-  jsonrpc: '2.0', id: 1, result: { content: [{ type: 'text', text }] },
-});
+const userRows = [{ Id: VALID_USER_ID, ProfileId: PROFILE_ID, Profile: { Name: 'System Administrator' } }];
 
-const parseBody = (raw: string): McpBody => JSON.parse(raw) as McpBody;
-
-const mockConn = (handler: (req: McpRequest) => McpResponse | Error): Connection => ({
-  request(req: McpRequest): Promise<McpResponse> {
-    const outcome = handler(req);
-    if (outcome instanceof Error) return Promise.reject(outcome);
-    return Promise.resolve(outcome);
+const psaRows = [
+  {
+    PermissionSetId: '0PS00000000000A',
+    PermissionSetGroupId: null,
+    PermissionSet: { Name: 'CustomSet1', Label: 'Custom Set 1', IsOwnedByProfile: false },
   },
-} as unknown as Connection);
+  {
+    PermissionSetId: '0PS00000000000B',
+    PermissionSetGroupId: null,
+    PermissionSet: { Name: 'OwnedByProfileSet', Label: 'Profile Set', IsOwnedByProfile: true },
+  },
+  {
+    PermissionSetId: null,
+    PermissionSetGroupId: '0PG00000000000G',
+    PermissionSet: { Name: 'GroupAssignment', Label: 'Group', IsOwnedByProfile: false },
+  },
+];
 
-describe('callMcpTool - rflib_get_user_permissions', () => {
-  it('should pass userId and permissionType in the request', async () => {
-    let capturedBody: McpBody | undefined;
-    const conn = mockConn((req) => { capturedBody = parseBody(req.body); return buildSuccessResponse('{}'); });
+const FLS_ROW = {
+  Parent: { Label: 'Custom Set 1', Profile: { Name: 'System Administrator' }, IsOwnedByProfile: false, PermissionSetGroupId: null },
+  SobjectType: 'Account',
+  Field: 'Account.Name',
+  PermissionsRead: true,
+  PermissionsEdit: false,
+};
 
-    await callMcpTool(conn, 'rflib_get_user_permissions', {
-      userId: '0057000000XXXXXX',
-      permissionType: 'FLS',
-    });
+function makeQueryHandler(): (soql: string) => unknown[] {
+  return (soql: string): unknown[] => {
+    if (soql.startsWith('SELECT Id, ProfileId')) return userRows;
+    if (soql.includes('FROM PermissionSetAssignment')) return psaRows;
+    if (soql.includes('FROM FieldPermissions')) return [FLS_ROW];
+    if (soql.includes('FROM ObjectPermissions')) return [];
+    if (soql.includes('FROM SetupEntityAccess')) return [];
+    return [];
+  };
+}
 
-    expect(capturedBody!.params.name).to.equal('rflib_get_user_permissions');
-    expect(capturedBody!.params.arguments).to.have.property('userId', '0057000000XXXXXX');
-    expect(capturedBody!.params.arguments).to.have.property('permissionType', 'FLS');
+describe('orgClient.getUserPermissions', () => {
+  it('aggregates profile + permission sets and queries FLS for FLS type', async () => {
+    const { conn, calls } = buildMockConnection({ query: makeQueryHandler() });
+
+    const result = await getUserPermissions(conn, { userId: VALID_USER_ID, permissionType: 'FLS' });
+
+    expect(result.profileName).to.equal('System Administrator');
+    expect(result.permissionSetNames).to.equal('Custom Set 1');
+    expect(result.flsPermissions).to.have.lengthOf(1);
+    const flsQuery = calls.queries.find((q) => q.includes('FROM FieldPermissions'));
+    expect(flsQuery).to.exist;
+    expect(flsQuery).to.include(`Parent.ProfileId = '${PROFILE_ID}'`);
+    expect(flsQuery).to.include("ParentId IN ('0PS00000000000A','0PG00000000000G')");
   });
 
-  it('should pass sobjectType when provided', async () => {
-    let capturedBody: McpBody | undefined;
-    const conn = mockConn((req) => { capturedBody = parseBody(req.body); return buildSuccessResponse('{}'); });
+  it('queries OLS only when permissionType=OLS', async () => {
+    const { conn, calls } = buildMockConnection({ query: makeQueryHandler() });
+    const result = await getUserPermissions(conn, { userId: VALID_USER_ID, permissionType: 'OLS' });
 
-    await callMcpTool(conn, 'rflib_get_user_permissions', {
-      userId: '0057000000XXXXXX',
-      permissionType: 'OLS',
-      sobjectType: 'Account',
-    });
-
-    expect(capturedBody!.params.arguments).to.have.property('sobjectType', 'Account');
+    expect(result).to.have.property('olsPermissions');
+    expect(result).to.not.have.property('flsPermissions');
+    expect(result).to.not.have.property('apexPermissions');
+    expect(calls.queries.some((q) => q.includes('FROM ObjectPermissions'))).to.equal(true);
+    expect(calls.queries.some((q) => q.includes('FROM FieldPermissions'))).to.equal(false);
   });
 
-  it('should support ALL permission type', async () => {
-    let capturedBody: McpBody | undefined;
-    const conn = mockConn((req) => { capturedBody = parseBody(req.body); return buildSuccessResponse('{}'); });
-
-    await callMcpTool(conn, 'rflib_get_user_permissions', {
-      userId: '0057000000XXXXXX',
-      permissionType: 'ALL',
-    });
-
-    expect(capturedBody!.params.arguments).to.have.property('permissionType', 'ALL');
+  it('queries APEX with the SetupEntityType filter and skips object filtering', async () => {
+    const { conn, calls } = buildMockConnection({ query: makeQueryHandler() });
+    await getUserPermissions(conn, { userId: VALID_USER_ID, permissionType: 'APEX', sobjectType: 'Account' });
+    const apexQuery = calls.queries.find((q) => q.includes('FROM SetupEntityAccess'));
+    expect(apexQuery).to.exist;
+    expect(apexQuery).to.include("SetupEntityType = 'ApexClass'");
+    expect(apexQuery).to.include("SetupEntityType = 'ApexPage'");
+    expect(apexQuery).to.not.include('SobjectType');
   });
 
-  it('should return the permissions JSON result', async () => {
-    const expected = '{"userId":"0057000000XXXXXX","profileName":"System Administrator"}';
-    const conn = mockConn(() => buildSuccessResponse(expected));
-    const result = await callMcpTool(conn, 'rflib_get_user_permissions', {
-      userId: '0057000000XXXXXX',
-      permissionType: 'FLS',
+  it('runs all three queries when permissionType=ALL', async () => {
+    const { conn, calls } = buildMockConnection({ query: makeQueryHandler() });
+    const result = await getUserPermissions(conn, { userId: VALID_USER_ID, permissionType: 'ALL' });
+
+    expect(result).to.have.property('flsPermissions');
+    expect(result).to.have.property('olsPermissions');
+    expect(result).to.have.property('apexPermissions');
+
+    expect(calls.queries.some((q) => q.includes('FROM FieldPermissions'))).to.equal(true);
+    expect(calls.queries.some((q) => q.includes('FROM ObjectPermissions'))).to.equal(true);
+    expect(calls.queries.some((q) => q.includes('FROM SetupEntityAccess'))).to.equal(true);
+  });
+
+  it('applies sobjectType filter to FLS/OLS queries', async () => {
+    const { conn, calls } = buildMockConnection({ query: makeQueryHandler() });
+    await getUserPermissions(conn, { userId: VALID_USER_ID, permissionType: 'ALL', sobjectType: 'Account' });
+
+    const flsQuery = calls.queries.find((q) => q.includes('FROM FieldPermissions'));
+    const olsQuery = calls.queries.find((q) => q.includes('FROM ObjectPermissions'));
+    expect(flsQuery).to.include("SobjectType = 'Account'");
+    expect(olsQuery).to.include("SobjectType = 'Account'");
+  });
+
+  it('rejects malformed userId without hitting the org', async () => {
+    const { conn, calls } = buildMockConnection({});
+    try {
+      await getUserPermissions(conn, { userId: 'not-an-id', permissionType: 'FLS' });
+      expect.fail('expected an error');
+    } catch (err) {
+      expect((err as Error).message).to.include('Invalid userId');
+      expect(calls.queries).to.have.lengthOf(0);
+    }
+  });
+
+  it('rejects unknown permission types', async () => {
+    const { conn } = buildMockConnection({});
+    try {
+      await getUserPermissions(conn, { userId: VALID_USER_ID, permissionType: 'WHATEVER' as 'ALL' });
+      expect.fail('expected an error');
+    } catch (err) {
+      expect((err as Error).message).to.include('permissionType must be one of');
+    }
+  });
+
+  it('throws a clear error when the user is not found', async () => {
+    const { conn } = buildMockConnection({
+      query: (soql: string) => {
+        if (soql.startsWith('SELECT Id, ProfileId')) return [];
+        return [];
+      },
     });
-    expect(result).to.equal(expected);
+    try {
+      await getUserPermissions(conn, { userId: VALID_USER_ID, permissionType: 'FLS' });
+      expect.fail('expected an error');
+    } catch (err) {
+      expect((err as Error).message).to.include(`User with Id "${VALID_USER_ID}" was not found`);
+    }
+  });
+
+  it('rejects malformed sobjectType to avoid SOQL injection', async () => {
+    const { conn } = buildMockConnection({ query: makeQueryHandler() });
+    try {
+      await getUserPermissions(conn, { userId: VALID_USER_ID, permissionType: 'FLS', sobjectType: "evil' OR 1=1" });
+      expect.fail('expected an error');
+    } catch (err) {
+      expect((err as Error).message).to.include('Invalid sobjectType');
+    }
   });
 });

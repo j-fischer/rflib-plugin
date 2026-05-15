@@ -10,7 +10,7 @@ Plugin for Salesforce CLI to help with the adoption of [RFLIB](https://github.co
 - Automatically instruments LWC components with RFLIB logging statements
 - Automatically instruments Aura components with RFLIB logging statements
 - Automatically instruments Salesforce Flows with RFLIB logging actions
-- Bridge commands to interact with the RFLIB MCP server deployed in a Salesforce org
+- Debug commands that read RFLIB log archives, application events, and logger settings, and tune logger settings — useful as a tool surface for AI agents driving a debugging session
 
 ## Installation
 
@@ -133,10 +133,11 @@ sf rflib logging flow instrument --sourcepath force-app --skip-instrumented
 - Handles both free-form and auto-layout flows, converting all to auto-layout
 - Supports both standard Flows (processType="Flow") and Auto-Launched Flows (processType="AutoLaunchedFlow")
 
-## MCP Server Bridge Commands
+## RFLIB Debug Commands
 
-> **Prerequisite**: The RFLIB MCP package must be installed in the target org and the running user must have the `rflib_MCP_Access` permission set assigned.
-> For installation instructions, visit: [https://github.com/j-fischer/rflib](https://github.com/j-fischer/rflib)
+These commands query and tune RFLIB-instrumented data directly via the Salesforce REST API. The only prerequisite is that the [RFLIB](https://github.com/j-fischer/rflib) package is installed in the target org and the running user has read access to `rflib_Logs_Archive__b`, `rflib_Application_Event__c`, and `rflib_Logger_Settings__c` (plus update access on the Logger Settings if you intend to use the `update` command).
+
+These commands are designed to be invoked by an LLM agent (via a Claude skill or equivalent) to drive a debugging session: trigger code in the org, then read the resulting logs and adjust verbosity as needed.
 
 ### `sf rflib mcp applicationevents get`
 
@@ -225,7 +226,7 @@ sf rflib mcp loggersettings update --target-org myOrg --setup-owner-id 00D000000
 
 ### `sf rflib mcp userpermissions get`
 
-Check Salesforce user permissions via the RFLIB MCP server.
+Check Salesforce user permissions (FLS, OLS, Apex access) aggregated across profile, permission sets, and permission set groups.
 
 ```bash
 # Check all permissions for a user

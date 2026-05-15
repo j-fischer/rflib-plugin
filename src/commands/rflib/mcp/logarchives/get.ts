@@ -1,6 +1,6 @@
 import { SfCommand, Flags } from '@salesforce/sf-plugins-core';
 import { Messages } from '@salesforce/core';
-import { callMcpTool } from '../../../../shared/mcpClient.js';
+import { queryLogArchives } from '../../../../shared/orgClient.js';
 
 export type RflibMcpLogArchivesGetResult = {
   result: string;
@@ -9,9 +9,6 @@ export type RflibMcpLogArchivesGetResult = {
 Messages.importMessagesDirectoryFromMetaUrl(import.meta.url);
 const messages = Messages.loadMessages('rflib-plugin', 'rflib.mcp.logarchives.get');
 
-/**
- * SF CLI command to query RFLIB log archives via the MCP server.
- */
 export default class RflibMcpLogArchivesGet extends SfCommand<RflibMcpLogArchivesGetResult> {
   public static readonly summary = messages.getMessage('summary');
   public static readonly description = messages.getMessage('description');
@@ -38,17 +35,16 @@ export default class RflibMcpLogArchivesGet extends SfCommand<RflibMcpLogArchive
 
   public async run(): Promise<RflibMcpLogArchivesGetResult> {
     const { flags } = await this.parse(RflibMcpLogArchivesGet);
-    const org = flags['target-org'];
-    const conn = org.getConnection(undefined);
-
-    const args: Record<string, unknown> = {};
-    if (flags['start-date']) args['startDate'] = flags['start-date'];
-    if (flags['end-date']) args['endDate'] = flags['end-date'];
+    const conn = flags['target-org'].getConnection(undefined);
 
     this.spinner.start('Querying log archives...');
-    const result = await callMcpTool(conn, 'rflib_query_log_archives', args);
+    const payload = await queryLogArchives(conn, {
+      startDate: flags['start-date'],
+      endDate: flags['end-date'],
+    });
     this.spinner.stop();
 
+    const result = JSON.stringify(payload);
     this.log(result);
     return { result };
   }

@@ -1,6 +1,6 @@
 import { SfCommand, Flags } from '@salesforce/sf-plugins-core';
 import { Messages } from '@salesforce/core';
-import { callMcpTool } from '../../../../shared/mcpClient.js';
+import { getLoggerSettings } from '../../../../shared/orgClient.js';
 
 export type RflibMcpLoggerSettingsGetResult = {
   result: string;
@@ -9,9 +9,6 @@ export type RflibMcpLoggerSettingsGetResult = {
 Messages.importMessagesDirectoryFromMetaUrl(import.meta.url);
 const messages = Messages.loadMessages('rflib-plugin', 'rflib.mcp.loggersettings.get');
 
-/**
- * SF CLI command to read all RFLIB Logger Settings via the MCP server.
- */
 export default class RflibMcpLoggerSettingsGet extends SfCommand<RflibMcpLoggerSettingsGetResult> {
   public static readonly summary = messages.getMessage('summary');
   public static readonly description = messages.getMessage('description');
@@ -28,13 +25,13 @@ export default class RflibMcpLoggerSettingsGet extends SfCommand<RflibMcpLoggerS
 
   public async run(): Promise<RflibMcpLoggerSettingsGetResult> {
     const { flags } = await this.parse(RflibMcpLoggerSettingsGet);
-    const org = flags['target-org'];
-    const conn = org.getConnection(undefined);
+    const conn = flags['target-org'].getConnection(undefined);
 
     this.spinner.start('Reading logger settings...');
-    const result = await callMcpTool(conn, 'rflib_get_logger_settings', {});
+    const payload = await getLoggerSettings(conn);
     this.spinner.stop();
 
+    const result = JSON.stringify(payload);
     this.log(result);
     return { result };
   }

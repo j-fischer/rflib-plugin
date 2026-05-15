@@ -1,6 +1,6 @@
 import { SfCommand, Flags } from '@salesforce/sf-plugins-core';
 import { Messages } from '@salesforce/core';
-import { callMcpTool } from '../../../../shared/mcpClient.js';
+import { updateLoggerSetting } from '../../../../shared/orgClient.js';
 
 export type RflibMcpLoggerSettingsUpdateResult = {
   result: string;
@@ -9,9 +9,6 @@ export type RflibMcpLoggerSettingsUpdateResult = {
 Messages.importMessagesDirectoryFromMetaUrl(import.meta.url);
 const messages = Messages.loadMessages('rflib-plugin', 'rflib.mcp.loggersettings.update');
 
-/**
- * SF CLI command to create or update an RFLIB Logger Setting via the MCP server.
- */
 export default class RflibMcpLoggerSettingsUpdate extends SfCommand<RflibMcpLoggerSettingsUpdateResult> {
   public static readonly summary = messages.getMessage('summary');
   public static readonly description = messages.getMessage('description');
@@ -50,20 +47,18 @@ export default class RflibMcpLoggerSettingsUpdate extends SfCommand<RflibMcpLogg
 
   public async run(): Promise<RflibMcpLoggerSettingsUpdateResult> {
     const { flags } = await this.parse(RflibMcpLoggerSettingsUpdate);
-    const org = flags['target-org'];
-    const conn = org.getConnection(undefined);
-
-    const args: Record<string, unknown> = {
-      fieldName: flags['field-name'],
-      fieldValue: flags['field-value'],
-    };
-    if (flags['record-id']) args['recordId'] = flags['record-id'];
-    if (flags['setup-owner-id']) args['setupOwnerId'] = flags['setup-owner-id'];
+    const conn = flags['target-org'].getConnection(undefined);
 
     this.spinner.start('Updating logger setting...');
-    const result = await callMcpTool(conn, 'rflib_update_logger_setting', args);
+    const payload = await updateLoggerSetting(conn, {
+      recordId: flags['record-id'],
+      setupOwnerId: flags['setup-owner-id'],
+      fieldName: flags['field-name'],
+      fieldValue: flags['field-value'],
+    });
     this.spinner.stop();
 
+    const result = JSON.stringify(payload);
     this.log(result);
     return { result };
   }

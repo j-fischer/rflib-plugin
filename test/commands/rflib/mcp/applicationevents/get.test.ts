@@ -1,183 +1,62 @@
-/* eslint-disable @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-assignment, @typescript-eslint/member-ordering, unicorn/numeric-separators-style */
-import type { Connection } from '@salesforce/core';
 import { expect } from 'chai';
-import { callMcpTool } from '../../../../../src/shared/mcpClient.js';
+import { getApplicationEvents } from '../../../../../src/shared/orgClient.js';
+import { buildMockConnection } from '../../../../helpers/mockConnection.js';
 
-type McpRequest = {
-  method: string;
-  url: string;
-  body: string;
-  headers: Record<string, string>;
-};
-
-type McpBody = {
-  jsonrpc: string;
-  method: string;
-  params: {
-    name: string;
-    arguments: Record<string, unknown>;
-  };
-};
-
-type McpContentItem = {
-  type: string;
-  text: string;
-};
-
-type McpResult = {
-  [key: string]: unknown;
-  content?: McpContentItem[];
-};
-
-type McpResponse = {
-  jsonrpc: string;
-  id: number;
-  result?: McpResult;
-  error?: { code: number; message: string };
-};
-
-function buildSuccessResponse(text: string): McpResponse {
-  return {
-    jsonrpc: '2.0',
-    id: 1,
-    result: { content: [{ type: 'text', text }] },
-  };
-}
-
-function buildErrorResponse(code: number, message: string): McpResponse {
-  return { jsonrpc: '2.0', id: 1, error: { code, message } };
-}
-
-function parseBody(raw: string): McpBody {
-  return JSON.parse(raw) as McpBody;
-}
-
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-type RequestFn = (req: McpRequest) => Promise<any>;
-
-function mockConnection(requestFn: RequestFn): Connection {
-  return { request: requestFn } as unknown as Connection;
-}
-
-function mockConn(handler: (req: McpRequest) => McpResponse | Error): Connection {
-  return mockConnection((req: McpRequest) => {
-    const outcome = handler(req);
-    if (outcome instanceof Error) return Promise.reject(outcome);
-    return Promise.resolve(outcome);
+describe('orgClient.getApplicationEvents', () => {
+  it('emits no WHERE clause when no filters are given', async () => {
+    const { conn, calls } = buildMockConnection({ query: () => [] });
+    await getApplicationEvents(conn);
+    expect(calls.queries[0]).to.not.include(' WHERE ');
+    expect(calls.queries[0]).to.include('FROM rflib_Application_Event__c');
+    expect(calls.queries[0]).to.include('ORDER BY Occurred_On__c DESC');
+    expect(calls.queries[0]).to.include('LIMIT 200');
   });
-}
 
-describe('callMcpTool', () => {
-  it('should send a JSON-RPC tools/call request to the MCP endpoint', async () => {
-    let capturedRequest: McpRequest | undefined;
-    const conn = mockConn((req) => {
-      capturedRequest = req;
-      return buildSuccessResponse('{}');
+  it('uses an exact-match equality predicate when eventName has no wildcard', async () => {
+    const { conn, calls } = buildMockConnection({ query: () => [] });
+    await getApplicationEvents(conn, { eventName: 'order-created' });
+    expect(calls.queries[0]).to.include("Event_Name__c = 'order-created'");
+  });
+
+  it('uses LIKE when eventName contains a percent wildcard', async () => {
+    const { conn, calls } = buildMockConnection({ query: () => [] });
+    await getApplicationEvents(conn, { eventName: 'order-%' });
+    expect(calls.queries[0]).to.include("Event_Name__c LIKE 'order-%'");
+  });
+
+  it('escapes single quotes in eventName to prevent SOQL injection', async () => {
+    const { conn, calls } = buildMockConnection({ query: () => [] });
+    await getApplicationEvents(conn, { eventName: "evil' OR '1' = '1" });
+    expect(calls.queries[0]).to.include("evil\\' OR \\'1\\' = \\'1");
+  });
+
+  it('clamps recordLimit to the maximum of 2000', async () => {
+    const { conn, calls } = buildMockConnection({ query: () => [] });
+    const result = await getApplicationEvents(conn, { recordLimit: 9999 });
+    expect(result.recordLimit).to.equal(2000);
+    expect(calls.queries[0]).to.include('LIMIT 2000');
+  });
+
+  it('falls back to the default of 200 when recordLimit is non-positive', async () => {
+    const { conn } = buildMockConnection({ query: () => [] });
+    const result = await getApplicationEvents(conn, { recordLimit: 0 });
+    expect(result.recordLimit).to.equal(200);
+  });
+
+  it('combines multiple filters with AND', async () => {
+    const { conn, calls } = buildMockConnection({ query: () => [] });
+    await getApplicationEvents(conn, {
+      eventName: 'order-%',
+      startDate: '2024-06-01T00:00:00Z',
+      endDate: '2024-06-30T00:00:00Z',
+      relatedRecordId: '001000000000ABC',
     });
-
-    await callMcpTool(conn, 'rflib_get_logger_settings', {});
-
-    expect(capturedRequest).to.not.be.undefined;
-    expect(capturedRequest!.method).to.equal('POST');
-    expect(capturedRequest!.url).to.equal('/services/apexrest/rflib-mcp/v1');
-    expect(capturedRequest!.headers['Content-Type']).to.equal('application/json');
-
-    const body = parseBody(capturedRequest!.body);
-    expect(body.jsonrpc).to.equal('2.0');
-    expect(body.method).to.equal('tools/call');
-    expect(body.params.name).to.equal('rflib_get_logger_settings');
-  });
-
-  it('should pass tool arguments in the request body', async () => {
-    let capturedBody: McpBody | undefined;
-    const conn = mockConn((req) => {
-      capturedBody = parseBody(req.body);
-      return buildSuccessResponse('{}');
-    });
-
-    await callMcpTool(conn, 'rflib_get_application_events', { eventName: 'order-%', recordLimit: 50 });
-
-    expect(capturedBody!.params.arguments).to.deep.equal({ eventName: 'order-%', recordLimit: 50 });
-  });
-
-  it('should return the text content from a successful MCP response', async () => {
-    const expected = '{"recordCount":2,"events":[]}';
-    const conn = mockConn(() => buildSuccessResponse(expected));
-
-    const result = await callMcpTool(conn, 'rflib_get_application_events', {});
-    expect(result).to.equal(expected);
-  });
-
-  it('should fall back to serializing the result object when content array is absent', async () => {
-    const conn = mockConn(() => ({
-      jsonrpc: '2.0',
-      id: 1,
-      result: { someOtherKey: 'value' },
-    }));
-
-    const result = await callMcpTool(conn, 'rflib_get_logger_settings', {});
-    expect(result).to.include('someOtherKey');
-  });
-
-  it('should throw a descriptive error when the MCP server returns a JSON-RPC error', async () => {
-    const conn = mockConn(() => buildErrorResponse(-32601, 'Unknown tool: bad_tool'));
-
-    try {
-      await callMcpTool(conn, 'bad_tool', {});
-      expect.fail('Should have thrown');
-    } catch (err) {
-      expect((err as Error).message).to.include('-32601');
-      expect((err as Error).message).to.include('Unknown tool: bad_tool');
-    }
-  });
-
-  it('should throw with installation instructions on 404 error', async () => {
-    const conn = mockConn(() => new Error('404 Not Found'));
-
-    try {
-      await callMcpTool(conn, 'rflib_get_logger_settings', {});
-      expect.fail('Should have thrown');
-    } catch (err) {
-      const msg = (err as Error).message;
-      expect(msg).to.include('https://github.com/j-fischer/rflib');
-      expect(msg).to.include('rflib_MCP_Access');
-    }
-  });
-
-  it('should throw with installation instructions on 403 forbidden error', async () => {
-    const conn = mockConn(() => new Error('403 Forbidden'));
-
-    try {
-      await callMcpTool(conn, 'rflib_get_logger_settings', {});
-      expect.fail('Should have thrown');
-    } catch (err) {
-      const msg = (err as Error).message;
-      expect(msg).to.include('https://github.com/j-fischer/rflib');
-      expect(msg).to.include('rflib_MCP_Access');
-    }
-  });
-
-  it('should throw with installation instructions on insufficient privileges error', async () => {
-    const conn = mockConn(() => new Error('Insufficient Privileges'));
-
-    try {
-      await callMcpTool(conn, 'rflib_get_logger_settings', {});
-      expect.fail('Should have thrown');
-    } catch (err) {
-      const msg = (err as Error).message;
-      expect(msg).to.include('https://github.com/j-fischer/rflib');
-      expect(msg).to.include('rflib_MCP_Access');
-    }
-  });
-
-  it('should rethrow non-auth errors as-is', async () => {
-    const conn = mockConn(() => new Error('500 Internal Server Error'));
-
-    try {
-      await callMcpTool(conn, 'rflib_get_logger_settings', {});
-      expect.fail('Should have thrown');
-    } catch (err) {
-      expect((err as Error).message).to.equal('500 Internal Server Error');
-    }
+    const soql = calls.queries[0];
+    expect(soql).to.include("Event_Name__c LIKE 'order-%'");
+    expect(soql).to.include('Occurred_On__c >= 2024-06-01T00:00:00Z');
+    expect(soql).to.include('Occurred_On__c <= 2024-06-30T00:00:00Z');
+    expect(soql).to.include("Related_Record_ID__c = '001000000000ABC'");
+    const andCount = (soql.match(/ AND /g) ?? []).length;
+    expect(andCount).to.equal(3);
   });
 });

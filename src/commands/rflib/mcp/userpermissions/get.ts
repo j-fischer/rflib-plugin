@@ -1,6 +1,6 @@
 import { SfCommand, Flags } from '@salesforce/sf-plugins-core';
 import { Messages } from '@salesforce/core';
-import { callMcpTool } from '../../../../shared/mcpClient.js';
+import { getUserPermissions, type PermissionType } from '../../../../shared/orgClient.js';
 
 export type RflibMcpUserPermissionsGetResult = {
   result: string;
@@ -9,9 +9,6 @@ export type RflibMcpUserPermissionsGetResult = {
 Messages.importMessagesDirectoryFromMetaUrl(import.meta.url);
 const messages = Messages.loadMessages('rflib-plugin', 'rflib.mcp.userpermissions.get');
 
-/**
- * SF CLI command to check Salesforce user permissions via the MCP server.
- */
 export default class RflibMcpUserPermissionsGet extends SfCommand<RflibMcpUserPermissionsGetResult> {
   public static readonly summary = messages.getMessage('summary');
   public static readonly description = messages.getMessage('description');
@@ -46,19 +43,17 @@ export default class RflibMcpUserPermissionsGet extends SfCommand<RflibMcpUserPe
 
   public async run(): Promise<RflibMcpUserPermissionsGetResult> {
     const { flags } = await this.parse(RflibMcpUserPermissionsGet);
-    const org = flags['target-org'];
-    const conn = org.getConnection(undefined);
-
-    const args: Record<string, unknown> = {
-      userId: flags['user-id'],
-      permissionType: flags['permission-type'],
-    };
-    if (flags['sobject-type']) args['sobjectType'] = flags['sobject-type'];
+    const conn = flags['target-org'].getConnection(undefined);
 
     this.spinner.start('Retrieving user permissions...');
-    const result = await callMcpTool(conn, 'rflib_get_user_permissions', args);
+    const payload = await getUserPermissions(conn, {
+      userId: flags['user-id'],
+      permissionType: flags['permission-type'] as PermissionType,
+      sobjectType: flags['sobject-type'],
+    });
     this.spinner.stop();
 
+    const result = JSON.stringify(payload);
     this.log(result);
     return { result };
   }
