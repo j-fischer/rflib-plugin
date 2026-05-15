@@ -18,17 +18,24 @@ const userRow = {
   Profile: { Name: 'System Administrator' },
 };
 
-const psaRow = {
-  PermissionSetId: '0PS000000000001',
-  PermissionSetGroupId: null,
-  PermissionSet: { Name: 'Custom_PS', Label: 'Custom Permission Set', IsOwnedByProfile: false },
-};
+const psaRows = [
+  {
+    PermissionSetId: '0PS000000000001',
+    PermissionSetGroupId: null,
+    PermissionSet: { Name: 'Custom_PS', Label: 'Custom Permission Set', IsOwnedByProfile: false },
+  },
+  {
+    PermissionSetId: null,
+    PermissionSetGroupId: '0PG000000000001',
+    PermissionSet: { Name: 'Group_PS', Label: 'Group Assignment', IsOwnedByProfile: false },
+  },
+];
 
 describe('rflib debug userpermissions get NUTs', () => {
   const harness = setupNut({
     query: (soql) => {
       if (soql.startsWith('SELECT Id, ProfileId')) return [userRow];
-      if (soql.startsWith('SELECT PermissionSetId')) return [psaRow];
+      if (soql.startsWith('SELECT PermissionSetId')) return psaRows;
       if (soql.includes('FROM FieldPermissions')) {
         return [{ SobjectType: 'Account', Field: 'Account.Name', PermissionsRead: true, PermissionsEdit: false }];
       }
@@ -61,6 +68,12 @@ describe('rflib debug userpermissions get NUTs', () => {
 
     expect(harness.queries.some((q) => q.includes('FROM FieldPermissions'))).to.equal(true);
     expect(harness.queries.some((q) => q.includes('FROM ObjectPermissions'))).to.equal(false);
+
+    // Permission set group grants are filtered via Parent.PermissionSetGroupId,
+    // not by stuffing 0PG ids into ParentId.
+    const flsQuery = harness.queries.find((q) => q.includes('FROM FieldPermissions'))!;
+    expect(flsQuery).to.include("ParentId IN ('0PS000000000001')");
+    expect(flsQuery).to.include("Parent.PermissionSetGroupId IN ('0PG000000000001')");
   });
 
   it('queries all three permission types for --permission-type ALL', async () => {

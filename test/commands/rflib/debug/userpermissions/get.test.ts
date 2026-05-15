@@ -56,7 +56,34 @@ describe('orgClient.getUserPermissions', () => {
     const flsQuery = calls.queries.find((q) => q.includes('FROM FieldPermissions'));
     expect(flsQuery).to.exist;
     expect(flsQuery).to.include(`Parent.ProfileId = '${PROFILE_ID}'`);
-    expect(flsQuery).to.include("ParentId IN ('0PS00000000000A','0PG00000000000G')");
+    expect(flsQuery).to.include("ParentId IN ('0PS00000000000A')");
+    expect(flsQuery).to.include("Parent.PermissionSetGroupId IN ('0PG00000000000G')");
+    // Permission Set Group IDs must NOT be merged into the ParentId clause —
+    // FieldPermissions.ParentId is always a PermissionSet, never a group.
+    expect(flsQuery).to.not.match(/ParentId IN \([^)]*0PG/);
+  });
+
+  it('omits the permission-set clause when the user has no direct permission set assignments', async () => {
+    const groupOnlyPsa = [
+      {
+        PermissionSetId: null,
+        PermissionSetGroupId: '0PG00000000000G',
+        PermissionSet: { Name: 'GroupAssignment', Label: 'Group', IsOwnedByProfile: false },
+      },
+    ];
+    const { conn, calls } = buildMockConnection({
+      query: (soql) => {
+        if (soql.startsWith('SELECT Id, ProfileId')) return userRows;
+        if (soql.includes('FROM PermissionSetAssignment')) return groupOnlyPsa;
+        return [];
+      },
+    });
+
+    await getUserPermissions(conn, { userId: VALID_USER_ID, permissionType: 'FLS' });
+    const flsQuery = calls.queries.find((q) => q.includes('FROM FieldPermissions'));
+    expect(flsQuery).to.exist;
+    expect(flsQuery).to.not.include('ParentId IN');
+    expect(flsQuery).to.include("Parent.PermissionSetGroupId IN ('0PG00000000000G')");
   });
 
   it('queries OLS only when permissionType=OLS', async () => {

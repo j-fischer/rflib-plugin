@@ -113,10 +113,23 @@ async function getUserPermDetails(conn: Connection, userId: string): Promise<Use
   };
 }
 
+function buildIdList(ids: readonly string[]): string {
+  return "('" + ids.map(escapeSingleQuotes).join("','") + "')";
+}
+
 function buildUserCondition(details: UserPermDetails): string {
-  const allIds = [...details.permissionSetIds, ...details.permissionSetGroupIds];
-  const idsClause = allIds.length === 0 ? "('')" : "('" + allIds.map(escapeSingleQuotes).join("','") + "')";
-  return ` WHERE (Parent.ProfileId = '${escapeSingleQuotes(details.profileId)}' OR ParentId IN ${idsClause})`;
+  // FieldPermissions / ObjectPermissions / SetupEntityAccess rows are always keyed by
+  // ParentId = PermissionSet. Permission Set Groups don't show up under ParentId — the
+  // group's effective grants live on an auto-generated PermissionSet whose
+  // Parent.PermissionSetGroupId points back at the group. Filter accordingly.
+  const clauses: string[] = [`Parent.ProfileId = '${escapeSingleQuotes(details.profileId)}'`];
+  if (details.permissionSetIds.length > 0) {
+    clauses.push(`ParentId IN ${buildIdList(details.permissionSetIds)}`);
+  }
+  if (details.permissionSetGroupIds.length > 0) {
+    clauses.push(`Parent.PermissionSetGroupId IN ${buildIdList(details.permissionSetGroupIds)}`);
+  }
+  return ` WHERE (${clauses.join(' OR ')})`;
 }
 
 function buildSObjectFilter(sobjectType: string | undefined): string {
