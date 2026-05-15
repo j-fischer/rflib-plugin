@@ -9,7 +9,7 @@ via the Salesforce REST API. Permissions are aggregated across the user's profil
 
 Use --sobject-type to narrow FLS or OLS results to a specific SObject.
 
-Requires the RFLIB base package to be installed in the target org and the running user to have read access to the relevant permission objects.
+Requires the RFLIB base package to be installed in the target org and the running user to be assigned the rflib_Ops_Center_Access permission set (or have equivalent read access to the relevant permission objects).
 For installation instructions, visit: https://github.com/j-fischer/rflib
 
 # flags.target-org.summary

@@ -7,7 +7,7 @@ Query RFLIB log archives from a Salesforce org.
 Retrieves rflib_Logs_Archive__b records from the target org's big object store via the Salesforce REST API.
 Each log record contains log level, context, request ID, and full log messages in the format: [timestamp]|[LEVEL]|[TRACE_ID]|[CONTEXT]|[MESSAGE].
 
-Requires the RFLIB base package to be installed in the target org and the running user to have read access to rflib_Logs_Archive__b.
+Requires the RFLIB base package to be installed in the target org and the running user to be assigned the rflib_Ops_Center_Access permission set (or have equivalent read access to rflib_Logs_Archive__b).
 For installation instructions, visit: https://github.com/j-fischer/rflib
 
 # flags.target-org.summary

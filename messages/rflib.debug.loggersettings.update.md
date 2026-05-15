@@ -9,7 +9,7 @@ Validates field values and warns about best-practice violations.
 
 To update an existing record, provide --record-id. To create a new record, provide --setup-owner-id with an org ID (00D...), profile ID (00E...), or user ID.
 
-Requires the RFLIB base package to be installed in the target org and the running user to have update access to rflib_Logger_Settings__c.
+Requires the RFLIB base package to be installed in the target org and the running user to be assigned the rflib_Ops_Center_Access permission set (or have equivalent update access to rflib_Logger_Settings__c).
 For installation instructions, visit: https://github.com/j-fischer/rflib
 
 # flags.target-org.summary

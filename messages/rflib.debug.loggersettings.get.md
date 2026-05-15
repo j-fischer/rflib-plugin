@@ -9,7 +9,7 @@ Returns settings across org-wide defaults, profile overrides, and user overrides
 
 Use "sf rflib debug loggersettings update" to apply changes.
 
-Requires the RFLIB base package to be installed in the target org and the running user to have read access to rflib_Logger_Settings__c.
+Requires the RFLIB base package to be installed in the target org and the running user to be assigned the rflib_Ops_Center_Access permission set (or have equivalent read access to rflib_Logger_Settings__c).
 For installation instructions, visit: https://github.com/j-fischer/rflib
 
 # flags.target-org.summary

@@ -135,7 +135,7 @@ sf rflib logging flow instrument --sourcepath force-app --skip-instrumented
 
 ## RFLIB Debug Commands
 
-These commands query and tune RFLIB-instrumented data directly via the Salesforce REST API. The only prerequisite is that the [RFLIB](https://github.com/j-fischer/rflib) package is installed in the target org and the running user has read access to `rflib_Logs_Archive__b`, `rflib_Application_Event__c`, and `rflib_Logger_Settings__c` (plus update access on the Logger Settings if you intend to use the `update` command).
+These commands query and tune RFLIB-instrumented data directly via the Salesforce REST API. The only prerequisite is that the [RFLIB](https://github.com/j-fischer/rflib) package is installed in the target org and the running user is assigned the `rflib_Ops_Center_Access` permission set (or has equivalent read access to `rflib_Logs_Archive__b`, `rflib_Application_Event__c`, and `rflib_Logger_Settings__c`, plus update access on Logger Settings to use the `update` command).
 
 These commands are designed to be invoked by an LLM agent (via a Claude skill or equivalent) to drive a debugging session: trigger code in the org, then read the resulting logs and adjust verbosity as needed.
 
