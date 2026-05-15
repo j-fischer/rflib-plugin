@@ -30,6 +30,16 @@ describe('orgClient.queryLogArchives', () => {
     expect(calls.queries[0]).to.include('CreatedDate__c < 2024-06-02T00:00:00Z');
     expect(result.recordCount).to.equal(1);
     expect(result.records[0]).to.deep.equal(sampleRecord);
+    expect(result.truncated).to.equal(false);
+  });
+
+  it('sets truncated=true when the query returns at the cap', async () => {
+    const filled = Array.from({ length: 1000 }, () => sampleRecord);
+    const { conn } = buildMockConnection({ query: () => filled });
+    const result = await queryLogArchives(conn);
+    expect(result.recordCount).to.equal(1000);
+    expect(result.queryLimit).to.equal(1000);
+    expect(result.truncated).to.equal(true);
   });
 
   it('defaults to a 24 hour window when no dates are supplied', async () => {

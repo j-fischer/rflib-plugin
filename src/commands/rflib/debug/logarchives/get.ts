@@ -2,14 +2,14 @@ import { SfCommand, Flags } from '@salesforce/sf-plugins-core';
 import { Messages } from '@salesforce/core';
 import { queryLogArchives } from '../../../../shared/orgClient.js';
 
-export type RflibMcpLogArchivesGetResult = {
+export type RflibDebugLogArchivesGetResult = {
   result: string;
 };
 
 Messages.importMessagesDirectoryFromMetaUrl(import.meta.url);
-const messages = Messages.loadMessages('rflib-plugin', 'rflib.mcp.logarchives.get');
+const messages = Messages.loadMessages('rflib-plugin', 'rflib.debug.logarchives.get');
 
-export default class RflibMcpLogArchivesGet extends SfCommand<RflibMcpLogArchivesGetResult> {
+export default class RflibDebugLogArchivesGet extends SfCommand<RflibDebugLogArchivesGetResult> {
   public static readonly summary = messages.getMessage('summary');
   public static readonly description = messages.getMessage('description');
   public static readonly examples = messages.getMessages('examples');
@@ -33,8 +33,8 @@ export default class RflibMcpLogArchivesGet extends SfCommand<RflibMcpLogArchive
     }),
   };
 
-  public async run(): Promise<RflibMcpLogArchivesGetResult> {
-    const { flags } = await this.parse(RflibMcpLogArchivesGet);
+  public async run(): Promise<RflibDebugLogArchivesGetResult> {
+    const { flags } = await this.parse(RflibDebugLogArchivesGet);
     const conn = flags['target-org'].getConnection(undefined);
 
     this.spinner.start('Querying log archives...');

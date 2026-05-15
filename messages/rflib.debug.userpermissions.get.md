@@ -1,16 +1,15 @@
 # summary
 
-Check Salesforce permissions for a user in the target org via the RFLIB MCP server.
+Check Salesforce permissions for a user in the target org.
 
 # description
 
 Retrieves FLS (Field-Level Security), OLS (Object-Level Security), and Apex class/page permissions for a specific user
-by invoking the rflib_get_user_permissions MCP tool. Permissions are aggregated across the user's profile, permission sets,
-and permission set groups.
+via the Salesforce REST API. Permissions are aggregated across the user's profile, permission sets, and permission set groups.
 
 Use --sobject-type to narrow FLS or OLS results to a specific SObject.
 
-Requires the RFLIB MCP package to be installed in the target org and the running user to have the rflib_MCP_Access permission set.
+Requires the RFLIB base package to be installed in the target org and the running user to have read access to the relevant permission objects.
 For installation instructions, visit: https://github.com/j-fischer/rflib
 
 # flags.target-org.summary
@@ -19,7 +18,7 @@ Username or alias of the target org.
 
 # flags.target-org.description
 
-The username or alias of the Salesforce org containing the RFLIB MCP package.
+The username or alias of the Salesforce org containing the RFLIB base package.
 
 # flags.user-id.summary
 
@@ -53,12 +52,12 @@ Filters Field-Level Security or Object-Level Security results to a specific SObj
 
 - Check all permissions for a user:
 
-  $ sf rflib mcp userpermissions get --target-org myOrg --user-id 0057000000XXXXXX --permission-type ALL
+  $ sf rflib debug userpermissions get --target-org myOrg --user-id 0057000000XXXXXX --permission-type ALL
 
 - Check FLS for a specific object:
 
-  $ sf rflib mcp userpermissions get --target-org myOrg --user-id 0057000000XXXXXX --permission-type FLS --sobject-type Account
+  $ sf rflib debug userpermissions get --target-org myOrg --user-id 0057000000XXXXXX --permission-type FLS --sobject-type Account
 
 - Check Apex access:
 
-  $ sf rflib mcp userpermissions get --target-org myOrg --user-id 0057000000XXXXXX --permission-type APEX
+  $ sf rflib debug userpermissions get --target-org myOrg --user-id 0057000000XXXXXX --permission-type APEX

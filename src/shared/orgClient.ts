@@ -38,6 +38,7 @@ export type LogArchiveRecord = {
 export type LogArchivesResult = {
   recordCount: number;
   queryLimit: number;
+  truncated: boolean;
   startDate: string;
   endDate: string;
   records: LogArchiveRecord[];
@@ -65,6 +66,7 @@ export type ApplicationEventRecord = {
 export type ApplicationEventsResult = {
   recordCount: number;
   recordLimit: number;
+  truncated: boolean;
   events: ApplicationEventRecord[];
 };
 
@@ -167,6 +169,7 @@ export async function queryLogArchives(
   return {
     recordCount: records.length,
     queryLimit: ARCHIVE_QUERY_LIMIT,
+    truncated: records.length >= ARCHIVE_QUERY_LIMIT,
     startDate: startDate.toISOString(),
     endDate: endDate.toISOString(),
     records,
@@ -208,7 +211,7 @@ export async function getApplicationEvents(
     return wrapMissingObject<ApplicationEventsResult>(error, APP_EVENT_OBJECT);
   }
 
-  return { recordCount: events.length, recordLimit, events };
+  return { recordCount: events.length, recordLimit, truncated: events.length >= recordLimit, events };
 }
 
 type DescribeFieldLite = { name: string; custom: boolean };

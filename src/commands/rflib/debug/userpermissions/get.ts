@@ -2,14 +2,14 @@ import { SfCommand, Flags } from '@salesforce/sf-plugins-core';
 import { Messages } from '@salesforce/core';
 import { getUserPermissions, type PermissionType } from '../../../../shared/orgClient.js';
 
-export type RflibMcpUserPermissionsGetResult = {
+export type RflibDebugUserPermissionsGetResult = {
   result: string;
 };
 
 Messages.importMessagesDirectoryFromMetaUrl(import.meta.url);
-const messages = Messages.loadMessages('rflib-plugin', 'rflib.mcp.userpermissions.get');
+const messages = Messages.loadMessages('rflib-plugin', 'rflib.debug.userpermissions.get');
 
-export default class RflibMcpUserPermissionsGet extends SfCommand<RflibMcpUserPermissionsGetResult> {
+export default class RflibDebugUserPermissionsGet extends SfCommand<RflibDebugUserPermissionsGetResult> {
   public static readonly summary = messages.getMessage('summary');
   public static readonly description = messages.getMessage('description');
   public static readonly examples = messages.getMessages('examples');
@@ -41,8 +41,8 @@ export default class RflibMcpUserPermissionsGet extends SfCommand<RflibMcpUserPe
     }),
   };
 
-  public async run(): Promise<RflibMcpUserPermissionsGetResult> {
-    const { flags } = await this.parse(RflibMcpUserPermissionsGet);
+  public async run(): Promise<RflibDebugUserPermissionsGetResult> {
+    const { flags } = await this.parse(RflibDebugUserPermissionsGet);
     const conn = flags['target-org'].getConnection(undefined);
 
     this.spinner.start('Retrieving user permissions...');

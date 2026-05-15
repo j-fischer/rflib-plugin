@@ -1,3 +1,4 @@
+/* eslint-disable camelcase -- Salesforce field API names */
 import { expect } from 'chai';
 import { getApplicationEvents } from '../../../../../src/shared/orgClient.js';
 import { buildMockConnection } from '../../../../helpers/mockConnection.js';
@@ -41,6 +42,21 @@ describe('orgClient.getApplicationEvents', () => {
     const { conn } = buildMockConnection({ query: () => [] });
     const result = await getApplicationEvents(conn, { recordLimit: 0 });
     expect(result.recordLimit).to.equal(200);
+  });
+
+  it('sets truncated=true when the record count hits the requested limit', async () => {
+    const filled = Array.from({ length: 50 }, (_, i) => ({ Id: `id-${i}`, Event_Name__c: 'evt' }));
+    const { conn } = buildMockConnection({ query: () => filled });
+    const result = await getApplicationEvents(conn, { recordLimit: 50 });
+    expect(result.recordCount).to.equal(50);
+    expect(result.recordLimit).to.equal(50);
+    expect(result.truncated).to.equal(true);
+  });
+
+  it('sets truncated=false when fewer records than the limit are returned', async () => {
+    const { conn } = buildMockConnection({ query: () => [{ Id: '1', Event_Name__c: 'evt' }] });
+    const result = await getApplicationEvents(conn);
+    expect(result.truncated).to.equal(false);
   });
 
   it('combines multiple filters with AND', async () => {

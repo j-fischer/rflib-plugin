@@ -2,14 +2,14 @@ import { SfCommand, Flags } from '@salesforce/sf-plugins-core';
 import { Messages } from '@salesforce/core';
 import { getApplicationEvents } from '../../../../shared/orgClient.js';
 
-export type RflibMcpApplicationEventsGetResult = {
+export type RflibDebugApplicationEventsGetResult = {
   result: string;
 };
 
 Messages.importMessagesDirectoryFromMetaUrl(import.meta.url);
-const messages = Messages.loadMessages('rflib-plugin', 'rflib.mcp.applicationevents.get');
+const messages = Messages.loadMessages('rflib-plugin', 'rflib.debug.applicationevents.get');
 
-export default class RflibMcpApplicationEventsGet extends SfCommand<RflibMcpApplicationEventsGetResult> {
+export default class RflibDebugApplicationEventsGet extends SfCommand<RflibDebugApplicationEventsGetResult> {
   public static readonly summary = messages.getMessage('summary');
   public static readonly description = messages.getMessage('description');
   public static readonly examples = messages.getMessages('examples');
@@ -50,8 +50,8 @@ export default class RflibMcpApplicationEventsGet extends SfCommand<RflibMcpAppl
     }),
   };
 
-  public async run(): Promise<RflibMcpApplicationEventsGetResult> {
-    const { flags } = await this.parse(RflibMcpApplicationEventsGet);
+  public async run(): Promise<RflibDebugApplicationEventsGetResult> {
+    const { flags } = await this.parse(RflibDebugApplicationEventsGet);
     const conn = flags['target-org'].getConnection(undefined);
 
     this.spinner.start('Querying application events...');

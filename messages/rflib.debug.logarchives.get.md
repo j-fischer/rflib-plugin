@@ -1,13 +1,13 @@
 # summary
 
-Query RFLIB log archives from a Salesforce org via the RFLIB MCP server.
+Query RFLIB log archives from a Salesforce org.
 
 # description
 
-Retrieves rflib_Logs_Archive__b records from the target org's big object store by invoking the rflib_query_log_archives MCP tool.
+Retrieves rflib_Logs_Archive__b records from the target org's big object store via the Salesforce REST API.
 Each log record contains log level, context, request ID, and full log messages in the format: [timestamp]|[LEVEL]|[TRACE_ID]|[CONTEXT]|[MESSAGE].
 
-Requires the RFLIB MCP package to be installed in the target org and the running user to have the rflib_MCP_Access permission set.
+Requires the RFLIB base package to be installed in the target org and the running user to have read access to rflib_Logs_Archive__b.
 For installation instructions, visit: https://github.com/j-fischer/rflib
 
 # flags.target-org.summary
@@ -16,7 +16,7 @@ Username or alias of the target org.
 
 # flags.target-org.description
 
-The username or alias of the Salesforce org containing the RFLIB MCP package.
+The username or alias of the Salesforce org containing the RFLIB base package.
 
 # flags.start-date.summary
 
@@ -38,8 +38,8 @@ Only return log archives created on or before this date. Must be in ISO 8601 for
 
 - Get log archives from the last 24 hours:
 
-  $ sf rflib mcp logarchives get --target-org myOrg
+  $ sf rflib debug logarchives get --target-org myOrg
 
 - Get log archives for a specific date range:
 
-  $ sf rflib mcp logarchives get --target-org myOrg --start-date 2024-01-01T00:00:00Z --end-date 2024-01-02T00:00:00Z
+  $ sf rflib debug logarchives get --target-org myOrg --start-date 2024-01-01T00:00:00Z --end-date 2024-01-02T00:00:00Z

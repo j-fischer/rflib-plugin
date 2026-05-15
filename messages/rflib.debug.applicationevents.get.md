@@ -1,14 +1,14 @@
 # summary
 
-Query RFLIB Application Events from a Salesforce org via the RFLIB MCP server.
+Query RFLIB Application Events from a Salesforce org.
 
 # description
 
-Retrieves rflib_Application_Event__c records from the target org by invoking the rflib_get_application_events MCP tool.
+Retrieves rflib_Application_Event__c records from the target org via the Salesforce REST API.
 Application Events are business-level events used to track feature adoption, user actions, and domain-specific milestones.
 Results are ordered by Occurred_On__c descending (most recent first).
 
-Requires the RFLIB MCP package to be installed in the target org and the running user to have the rflib_MCP_Access permission set.
+Requires the RFLIB base package to be installed in the target org and the running user to have read access to rflib_Application_Event__c.
 For installation instructions, visit: https://github.com/j-fischer/rflib
 
 # flags.target-org.summary
@@ -17,7 +17,7 @@ Username or alias of the target org.
 
 # flags.target-org.description
 
-The username or alias of the Salesforce org containing the RFLIB MCP package.
+The username or alias of the Salesforce org containing the RFLIB base package.
 
 # flags.event-name.summary
 
@@ -63,12 +63,12 @@ Controls how many Application Event records are returned. Defaults to 200. Maxim
 
 - Get all application events from the default org:
 
-  $ sf rflib mcp applicationevents get --target-org myOrg
+  $ sf rflib debug applicationevents get --target-org myOrg
 
 - Get events filtered by name and date range:
 
-  $ sf rflib mcp applicationevents get --target-org myOrg --event-name "order-%" --start-date 2024-01-01T00:00:00Z
+  $ sf rflib debug applicationevents get --target-org myOrg --event-name "order-%" --start-date 2024-01-01T00:00:00Z
 
 - Get events related to a specific record with a custom limit:
 
-  $ sf rflib mcp applicationevents get --target-org myOrg --related-record-id 0017000000XXXXXX --record-limit 50
+  $ sf rflib debug applicationevents get --target-org myOrg --related-record-id 0017000000XXXXXX --record-limit 50

@@ -2,14 +2,14 @@ import { SfCommand, Flags } from '@salesforce/sf-plugins-core';
 import { Messages } from '@salesforce/core';
 import { getLoggerSettings } from '../../../../shared/orgClient.js';
 
-export type RflibMcpLoggerSettingsGetResult = {
+export type RflibDebugLoggerSettingsGetResult = {
   result: string;
 };
 
 Messages.importMessagesDirectoryFromMetaUrl(import.meta.url);
-const messages = Messages.loadMessages('rflib-plugin', 'rflib.mcp.loggersettings.get');
+const messages = Messages.loadMessages('rflib-plugin', 'rflib.debug.loggersettings.get');
 
-export default class RflibMcpLoggerSettingsGet extends SfCommand<RflibMcpLoggerSettingsGetResult> {
+export default class RflibDebugLoggerSettingsGet extends SfCommand<RflibDebugLoggerSettingsGetResult> {
   public static readonly summary = messages.getMessage('summary');
   public static readonly description = messages.getMessage('description');
   public static readonly examples = messages.getMessages('examples');
@@ -23,8 +23,8 @@ export default class RflibMcpLoggerSettingsGet extends SfCommand<RflibMcpLoggerS
     }),
   };
 
-  public async run(): Promise<RflibMcpLoggerSettingsGetResult> {
-    const { flags } = await this.parse(RflibMcpLoggerSettingsGet);
+  public async run(): Promise<RflibDebugLoggerSettingsGetResult> {
+    const { flags } = await this.parse(RflibDebugLoggerSettingsGet);
     const conn = flags['target-org'].getConnection(undefined);
 
     this.spinner.start('Reading logger settings...');

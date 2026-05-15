@@ -1,15 +1,15 @@
 # summary
 
-Create or update an RFLIB Logger Setting in a Salesforce org via the RFLIB MCP server.
+Create or update an RFLIB Logger Setting in a Salesforce org.
 
 # description
 
-Creates or updates a single field on an rflib_Logger_Settings__c record in the target org by invoking the rflib_update_logger_setting MCP tool.
+Creates or updates a single field on an rflib_Logger_Settings__c record in the target org via the Salesforce REST API.
 Validates field values and warns about best-practice violations.
 
 To update an existing record, provide --record-id. To create a new record, provide --setup-owner-id with an org ID (00D...), profile ID (00E...), or user ID.
 
-Requires the RFLIB MCP package to be installed in the target org and the running user to have the rflib_MCP_Access permission set.
+Requires the RFLIB base package to be installed in the target org and the running user to have update access to rflib_Logger_Settings__c.
 For installation instructions, visit: https://github.com/j-fischer/rflib
 
 # flags.target-org.summary
@@ -18,7 +18,7 @@ Username or alias of the target org.
 
 # flags.target-org.description
 
-The username or alias of the Salesforce org containing the RFLIB MCP package.
+The username or alias of the Salesforce org containing the RFLIB base package.
 
 # flags.field-name.summary
 
@@ -50,14 +50,14 @@ Setup owner ID for creating a new Logger Setting record.
 
 # flags.setup-owner-id.description
 
-Required when creating a new Logger Setting record. Accepts an org ID (00D...), profile ID (00E...), or user ID. Read existing record IDs using "sf rflib mcp loggersettings get".
+Required when creating a new Logger Setting record. Accepts an org ID (00D...), profile ID (00E...), or user ID. Read existing record IDs using "sf rflib debug loggersettings get".
 
 # examples
 
 - Update the Log_Event_Reporting_Level__c field on an existing record:
 
-  $ sf rflib mcp loggersettings update --target-org myOrg --record-id a0A000000001234 --field-name Log_Event_Reporting_Level__c --field-value WARN
+  $ sf rflib debug loggersettings update --target-org myOrg --record-id a0A000000001234 --field-name Log_Event_Reporting_Level__c --field-value WARN
 
 - Create a new org-wide Logger Setting:
 
-  $ sf rflib mcp loggersettings update --target-org myOrg --setup-owner-id 00D000000000001 --field-name Log_Event_Reporting_Level__c --field-value WARN
+  $ sf rflib debug loggersettings update --target-org myOrg --setup-owner-id 00D000000000001 --field-name Log_Event_Reporting_Level__c --field-value WARN

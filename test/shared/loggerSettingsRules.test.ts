@@ -24,7 +24,7 @@ describe('loggerSettingsRules', () => {
       expect(() => validateFieldName('Bogus_Field__c', known))
         .to.throw(/does not exist on rflib_Logger_Settings__c/)
         .with.property('message')
-        .that.includes("Run 'sf rflib mcp loggersettings get'");
+        .that.includes("Run 'sf rflib debug loggersettings get'");
     });
   });
 

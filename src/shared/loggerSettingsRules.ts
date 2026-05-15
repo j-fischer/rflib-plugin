@@ -63,7 +63,7 @@ export function validateFieldName(fieldName: string, knownFieldNamesLowercased: 
   if (!knownFieldNamesLowercased.has(fieldName.toLowerCase())) {
     throw new Error(
       `Field "${fieldName}" does not exist on rflib_Logger_Settings__c. ` +
-        "Run 'sf rflib mcp loggersettings get' to see available fields.",
+        "Run 'sf rflib debug loggersettings get' to see available fields.",
     );
   }
 }

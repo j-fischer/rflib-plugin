@@ -79,8 +79,8 @@
               }
             }
           },
-          "mcp": {
-            "description": "Commands to interact with the RFLIB MCP server deployed in a Salesforce org",
+          "debug": {
+            "description": "Commands to inspect and tune an RFLIB-instrumented Salesforce org while debugging",
             "subtopics": {
               "applicationevents": {
                 "description": "Commands related to RFLIB Application Events"

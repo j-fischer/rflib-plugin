@@ -139,22 +139,22 @@ These commands query and tune RFLIB-instrumented data directly via the Salesforc
 
 These commands are designed to be invoked by an LLM agent (via a Claude skill or equivalent) to drive a debugging session: trigger code in the org, then read the resulting logs and adjust verbosity as needed.
 
-### `sf rflib mcp applicationevents get`
+### `sf rflib debug applicationevents get`
 
 Query RFLIB Application Events from a Salesforce org.
 
 ```bash
 # Get all recent application events
-sf rflib mcp applicationevents get --target-org myOrg
+sf rflib debug applicationevents get --target-org myOrg
 
 # Filter by event name with wildcard
-sf rflib mcp applicationevents get --target-org myOrg --event-name "order-%"
+sf rflib debug applicationevents get --target-org myOrg --event-name "order-%"
 
 # Filter by date range
-sf rflib mcp applicationevents get --target-org myOrg --start-date 2024-01-01T00:00:00Z --end-date 2024-12-31T23:59:59Z
+sf rflib debug applicationevents get --target-org myOrg --start-date 2024-01-01T00:00:00Z --end-date 2024-12-31T23:59:59Z
 
 # Filter by related record and limit results
-sf rflib mcp applicationevents get --target-org myOrg --related-record-id 001abc --record-limit 50
+sf rflib debug applicationevents get --target-org myOrg --related-record-id 001abc --record-limit 50
 ```
 
 #### Command Options
@@ -168,16 +168,16 @@ sf rflib mcp applicationevents get --target-org myOrg --related-record-id 001abc
 
 ---
 
-### `sf rflib mcp logarchives get`
+### `sf rflib debug logarchives get`
 
 Query RFLIB log archives from the `rflib_Logs_Archive__b` big object.
 
 ```bash
 # Get log archives from the last 24 hours
-sf rflib mcp logarchives get --target-org myOrg
+sf rflib debug logarchives get --target-org myOrg
 
 # Get archives for a specific date range
-sf rflib mcp logarchives get --target-org myOrg --start-date 2024-01-01T00:00:00Z --end-date 2024-01-02T00:00:00Z
+sf rflib debug logarchives get --target-org myOrg --start-date 2024-01-01T00:00:00Z --end-date 2024-01-02T00:00:00Z
 ```
 
 #### Command Options
@@ -188,12 +188,12 @@ sf rflib mcp logarchives get --target-org myOrg --start-date 2024-01-01T00:00:00
 
 ---
 
-### `sf rflib mcp loggersettings get`
+### `sf rflib debug loggersettings get`
 
 Read all RFLIB Logger Settings from the target org.
 
 ```bash
-sf rflib mcp loggersettings get --target-org myOrg
+sf rflib debug loggersettings get --target-org myOrg
 ```
 
 #### Command Options
@@ -202,16 +202,16 @@ sf rflib mcp loggersettings get --target-org myOrg
 
 ---
 
-### `sf rflib mcp loggersettings update`
+### `sf rflib debug loggersettings update`
 
 Create or update an RFLIB Logger Setting in the target org.
 
 ```bash
 # Update an existing setting record
-sf rflib mcp loggersettings update --target-org myOrg --record-id a01abc --field-name Log_Event_Reporting_Level__c --field-value WARN
+sf rflib debug loggersettings update --target-org myOrg --record-id a01abc --field-name Log_Event_Reporting_Level__c --field-value WARN
 
 # Create a new org-wide setting
-sf rflib mcp loggersettings update --target-org myOrg --setup-owner-id 00D000000000001 --field-name Log_Event_Reporting_Level__c --field-value WARN
+sf rflib debug loggersettings update --target-org myOrg --setup-owner-id 00D000000000001 --field-name Log_Event_Reporting_Level__c --field-value WARN
 ```
 
 #### Command Options
@@ -224,19 +224,19 @@ sf rflib mcp loggersettings update --target-org myOrg --setup-owner-id 00D000000
 
 ---
 
-### `sf rflib mcp userpermissions get`
+### `sf rflib debug userpermissions get`
 
 Check Salesforce user permissions (FLS, OLS, Apex access) aggregated across profile, permission sets, and permission set groups.
 
 ```bash
 # Check all permissions for a user
-sf rflib mcp userpermissions get --target-org myOrg --user-id 0057000000XXXXXX --permission-type ALL
+sf rflib debug userpermissions get --target-org myOrg --user-id 0057000000XXXXXX --permission-type ALL
 
 # Check FLS for a specific SObject
-sf rflib mcp userpermissions get --target-org myOrg --user-id 0057000000XXXXXX --permission-type FLS --sobject-type Account
+sf rflib debug userpermissions get --target-org myOrg --user-id 0057000000XXXXXX --permission-type FLS --sobject-type Account
 
 # Check Apex class/page access
-sf rflib mcp userpermissions get --target-org myOrg --user-id 0057000000XXXXXX --permission-type APEX
+sf rflib debug userpermissions get --target-org myOrg --user-id 0057000000XXXXXX --permission-type APEX
 ```
 
 #### Command Options

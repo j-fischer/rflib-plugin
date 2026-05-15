@@ -2,14 +2,14 @@ import { SfCommand, Flags } from '@salesforce/sf-plugins-core';
 import { Messages } from '@salesforce/core';
 import { updateLoggerSetting } from '../../../../shared/orgClient.js';
 
-export type RflibMcpLoggerSettingsUpdateResult = {
+export type RflibDebugLoggerSettingsUpdateResult = {
   result: string;
 };
 
 Messages.importMessagesDirectoryFromMetaUrl(import.meta.url);
-const messages = Messages.loadMessages('rflib-plugin', 'rflib.mcp.loggersettings.update');
+const messages = Messages.loadMessages('rflib-plugin', 'rflib.debug.loggersettings.update');
 
-export default class RflibMcpLoggerSettingsUpdate extends SfCommand<RflibMcpLoggerSettingsUpdateResult> {
+export default class RflibDebugLoggerSettingsUpdate extends SfCommand<RflibDebugLoggerSettingsUpdateResult> {
   public static readonly summary = messages.getMessage('summary');
   public static readonly description = messages.getMessage('description');
   public static readonly examples = messages.getMessages('examples');
@@ -45,8 +45,8 @@ export default class RflibMcpLoggerSettingsUpdate extends SfCommand<RflibMcpLogg
     }),
   };
 
-  public async run(): Promise<RflibMcpLoggerSettingsUpdateResult> {
-    const { flags } = await this.parse(RflibMcpLoggerSettingsUpdate);
+  public async run(): Promise<RflibDebugLoggerSettingsUpdateResult> {
+    const { flags } = await this.parse(RflibDebugLoggerSettingsUpdate);
     const conn = flags['target-org'].getConnection(undefined);
 
     this.spinner.start('Updating logger setting...');
