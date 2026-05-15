@@ -141,6 +141,22 @@ describe('orgClient.getUserPermissions', () => {
     }
   });
 
+  it('rejects 16- and 17-character user IDs (only 15 or 18 are valid)', async () => {
+    const sixteenChars = '0057000000ABCDE1';
+    const seventeenChars = '0057000000ABCDE12';
+    for (const badId of [sixteenChars, seventeenChars]) {
+      const { conn, calls } = buildMockConnection({});
+      try {
+        // eslint-disable-next-line no-await-in-loop
+        await getUserPermissions(conn, { userId: badId, permissionType: 'FLS' });
+        expect.fail(`expected an error for "${badId}"`);
+      } catch (err) {
+        expect((err as Error).message).to.include('Invalid userId');
+        expect(calls.queries).to.have.lengthOf(0);
+      }
+    }
+  });
+
   it('rejects unknown permission types', async () => {
     const { conn } = buildMockConnection({});
     try {

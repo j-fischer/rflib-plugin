@@ -18,7 +18,7 @@ const APP_EVENTS_MAX_LIMIT = 2000;
 const SETTINGS_OBJECT = 'rflib_Logger_Settings__c';
 const ARCHIVE_OBJECT = 'rflib_Logs_Archive__b';
 const APP_EVENT_OBJECT = 'rflib_Application_Event__c';
-const ID_PATTERN = /^[a-zA-Z0-9]{15,18}$/;
+const ID_PATTERN = /^(?:[a-zA-Z0-9]{15}|[a-zA-Z0-9]{18})$/;
 
 export type QueryLogArchivesArgs = {
   startDate?: string;
@@ -154,8 +154,8 @@ export async function queryLogArchives(
   const soql =
     'SELECT CreatedDate__c, CreatedById__c, Context__c, Log_Level__c, Request_ID__c, Log_Messages__c, Platform_Info__c ' +
     `FROM ${ARCHIVE_OBJECT} ` +
-    `WHERE CreatedDate__c > ${formatSoqlDateTime(startDate)} ` +
-    `AND CreatedDate__c < ${formatSoqlDateTime(endDate)} ` +
+    `WHERE CreatedDate__c >= ${formatSoqlDateTime(startDate)} ` +
+    `AND CreatedDate__c <= ${formatSoqlDateTime(endDate)} ` +
     `LIMIT ${ARCHIVE_QUERY_LIMIT}`;
 
   let records: LogArchiveRecord[];
@@ -246,8 +246,20 @@ export async function getLoggerSettings(conn: Connection): Promise<LoggerSetting
 
   let rawRecords: SettingRow[];
   try {
-    const result = await conn.query<SettingRow>(soql);
-    rawRecords = result.records;
+    // Custom hierarchy settings are usually small, but orgs with many user/profile
+    // overrides can exceed a single query batch. Follow nextRecordsUrl to return
+    // every record rather than silently truncating to the first page.
+    const first = await conn.query<SettingRow>(soql);
+    rawRecords = [...first.records];
+    let done = first.done;
+    let nextUrl = first.nextRecordsUrl;
+    while (!done && nextUrl) {
+      // eslint-disable-next-line no-await-in-loop
+      const more = await conn.queryMore<SettingRow>(nextUrl);
+      rawRecords.push(...more.records);
+      done = more.done;
+      nextUrl = more.nextRecordsUrl;
+    }
   } catch (error) {
     return wrapMissingObject<LoggerSettingsResult>(error, SETTINGS_OBJECT);
   }

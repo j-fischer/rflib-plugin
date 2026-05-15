@@ -26,8 +26,8 @@ describe('orgClient.queryLogArchives', () => {
     expect(calls.queries[0]).to.include('FROM rflib_Logs_Archive__b');
     expect(calls.queries[0]).to.include('CreatedDate__c');
     expect(calls.queries[0]).to.include('Log_Messages__c');
-    expect(calls.queries[0]).to.include('CreatedDate__c > 2024-06-01T00:00:00Z');
-    expect(calls.queries[0]).to.include('CreatedDate__c < 2024-06-02T00:00:00Z');
+    expect(calls.queries[0]).to.include('CreatedDate__c >= 2024-06-01T00:00:00Z');
+    expect(calls.queries[0]).to.include('CreatedDate__c <= 2024-06-02T00:00:00Z');
     expect(result.recordCount).to.equal(1);
     expect(result.records[0]).to.deep.equal(sampleRecord);
     expect(result.truncated).to.equal(false);

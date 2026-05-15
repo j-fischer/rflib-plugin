@@ -68,12 +68,19 @@ export function validateFieldName(fieldName: string, knownFieldNamesLowercased: 
   }
 }
 
+// Salesforce field API names are case-insensitive. Build lowercase lookup sets so
+// `general_log_level__c` triggers the same guardrails as `General_Log_Level__c`.
+const LOG_LEVEL_FIELDS_LC = new Set(LOG_LEVEL_FIELDS.map((f) => f.toLowerCase()));
+const RESTRICTED_LEVEL_FIELDS_LC = new Set(RESTRICTED_LEVEL_FIELDS.map((f) => f.toLowerCase()));
+const WARN_IF_BELOW_WARN_AT_ORG_LC = new Set(WARN_IF_BELOW_WARN_AT_ORG.map((f) => f.toLowerCase()));
+
 export function validateFieldValue(fieldName: string, fieldValue: string): void {
-  if (!LOG_LEVEL_FIELDS.includes(fieldName)) {
+  const lcField = fieldName.toLowerCase();
+  if (!LOG_LEVEL_FIELDS_LC.has(lcField)) {
     return;
   }
   const upperVal = fieldValue.toUpperCase();
-  if (RESTRICTED_LEVEL_FIELDS.includes(fieldName)) {
+  if (RESTRICTED_LEVEL_FIELDS_LC.has(lcField)) {
     if (!RESTRICTED_LEVELS.includes(upperVal)) {
       throw new Error(`Field "${fieldName}" only accepts: NONE, WARN, ERROR, FATAL. Got: "${fieldValue}"`);
     }
@@ -91,7 +98,7 @@ export function collectWarnings(args: {
   existingSetupOwnerId?: string | null;
 }): string[] {
   const warnings: string[] = [];
-  if (!WARN_IF_BELOW_WARN_AT_ORG.includes(args.fieldName)) {
+  if (!WARN_IF_BELOW_WARN_AT_ORG_LC.has(args.fieldName.toLowerCase())) {
     return warnings;
   }
   const ownerForScope = args.setupOwnerId ?? args.existingSetupOwnerId ?? '';

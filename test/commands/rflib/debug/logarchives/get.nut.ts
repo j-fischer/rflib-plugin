@@ -46,8 +46,8 @@ describe('rflib debug logarchives get NUTs', () => {
 
     expect(harness.queries).to.have.lengthOf(1);
     expect(harness.queries[0]).to.include('FROM rflib_Logs_Archive__b');
-    expect(harness.queries[0]).to.include('CreatedDate__c > 2024-06-01T00:00:00Z');
-    expect(harness.queries[0]).to.include('CreatedDate__c < 2024-06-02T00:00:00Z');
+    expect(harness.queries[0]).to.include('CreatedDate__c >= 2024-06-01T00:00:00Z');
+    expect(harness.queries[0]).to.include('CreatedDate__c <= 2024-06-02T00:00:00Z');
     expect(harness.queries[0]).to.include('LIMIT 1000');
   });
 

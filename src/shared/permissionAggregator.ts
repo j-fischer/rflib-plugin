@@ -23,7 +23,7 @@ const APEX_ORDER = ' ORDER BY Parent.Profile.Name, Parent.Label';
 
 const APEX_CONDITIONS = " AND (SetupEntityType = 'ApexClass' OR SetupEntityType = 'ApexPage')";
 
-const ID_PATTERN = /^[a-zA-Z0-9]{15,18}$/;
+const ID_PATTERN = /^(?:[a-zA-Z0-9]{15}|[a-zA-Z0-9]{18})$/;
 const SOBJECT_PATTERN = /^[A-Za-z][A-Za-z0-9_]*$/;
 
 export type PermissionType = 'FLS' | 'OLS' | 'APEX' | 'ALL';

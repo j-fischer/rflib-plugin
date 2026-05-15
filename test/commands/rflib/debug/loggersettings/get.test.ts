@@ -91,6 +91,38 @@ describe('orgClient.getLoggerSettings', () => {
     expect(result.settings[0].fields).to.not.have.property('Log_Event_Reporting_Level__c');
   });
 
+  it('follows nextRecordsUrl to return every settings record across multiple query batches', async () => {
+    const page1 = [
+      {
+        Id: 'a01000000000001',
+        SetupOwnerId: '00D000000000001',
+        SetupOwner: { Type: 'Organization', Name: 'Acme' },
+        General_Log_Level__c: 'INFO',
+      },
+    ];
+    const page2 = [
+      {
+        Id: 'a01000000000002',
+        SetupOwnerId: '005000000000001',
+        SetupOwner: { Type: 'User', Name: 'Alice' },
+        General_Log_Level__c: 'DEBUG',
+      },
+    ];
+    const { conn, calls } = buildMockConnection({
+      describe: () => describeFields,
+      query: (soql) => {
+        if (soql.startsWith('SELECT Id, Name FROM Profile')) return [];
+        return { records: page1, done: false, totalSize: 2, nextRecordsUrl: '/services/data/v60.0/query/01g000-2000' };
+      },
+      queryMore: () => ({ records: page2, done: true, totalSize: 2 }),
+    });
+
+    const result = await getLoggerSettings(conn);
+    expect(result.settingCount).to.equal(2);
+    expect(result.settings.map((s) => s.id)).to.deep.equal(['a01000000000001', 'a01000000000002']);
+    expect(calls.queryMoreUrls).to.deep.equal(['/services/data/v60.0/query/01g000-2000']);
+  });
+
   it('returns best practices and notes alongside the settings', async () => {
     const { conn } = buildMockConnection({ describe: () => describeFields, query: () => [] });
     const result = await getLoggerSettings(conn);

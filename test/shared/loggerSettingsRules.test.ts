@@ -46,6 +46,16 @@ describe('loggerSettingsRules', () => {
       expect(() => validateFieldValue('General_Log_Level__c', '')).to.throw(/Invalid log level/);
     });
 
+    it('applies log-level guardrails regardless of field-name casing', () => {
+      // Salesforce field API names are case-insensitive, so the value validation
+      // must trigger whether the user passes the canonical name or a lowercased one.
+      expect(() => validateFieldValue('general_log_level__c', 'BANANAS')).to.throw(/Invalid log level/);
+      expect(() => validateFieldValue('GENERAL_LOG_LEVEL__C', 'BANANAS')).to.throw(/Invalid log level/);
+      expect(() => validateFieldValue('log_aggregation_log_level__c', 'DEBUG')).to.throw(
+        /only accepts: NONE, WARN, ERROR, FATAL/,
+      );
+    });
+
     it('restricts Log_Aggregation_Log_Level__c to NONE/WARN/ERROR/FATAL', () => {
       for (const restrictedField of RESTRICTED_LEVEL_FIELDS) {
         expect(() => validateFieldValue(restrictedField, 'NONE')).to.not.throw();
@@ -83,6 +93,16 @@ describe('loggerSettingsRules', () => {
         expect(warnings[0]).to.include('flood the platform event bus');
         expect(warnings[0]).to.include(value);
       }
+    });
+
+    it('emits the warning regardless of field-name casing', () => {
+      const warnings = collectWarnings({
+        fieldName: 'log_event_reporting_level__c',
+        fieldValue: 'DEBUG',
+        setupOwnerId: '00D000000000001',
+      });
+      expect(warnings).to.have.lengthOf(1);
+      expect(warnings[0]).to.include('flood the platform event bus');
     });
 
     it('warns when org-scope Client_Server_Log_Level__c is set below WARN', () => {

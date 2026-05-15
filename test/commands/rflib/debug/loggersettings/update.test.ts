@@ -41,21 +41,21 @@ describe('orgClient.updateLoggerSetting', () => {
     const { conn, calls } = buildMockConnection({
       describe: () => describeFields,
       query: () => [{ SetupOwnerId: '0050000000User01' }],
-      update: () => ({ success: true, id: 'a01EXISTING00001' }),
+      update: () => ({ success: true, id: 'a01EXISTING0001' }),
     });
 
     const result = await updateLoggerSetting(conn, {
-      recordId: 'a01EXISTING00001',
+      recordId: 'a01EXISTING0001',
       fieldName: 'General_Log_Level__c',
       fieldValue: 'DEBUG',
     });
 
     expect(calls.updates).to.have.lengthOf(1);
     expect(calls.updates[0].record).to.deep.equal({
-      Id: 'a01EXISTING00001',
+      Id: 'a01EXISTING0001',
       General_Log_Level__c: 'DEBUG',
     });
-    expect(result.recordId).to.equal('a01EXISTING00001');
+    expect(result.recordId).to.equal('a01EXISTING0001');
   });
 
   it('rejects unknown field names with the schema error', async () => {
@@ -120,11 +120,11 @@ describe('orgClient.updateLoggerSetting', () => {
     const { conn, calls } = buildMockConnection({
       describe: () => describeFields,
       query: () => [{ SetupOwnerId: '00D000000000001' }],
-      update: () => ({ success: true, id: 'a01EXISTING00001' }),
+      update: () => ({ success: true, id: 'a01EXISTING0001' }),
     });
 
     const result = await updateLoggerSetting(conn, {
-      recordId: 'a01EXISTING00001',
+      recordId: 'a01EXISTING0001',
       fieldName: 'Log_Event_Reporting_Level__c',
       fieldValue: 'DEBUG',
     });
@@ -157,6 +157,23 @@ describe('orgClient.updateLoggerSetting', () => {
       expect.fail('expected an error');
     } catch (err) {
       expect((err as Error).message).to.include('Invalid recordId');
+    }
+  });
+
+  it('rejects 16- and 17-character IDs (only 15 or 18 are valid Salesforce IDs)', async () => {
+    const { conn } = buildMockConnection({ describe: () => describeFields });
+    for (const badId of ['a01000000000001A', 'a01000000000001AB']) {
+      try {
+        // eslint-disable-next-line no-await-in-loop
+        await updateLoggerSetting(conn, {
+          recordId: badId,
+          fieldName: 'General_Log_Level__c',
+          fieldValue: 'INFO',
+        });
+        expect.fail(`expected an error for "${badId}"`);
+      } catch (err) {
+        expect((err as Error).message).to.include('Invalid recordId');
+      }
     }
   });
 
