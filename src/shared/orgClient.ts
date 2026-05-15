@@ -224,6 +224,25 @@ type SettingRow = {
 };
 type ProfileRow = { Id: string; Name: string };
 
+/**
+ * Run a SOQL query and walk the entire result set via `nextRecordsUrl`. Use this for
+ * any query whose total record count can exceed a single query batch (~2000 rows).
+ */
+async function queryWithPagination<T extends Record<string, unknown>>(conn: Connection, soql: string): Promise<T[]> {
+  const first = await conn.query<T>(soql);
+  const records: T[] = [...first.records];
+  let done = first.done;
+  let nextUrl = first.nextRecordsUrl;
+  while (!done && nextUrl) {
+    // eslint-disable-next-line no-await-in-loop
+    const more = await conn.queryMore<T>(nextUrl);
+    records.push(...more.records);
+    done = more.done;
+    nextUrl = more.nextRecordsUrl;
+  }
+  return records;
+}
+
 async function describeSettingsObject(conn: Connection): Promise<DescribeFieldLite[]> {
   try {
     const describe = (await conn.sobject(SETTINGS_OBJECT).describe()) as unknown as DescribeResultLite;
@@ -237,29 +256,20 @@ export async function getLoggerSettings(conn: Connection): Promise<LoggerSetting
   const fields = await describeSettingsObject(conn);
   const customFieldNames = fields.filter((f) => f.custom).map((f) => f.name);
 
-  const profileResult = await conn.query<ProfileRow>('SELECT Id, Name FROM Profile');
+  // Large orgs can have more than one batch of Profile rows; paginate so profile-scoped
+  // settings always resolve to a name rather than falling back to the raw 00e... id.
+  const profileRows = await queryWithPagination<ProfileRow>(conn, 'SELECT Id, Name FROM Profile');
   const profileMap = new Map<string, string>();
-  for (const profile of profileResult.records) profileMap.set(profile.Id, profile.Name);
+  for (const profile of profileRows) profileMap.set(profile.Id, profile.Name);
 
   const fieldList = ['Id', 'SetupOwnerId', 'SetupOwner.Type', 'SetupOwner.Name', ...customFieldNames].join(', ');
   const soql = `SELECT ${fieldList} FROM ${SETTINGS_OBJECT}`;
 
+  // Custom hierarchy settings are usually small, but orgs with many user/profile
+  // overrides can exceed a single query batch.
   let rawRecords: SettingRow[];
   try {
-    // Custom hierarchy settings are usually small, but orgs with many user/profile
-    // overrides can exceed a single query batch. Follow nextRecordsUrl to return
-    // every record rather than silently truncating to the first page.
-    const first = await conn.query<SettingRow>(soql);
-    rawRecords = [...first.records];
-    let done = first.done;
-    let nextUrl = first.nextRecordsUrl;
-    while (!done && nextUrl) {
-      // eslint-disable-next-line no-await-in-loop
-      const more = await conn.queryMore<SettingRow>(nextUrl);
-      rawRecords.push(...more.records);
-      done = more.done;
-      nextUrl = more.nextRecordsUrl;
-    }
+    rawRecords = await queryWithPagination<SettingRow>(conn, soql);
   } catch (error) {
     return wrapMissingObject<LoggerSettingsResult>(error, SETTINGS_OBJECT);
   }
