@@ -7,6 +7,7 @@ import {
   SETTINGS_NOTES,
   validateFieldName,
   validateFieldValue,
+  validateWritableField,
   type ScopeInfo,
 } from './loggerSettingsRules.js';
 import { getUserPermissions } from './permissionAggregator.js';
@@ -324,7 +325,12 @@ export async function updateLoggerSetting(
 
   const fields = await describeSettingsObject(conn);
   const knownFields = new Set(fields.map((f) => f.name.toLowerCase()));
+  const customFields = new Set(fields.filter((f) => f.custom).map((f) => f.name.toLowerCase()));
   validateFieldName(args.fieldName, knownFields);
+  // Block system fields (Id, SetupOwnerId, CreatedDate, …) before they reach the DML
+  // payload. Otherwise the `{ [fieldName]: fieldValue }` spread can clobber the explicit
+  // Id/SetupOwnerId set by this command and retarget the update.
+  validateWritableField(args.fieldName, customFields);
   validateFieldValue(args.fieldName, args.fieldValue);
 
   let existingSetupOwnerId: string | undefined;

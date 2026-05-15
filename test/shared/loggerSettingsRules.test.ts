@@ -9,6 +9,7 @@ import {
   SETTINGS_NOTES,
   validateFieldName,
   validateFieldValue,
+  validateWritableField,
 } from '../../src/shared/loggerSettingsRules.js';
 
 describe('loggerSettingsRules', () => {
@@ -25,6 +26,24 @@ describe('loggerSettingsRules', () => {
         .to.throw(/does not exist on rflib_Logger_Settings__c/)
         .with.property('message')
         .that.includes("Run 'sf rflib debug loggersettings get'");
+    });
+  });
+
+  describe('validateWritableField', () => {
+    const customFields = new Set(['general_log_level__c', 'log_event_reporting_level__c']);
+
+    it('accepts a custom field (case-insensitive)', () => {
+      expect(() => validateWritableField('General_Log_Level__c', customFields)).to.not.throw();
+      expect(() => validateWritableField('general_log_level__c', customFields)).to.not.throw();
+    });
+
+    it('rejects system fields that would clobber the DML target', () => {
+      for (const sysField of ['Id', 'SetupOwnerId', 'CreatedDate', 'CreatedById', 'LastModifiedDate']) {
+        expect(() => validateWritableField(sysField, customFields))
+          .to.throw(/is not user-editable/)
+          .with.property('message')
+          .that.includes('Only custom (__c) fields');
+      }
     });
   });
 

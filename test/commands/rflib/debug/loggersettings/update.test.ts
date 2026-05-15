@@ -160,6 +160,28 @@ describe('orgClient.updateLoggerSetting', () => {
     }
   });
 
+  it('rejects an attempt to write system fields like Id or SetupOwnerId before DML', async () => {
+    // Without the writable-field guard, fieldName=Id would let the payload spread clobber the
+    // explicit `Id: args.recordId` and retarget the update at a different record.
+    for (const sysField of ['Id', 'SetupOwnerId']) {
+      const { conn, calls } = buildMockConnection({ describe: () => describeFields });
+      try {
+        // eslint-disable-next-line no-await-in-loop
+        await updateLoggerSetting(conn, {
+          recordId: 'a01EXISTING0001',
+          fieldName: sysField,
+          fieldValue: 'a01ATTACKER0001',
+        });
+        expect.fail(`expected an error when fieldName="${sysField}"`);
+      } catch (err) {
+        expect((err as Error).message).to.include('is not user-editable');
+      }
+      // No DML should have been issued.
+      expect(calls.updates).to.have.lengthOf(0);
+      expect(calls.creates).to.have.lengthOf(0);
+    }
+  });
+
   it('rejects 16- and 17-character IDs (only 15 or 18 are valid Salesforce IDs)', async () => {
     const { conn } = buildMockConnection({ describe: () => describeFields });
     for (const badId of ['a01000000000001A', 'a01000000000001AB']) {

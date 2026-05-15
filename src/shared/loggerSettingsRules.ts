@@ -68,6 +68,22 @@ export function validateFieldName(fieldName: string, knownFieldNamesLowercased: 
   }
 }
 
+/**
+ * Reject any attempt to write a non-custom field. Hierarchy custom-setting payloads
+ * may only carry user-editable custom (__c) fields — overwriting Id, SetupOwnerId,
+ * CreatedDate, or any other system column via this command would either silently
+ * retarget the DML to a different record or fail at the API layer with a confusing
+ * error. Block it here with a clear message instead.
+ */
+export function validateWritableField(fieldName: string, customFieldNamesLowercased: ReadonlySet<string>): void {
+  if (!customFieldNamesLowercased.has(fieldName.toLowerCase())) {
+    throw new Error(
+      `Field "${fieldName}" is not user-editable. Only custom (__c) fields on ` +
+        'rflib_Logger_Settings__c can be set via this command.',
+    );
+  }
+}
+
 // Salesforce field API names are case-insensitive. Build lowercase lookup sets so
 // `general_log_level__c` triggers the same guardrails as `General_Log_Level__c`.
 const LOG_LEVEL_FIELDS_LC = new Set(LOG_LEVEL_FIELDS.map((f) => f.toLowerCase()));
