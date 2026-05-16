@@ -1,10 +1,8 @@
 import { SfCommand, Flags } from '@salesforce/sf-plugins-core';
 import { Messages } from '@salesforce/core';
-import { getApplicationEvents } from '../../../../shared/orgClient.js';
+import { getApplicationEvents, type ApplicationEventsResult } from '../../../../shared/orgClient.js';
 
-export type RflibDebugApplicationEventsGetResult = {
-  result: string;
-};
+export type RflibDebugApplicationEventsGetResult = ApplicationEventsResult;
 
 Messages.importMessagesDirectoryFromMetaUrl(import.meta.url);
 const messages = Messages.loadMessages('rflib-plugin', 'rflib.debug.applicationevents.get');
@@ -64,8 +62,9 @@ export default class RflibDebugApplicationEventsGet extends SfCommand<RflibDebug
     });
     this.spinner.stop();
 
-    const result = JSON.stringify(payload);
-    this.log(result);
-    return { result };
+    // For human invocations, render the payload as JSON. Under --json, SfCommand
+    // suppresses log output and wraps this method's return value directly.
+    this.log(JSON.stringify(payload));
+    return payload;
   }
 }

@@ -3,13 +3,6 @@ import { expect } from 'chai';
 import RflibDebugApplicationEventsGet from '../../../../../src/commands/rflib/debug/applicationevents/get.js';
 import { setupNut } from '../../../../helpers/nutTestContext.js';
 
-type AppEventsPayload = {
-  recordCount: number;
-  recordLimit: number;
-  truncated: boolean;
-  events: Array<Record<string, unknown>>;
-};
-
 const sampleEvent = {
   Id: '0017000000ABCDE',
   Name: 'AE-001',
@@ -27,16 +20,12 @@ describe('rflib debug applicationevents get NUTs', () => {
   });
 
   it('runs end-to-end with no filters and returns the event payload', async () => {
-    const result = (await RflibDebugApplicationEventsGet.run([
-      '--target-org',
-      harness.testOrg.username,
-    ]));
+    const result = await RflibDebugApplicationEventsGet.run(['--target-org', harness.testOrg.username]);
 
-    const payload = JSON.parse(result.result) as AppEventsPayload;
-    expect(payload.recordCount).to.equal(1);
-    expect(payload.recordLimit).to.equal(200);
-    expect(payload.truncated).to.equal(false);
-    expect(payload.events[0]).to.deep.equal(sampleEvent);
+    expect(result.recordCount).to.equal(1);
+    expect(result.recordLimit).to.equal(200);
+    expect(result.truncated).to.equal(false);
+    expect(result.events[0]).to.deep.equal(sampleEvent);
 
     expect(harness.queries[0]).to.include('FROM rflib_Application_Event__c');
     expect(harness.queries[0]).to.not.include(' WHERE ');
@@ -75,16 +64,15 @@ describe('rflib debug applicationevents get NUTs - truncation', () => {
   });
 
   it('flags truncated=true when the record count reaches the requested limit', async () => {
-    const result = (await RflibDebugApplicationEventsGet.run([
+    const result = await RflibDebugApplicationEventsGet.run([
       '--target-org',
       harness.testOrg.username,
       '--record-limit',
       '50',
-    ]));
+    ]);
 
-    const payload = JSON.parse(result.result) as AppEventsPayload;
-    expect(payload.recordCount).to.equal(50);
-    expect(payload.recordLimit).to.equal(50);
-    expect(payload.truncated).to.equal(true);
+    expect(result.recordCount).to.equal(50);
+    expect(result.recordLimit).to.equal(50);
+    expect(result.truncated).to.equal(true);
   });
 });

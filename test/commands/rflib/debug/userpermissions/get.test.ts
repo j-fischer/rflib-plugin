@@ -53,6 +53,9 @@ describe('orgClient.getUserPermissions', () => {
     expect(result.profileName).to.equal('System Administrator');
     expect(result.permissionSetNames).to.equal('Custom Set 1');
     expect(result.flsPermissions).to.have.lengthOf(1);
+    // Truncation flag is surfaced alongside the records so callers can detect
+    // when results were silently capped. Under the normal case it is false.
+    expect(result.flsTruncated).to.equal(false);
     const flsQuery = calls.queries.find((q) => q.includes('FROM FieldPermissions'));
     expect(flsQuery).to.exist;
     expect(flsQuery).to.include(`Parent.ProfileId = '${PROFILE_ID}'`);
@@ -180,6 +183,39 @@ describe('orgClient.getUserPermissions', () => {
     } catch (err) {
       expect((err as Error).message).to.include(`User with Id "${VALID_USER_ID}" was not found`);
     }
+  });
+
+  it('surfaces flsTruncated=true when the FLS query exceeds the 24,995 cap', async () => {
+    // Need to push more than QUERY_LIMIT rows through queryAll. Use a paginated
+    // response: a first batch of 24,000 records with done:false followed by a
+    // queryMore that returns 1,000 more (total 25,000 > cap of 24,995).
+    const flsPage1 = Array.from({ length: 24_000 }, (_, i) => ({
+      SobjectType: 'Account',
+      Field: `Account.F${i}`,
+      PermissionsRead: true,
+      PermissionsEdit: false,
+    }));
+    const flsPage2 = Array.from({ length: 1000 }, (_, i) => ({
+      SobjectType: 'Account',
+      Field: `Account.G${i}`,
+      PermissionsRead: true,
+      PermissionsEdit: false,
+    }));
+    const { conn } = buildMockConnection({
+      query: (soql: string) => {
+        if (soql.startsWith('SELECT Id, ProfileId')) return userRows;
+        if (soql.includes('FROM PermissionSetAssignment')) return psaRows;
+        if (soql.includes('FROM FieldPermissions')) {
+          return { records: flsPage1, done: false, totalSize: 25_000, nextRecordsUrl: '/q/fls-page-2' };
+        }
+        return [];
+      },
+      queryMore: () => ({ records: flsPage2, done: true, totalSize: 25_000 }),
+    });
+
+    const result = await getUserPermissions(conn, { userId: VALID_USER_ID, permissionType: 'FLS' });
+    expect((result.flsPermissions as unknown[]).length).to.equal(24_995);
+    expect(result.flsTruncated).to.equal(true);
   });
 
   it('rejects malformed sobjectType to avoid SOQL injection', async () => {

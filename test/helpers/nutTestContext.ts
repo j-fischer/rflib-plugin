@@ -5,10 +5,15 @@ import type { SinonStub } from 'sinon';
 
 export type StubbedDescribe = () => unknown;
 export type StubbedSave = (record: Record<string, unknown>) => Promise<{ success: boolean; id?: string }>;
-export type StubbedQuery = (soql: string) => unknown[] | { records: unknown[]; done: boolean; totalSize: number };
+export type QueryShape =
+  | unknown[]
+  | { records: unknown[]; done: boolean; totalSize: number; nextRecordsUrl?: string };
+export type StubbedQuery = (soql: string) => QueryShape;
+export type StubbedQueryMore = (url: string) => QueryShape;
 
 export type NutStubs = {
   query?: StubbedQuery;
+  queryMore?: StubbedQueryMore;
   describe?: Record<string, StubbedDescribe>;
   create?: Record<string, StubbedSave>;
   update?: Record<string, StubbedSave>;
@@ -19,6 +24,8 @@ export type NutHarness = {
   testOrg: MockTestOrgData;
   /** Captured SOQL strings, in order. */
   queries: string[];
+  /** Captured queryMore URLs, in order. */
+  queryMoreUrls: string[];
   /** Captured create/update payloads, keyed by sobject name. */
   creates: Array<{ object: string; record: Record<string, unknown> }>;
   updates: Array<{ object: string; record: Record<string, unknown> }>;
@@ -39,10 +46,12 @@ export function setupNut(stubs: NutStubs): NutHarness {
     $$,
     testOrg,
     queries: [],
+    queryMoreUrls: [],
     creates: [],
     updates: [],
     reset: () => {
       harness.queries.length = 0;
+      harness.queryMoreUrls.length = 0;
       harness.creates.length = 0;
       harness.updates.length = 0;
     },
@@ -59,6 +68,16 @@ export function setupNut(stubs: NutStubs): NutHarness {
     queryStub.callsFake(async (soql: string) => {
       harness.queries.push(soql);
       const value = stubs.query ? stubs.query(soql) : [];
+      if (Array.isArray(value)) {
+        return Promise.resolve({ records: value, done: true, totalSize: value.length });
+      }
+      return Promise.resolve(value);
+    });
+
+    const queryMoreStub = $$.SANDBOX.stub(Connection.prototype, 'queryMore') as unknown as SinonStub;
+    queryMoreStub.callsFake(async (url: string) => {
+      harness.queryMoreUrls.push(url);
+      const value = stubs.queryMore ? stubs.queryMore(url) : [];
       if (Array.isArray(value)) {
         return Promise.resolve({ records: value, done: true, totalSize: value.length });
       }

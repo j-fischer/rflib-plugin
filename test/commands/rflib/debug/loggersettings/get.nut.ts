@@ -3,19 +3,6 @@ import { expect } from 'chai';
 import RflibDebugLoggerSettingsGet from '../../../../../src/commands/rflib/debug/loggersettings/get.js';
 import { setupNut } from '../../../../helpers/nutTestContext.js';
 
-type LoggerSettingsPayload = {
-  settings: Array<{
-    id: string;
-    setupOwnerId: string;
-    scopeType: 'Organization' | 'Profile' | 'User';
-    scopeName: string;
-    fields: Record<string, unknown>;
-  }>;
-  settingCount: number;
-  bestPractices: Record<string, Record<string, unknown>>;
-  notes: string[];
-};
-
 const describeFields = {
   fields: [
     { name: 'Id', custom: false },
@@ -55,20 +42,16 @@ describe('rflib debug loggersettings get NUTs', () => {
   });
 
   it('returns settings, best-practice metadata, and hierarchy notes', async () => {
-    const result = (await RflibDebugLoggerSettingsGet.run([
-      '--target-org',
-      harness.testOrg.username,
-    ]));
+    const result = await RflibDebugLoggerSettingsGet.run(['--target-org', harness.testOrg.username]);
 
-    const payload = JSON.parse(result.result) as LoggerSettingsPayload;
-    expect(payload.settingCount).to.equal(1);
-    expect(payload.settings[0].scopeType).to.equal('Organization');
-    expect(payload.settings[0].fields).to.deep.equal({
+    expect(result.settingCount).to.equal(1);
+    expect(result.settings[0].scopeType).to.equal('Organization');
+    expect(result.settings[0].fields).to.deep.equal({
       General_Log_Level__c: 'INFO',
       Log_Event_Reporting_Level__c: 'WARN',
     });
-    expect(payload.bestPractices).to.have.property('Log_Event_Reporting_Level__c');
-    expect(payload.notes).to.be.an('array').that.is.not.empty;
+    expect(result.bestPractices).to.have.property('Log_Event_Reporting_Level__c');
+    expect(result.notes).to.be.an('array').that.is.not.empty;
   });
 
   it('describes the settings sobject and queries every custom field', async () => {

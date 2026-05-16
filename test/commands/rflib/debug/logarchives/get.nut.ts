@@ -3,15 +3,6 @@ import { expect } from 'chai';
 import RflibDebugLogArchivesGet from '../../../../../src/commands/rflib/debug/logarchives/get.js';
 import { setupNut } from '../../../../helpers/nutTestContext.js';
 
-type LogArchivesPayload = {
-  recordCount: number;
-  queryLimit: number;
-  truncated: boolean;
-  startDate: string;
-  endDate: string;
-  records: Array<Record<string, unknown>>;
-};
-
 const sampleRecord = {
   CreatedDate__c: '2024-06-01T12:00:00.000Z',
   CreatedById__c: '005000000000ABC',
@@ -27,22 +18,21 @@ describe('rflib debug logarchives get NUTs', () => {
     query: () => [sampleRecord],
   });
 
-  it('runs end-to-end and returns a JSON payload with records and truncated=false', async () => {
-    const result = (await RflibDebugLogArchivesGet.run([
+  it('runs end-to-end and returns a structured payload with records and truncated=false', async () => {
+    const result = await RflibDebugLogArchivesGet.run([
       '--target-org',
       harness.testOrg.username,
       '--start-date',
       '2024-06-01T00:00:00Z',
       '--end-date',
       '2024-06-02T00:00:00Z',
-    ]));
+    ]);
 
-    const payload = JSON.parse(result.result) as LogArchivesPayload;
-    expect(payload.recordCount).to.equal(1);
-    expect(payload.queryLimit).to.equal(1000);
-    expect(payload.truncated).to.equal(false);
-    expect(payload.records).to.have.lengthOf(1);
-    expect(payload.records[0]).to.deep.equal(sampleRecord);
+    expect(result.recordCount).to.equal(1);
+    expect(result.queryLimit).to.equal(1000);
+    expect(result.truncated).to.equal(false);
+    expect(result.records).to.have.lengthOf(1);
+    expect(result.records[0]).to.deep.equal(sampleRecord);
 
     expect(harness.queries).to.have.lengthOf(1);
     expect(harness.queries[0]).to.include('FROM rflib_Logs_Archive__b');
@@ -53,15 +43,11 @@ describe('rflib debug logarchives get NUTs', () => {
 
   it('defaults to a 24-hour window when no dates are given', async () => {
     const before = Date.now();
-    const result = (await RflibDebugLogArchivesGet.run([
-      '--target-org',
-      harness.testOrg.username,
-    ]));
+    const result = await RflibDebugLogArchivesGet.run(['--target-org', harness.testOrg.username]);
     const after = Date.now();
 
-    const payload = JSON.parse(result.result) as LogArchivesPayload;
-    const startMs = new Date(payload.startDate).getTime();
-    const endMs = new Date(payload.endDate).getTime();
+    const startMs = new Date(result.startDate).getTime();
+    const endMs = new Date(result.endDate).getTime();
 
     expect(after - startMs).to.be.greaterThanOrEqual(24 * 60 * 60 * 1000 - 1000);
     expect(endMs).to.be.greaterThanOrEqual(before);
@@ -76,13 +62,9 @@ describe('rflib debug logarchives get NUTs - truncated', () => {
   });
 
   it('reports truncated=true when the cap is hit', async () => {
-    const result = (await RflibDebugLogArchivesGet.run([
-      '--target-org',
-      harness.testOrg.username,
-    ]));
+    const result = await RflibDebugLogArchivesGet.run(['--target-org', harness.testOrg.username]);
 
-    const payload = JSON.parse(result.result) as LogArchivesPayload;
-    expect(payload.recordCount).to.equal(1000);
-    expect(payload.truncated).to.equal(true);
+    expect(result.recordCount).to.equal(1000);
+    expect(result.truncated).to.equal(true);
   });
 });

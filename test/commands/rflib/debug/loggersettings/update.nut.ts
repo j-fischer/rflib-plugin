@@ -3,13 +3,6 @@ import { expect } from 'chai';
 import RflibDebugLoggerSettingsUpdate from '../../../../../src/commands/rflib/debug/loggersettings/update.js';
 import { setupNut } from '../../../../helpers/nutTestContext.js';
 
-type UpdatePayload = {
-  success: boolean;
-  recordId: string;
-  message: string;
-  warnings: string[];
-};
-
 const describeFields = {
   fields: [
     { name: 'Id', custom: false },
@@ -35,7 +28,7 @@ describe('rflib debug loggersettings update NUTs', () => {
   });
 
   it('creates a new record when only setup-owner-id is provided', async () => {
-    const result = (await RflibDebugLoggerSettingsUpdate.run([
+    const result = await RflibDebugLoggerSettingsUpdate.run([
       '--target-org',
       harness.testOrg.username,
       '--setup-owner-id',
@@ -44,12 +37,11 @@ describe('rflib debug loggersettings update NUTs', () => {
       'Log_Event_Reporting_Level__c',
       '--field-value',
       'WARN',
-    ]));
+    ]);
 
-    const payload = JSON.parse(result.result) as UpdatePayload;
-    expect(payload.success).to.equal(true);
-    expect(payload.recordId).to.match(/^a01NEWID/);
-    expect(payload.warnings).to.be.an('array').that.is.empty;
+    expect(result.success).to.equal(true);
+    expect(result.recordId).to.match(/^a01NEWID/);
+    expect(result.warnings).to.be.an('array').that.is.empty;
 
     expect(harness.creates).to.have.lengthOf(1);
     expect(harness.creates[0].object).to.equal('rflib_Logger_Settings__c');
@@ -60,7 +52,7 @@ describe('rflib debug loggersettings update NUTs', () => {
   });
 
   it('updates an existing record when record-id is provided', async () => {
-    const result = (await RflibDebugLoggerSettingsUpdate.run([
+    const result = await RflibDebugLoggerSettingsUpdate.run([
       '--target-org',
       harness.testOrg.username,
       '--record-id',
@@ -69,10 +61,9 @@ describe('rflib debug loggersettings update NUTs', () => {
       'Log_Event_Reporting_Level__c',
       '--field-value',
       'INFO',
-    ]));
+    ]);
 
-    const payload = JSON.parse(result.result) as UpdatePayload;
-    expect(payload.success).to.equal(true);
+    expect(result.success).to.equal(true);
     expect(harness.updates).to.have.lengthOf(1);
     expect(harness.updates[0].record).to.deep.equal({
       Id: 'a01000000000ABC',
@@ -81,7 +72,7 @@ describe('rflib debug loggersettings update NUTs', () => {
   });
 
   it('emits a warning when setting an org-scope reporting level below WARN', async () => {
-    const result = (await RflibDebugLoggerSettingsUpdate.run([
+    const result = await RflibDebugLoggerSettingsUpdate.run([
       '--target-org',
       harness.testOrg.username,
       '--setup-owner-id',
@@ -90,12 +81,11 @@ describe('rflib debug loggersettings update NUTs', () => {
       'Log_Event_Reporting_Level__c',
       '--field-value',
       'DEBUG',
-    ]));
+    ]);
 
-    const payload = JSON.parse(result.result) as UpdatePayload;
-    expect(payload.success).to.equal(true);
-    expect(payload.warnings).to.have.lengthOf(1);
-    expect(payload.warnings[0]).to.include('flood the platform event bus');
+    expect(result.success).to.equal(true);
+    expect(result.warnings).to.have.lengthOf(1);
+    expect(result.warnings[0]).to.include('flood the platform event bus');
   });
 
   it('rejects an invalid log level before the DML round-trip', async () => {

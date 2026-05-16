@@ -1,10 +1,8 @@
 import { SfCommand, Flags } from '@salesforce/sf-plugins-core';
 import { Messages } from '@salesforce/core';
-import { queryLogArchives } from '../../../../shared/orgClient.js';
+import { queryLogArchives, type LogArchivesResult } from '../../../../shared/orgClient.js';
 
-export type RflibDebugLogArchivesGetResult = {
-  result: string;
-};
+export type RflibDebugLogArchivesGetResult = LogArchivesResult;
 
 Messages.importMessagesDirectoryFromMetaUrl(import.meta.url);
 const messages = Messages.loadMessages('rflib-plugin', 'rflib.debug.logarchives.get');
@@ -44,8 +42,9 @@ export default class RflibDebugLogArchivesGet extends SfCommand<RflibDebugLogArc
     });
     this.spinner.stop();
 
-    const result = JSON.stringify(payload);
-    this.log(result);
-    return { result };
+    // For human invocations, render the payload as JSON. Under --json, SfCommand
+    // suppresses log output and wraps this method's return value directly.
+    this.log(JSON.stringify(payload));
+    return payload;
   }
 }

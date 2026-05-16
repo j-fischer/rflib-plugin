@@ -59,7 +59,12 @@ function escapeSingleQuotes(value: string): string {
   return value.replace(/\\/g, '\\\\').replace(/'/g, "\\'");
 }
 
-async function queryAll<T extends Record<string, unknown>>(conn: Connection, soql: string): Promise<T[]> {
+type QueryAllResult<T> = { records: T[]; truncated: boolean };
+
+async function queryAll<T extends Record<string, unknown>>(
+  conn: Connection,
+  soql: string,
+): Promise<QueryAllResult<T>> {
   const first = await conn.query<T>(soql);
   let records: T[] = [...first.records];
   let done = first.done;
@@ -71,7 +76,11 @@ async function queryAll<T extends Record<string, unknown>>(conn: Connection, soq
     done = more.done;
     nextUrl = more.nextRecordsUrl;
   }
-  return records.slice(0, QUERY_LIMIT);
+  // Truncation: either we still had pages left but bailed out of the loop because we
+  // hit the cap, or the total accumulated rows already exceeded the cap and the
+  // slice() below is about to drop some. Either way the caller is losing data.
+  const truncated = !done || records.length > QUERY_LIMIT;
+  return { records: records.slice(0, QUERY_LIMIT), truncated };
 }
 
 async function getUserPermDetails(conn: Connection, userId: string): Promise<UserPermDetails> {
@@ -83,12 +92,14 @@ async function getUserPermDetails(conn: Connection, userId: string): Promise<Use
   }
   const userRow = userRows.records[0];
 
-  const assignmentRows = await queryAll<PsaRow>(
-    conn,
-    'SELECT PermissionSetId, PermissionSet.Name, PermissionSet.IsOwnedByProfile, ' +
-      'PermissionSetGroupId, PermissionSet.Label ' +
-      `FROM PermissionSetAssignment WHERE AssigneeId = '${escapeSingleQuotes(userId)}'`,
-  );
+  const assignmentRows = (
+    await queryAll<PsaRow>(
+      conn,
+      'SELECT PermissionSetId, PermissionSet.Name, PermissionSet.IsOwnedByProfile, ' +
+        'PermissionSetGroupId, PermissionSet.Label ' +
+        `FROM PermissionSetAssignment WHERE AssigneeId = '${escapeSingleQuotes(userId)}'`,
+    )
+  ).records;
 
   const permissionSetIds: string[] = [];
   const permissionSetGroupIds: string[] = [];
@@ -165,23 +176,29 @@ export async function getUserPermissions(
 
   if (args.permissionType === 'FLS' || args.permissionType === 'ALL') {
     const objectFilter = buildSObjectFilter(args.sobjectType);
-    result.flsPermissions = await queryAll(
+    const { records, truncated } = await queryAll(
       conn,
       `${FLS_FIELDS}${FLS_TABLE}${condition}${objectFilter}${FLS_ORDER} LIMIT ${QUERY_LIMIT}`,
     );
+    result.flsPermissions = records;
+    result.flsTruncated = truncated;
   }
   if (args.permissionType === 'OLS' || args.permissionType === 'ALL') {
     const objectFilter = buildSObjectFilter(args.sobjectType);
-    result.olsPermissions = await queryAll(
+    const { records, truncated } = await queryAll(
       conn,
       `${OBJ_FIELDS}${OBJ_TABLE}${condition}${objectFilter}${OBJ_ORDER} LIMIT ${QUERY_LIMIT}`,
     );
+    result.olsPermissions = records;
+    result.olsTruncated = truncated;
   }
   if (args.permissionType === 'APEX' || args.permissionType === 'ALL') {
-    result.apexPermissions = await queryAll(
+    const { records, truncated } = await queryAll(
       conn,
       `${APEX_FIELDS}${APEX_TABLE}${condition}${APEX_CONDITIONS}${APEX_ORDER} LIMIT ${QUERY_LIMIT}`,
     );
+    result.apexPermissions = records;
+    result.apexTruncated = truncated;
   }
 
   return result;

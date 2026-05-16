@@ -2,16 +2,6 @@ import { expect } from 'chai';
 import RflibDebugUserPermissionsGet from '../../../../../src/commands/rflib/debug/userpermissions/get.js';
 import { setupNut } from '../../../../helpers/nutTestContext.js';
 
-type UserPermissionsPayload = {
-  userId: string;
-  profileName: string;
-  permissionSetNames: string;
-  permissionType: 'FLS' | 'OLS' | 'APEX' | 'ALL';
-  flsPermissions?: unknown[];
-  olsPermissions?: unknown[];
-  apexPermissions?: unknown[];
-};
-
 const userRow = {
   Id: '0057000000ABCDE',
   ProfileId: '00e000000000001',
@@ -50,21 +40,20 @@ describe('rflib debug userpermissions get NUTs', () => {
   });
 
   it('queries only FLS for --permission-type FLS', async () => {
-    const result = (await RflibDebugUserPermissionsGet.run([
+    const result = await RflibDebugUserPermissionsGet.run([
       '--target-org',
       harness.testOrg.username,
       '--user-id',
       '0057000000ABCDE',
       '--permission-type',
       'FLS',
-    ]));
+    ]);
 
-    const payload = JSON.parse(result.result) as UserPermissionsPayload;
-    expect(payload.profileName).to.equal('System Administrator');
-    expect(payload.permissionSetNames).to.equal('Custom Permission Set');
-    expect(payload.flsPermissions).to.have.lengthOf(1);
-    expect(payload.olsPermissions).to.be.undefined;
-    expect(payload.apexPermissions).to.be.undefined;
+    expect(result.profileName).to.equal('System Administrator');
+    expect(result.permissionSetNames).to.equal('Custom Permission Set');
+    expect(result.flsPermissions).to.have.lengthOf(1);
+    expect(result.olsPermissions).to.be.undefined;
+    expect(result.apexPermissions).to.be.undefined;
 
     expect(harness.queries.some((q) => q.includes('FROM FieldPermissions'))).to.equal(true);
     expect(harness.queries.some((q) => q.includes('FROM ObjectPermissions'))).to.equal(false);
@@ -77,19 +66,18 @@ describe('rflib debug userpermissions get NUTs', () => {
   });
 
   it('queries all three permission types for --permission-type ALL', async () => {
-    const result = (await RflibDebugUserPermissionsGet.run([
+    const result = await RflibDebugUserPermissionsGet.run([
       '--target-org',
       harness.testOrg.username,
       '--user-id',
       '0057000000ABCDE',
       '--permission-type',
       'ALL',
-    ]));
+    ]);
 
-    const payload = JSON.parse(result.result) as UserPermissionsPayload;
-    expect(payload.flsPermissions).to.have.lengthOf(1);
-    expect(payload.olsPermissions).to.have.lengthOf(1);
-    expect(payload.apexPermissions).to.have.lengthOf(1);
+    expect(result.flsPermissions).to.have.lengthOf(1);
+    expect(result.olsPermissions).to.have.lengthOf(1);
+    expect(result.apexPermissions).to.have.lengthOf(1);
   });
 
   it('applies --sobject-type as a SOQL filter on FLS/OLS queries', async () => {
@@ -125,5 +113,39 @@ describe('rflib debug userpermissions get NUTs', () => {
       expect((err as Error).message).to.include('Invalid userId');
     }
     expect(harness.queries).to.have.lengthOf(0);
+  });
+});
+
+describe('rflib debug userpermissions get NUTs - truncation', () => {
+  // Need > QUERY_LIMIT (24,995) records to trigger truncation. Use a paginated mock:
+  // first page returns 24,000 records with done:false, queryMore returns 1,000 more
+  // (total 25,000 > cap), so queryAll's truncation flag should fire.
+  const page1 = Array.from({ length: 24_000 }, (_, i) => ({ SobjectType: 'Account', Field: `Account.F${i}` }));
+  const page2 = Array.from({ length: 1000 }, (_, i) => ({ SobjectType: 'Account', Field: `Account.G${i}` }));
+
+  const harness = setupNut({
+    query: (soql) => {
+      if (soql.startsWith('SELECT Id, ProfileId')) return [userRow];
+      if (soql.startsWith('SELECT PermissionSetId')) return [psaRows[0]];
+      if (soql.includes('FROM FieldPermissions')) {
+        return { records: page1, done: false, totalSize: 25_000, nextRecordsUrl: '/q/page-2' };
+      }
+      return [];
+    },
+    queryMore: () => ({ records: page2, done: true, totalSize: 25_000 }),
+  });
+
+  it('reports flsTruncated=true when FLS results exceed the 24,995 cap', async () => {
+    const result = await RflibDebugUserPermissionsGet.run([
+      '--target-org',
+      harness.testOrg.username,
+      '--user-id',
+      '0057000000ABCDE',
+      '--permission-type',
+      'FLS',
+    ]);
+
+    expect((result.flsPermissions as unknown[]).length).to.equal(24_995);
+    expect(result.flsTruncated).to.equal(true);
   });
 });

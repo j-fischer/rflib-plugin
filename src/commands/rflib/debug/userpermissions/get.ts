@@ -2,9 +2,7 @@ import { SfCommand, Flags } from '@salesforce/sf-plugins-core';
 import { Messages } from '@salesforce/core';
 import { getUserPermissions, type PermissionType } from '../../../../shared/orgClient.js';
 
-export type RflibDebugUserPermissionsGetResult = {
-  result: string;
-};
+export type RflibDebugUserPermissionsGetResult = Record<string, unknown>;
 
 Messages.importMessagesDirectoryFromMetaUrl(import.meta.url);
 const messages = Messages.loadMessages('rflib-plugin', 'rflib.debug.userpermissions.get');
@@ -53,8 +51,9 @@ export default class RflibDebugUserPermissionsGet extends SfCommand<RflibDebugUs
     });
     this.spinner.stop();
 
-    const result = JSON.stringify(payload);
-    this.log(result);
-    return { result };
+    // For human invocations, render the payload as JSON. Under --json, SfCommand
+    // suppresses log output and wraps this method's return value directly.
+    this.log(JSON.stringify(payload));
+    return payload;
   }
 }

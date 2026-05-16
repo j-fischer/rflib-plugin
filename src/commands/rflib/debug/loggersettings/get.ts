@@ -1,10 +1,8 @@
 import { SfCommand, Flags } from '@salesforce/sf-plugins-core';
 import { Messages } from '@salesforce/core';
-import { getLoggerSettings } from '../../../../shared/orgClient.js';
+import { getLoggerSettings, type LoggerSettingsResult } from '../../../../shared/orgClient.js';
 
-export type RflibDebugLoggerSettingsGetResult = {
-  result: string;
-};
+export type RflibDebugLoggerSettingsGetResult = LoggerSettingsResult;
 
 Messages.importMessagesDirectoryFromMetaUrl(import.meta.url);
 const messages = Messages.loadMessages('rflib-plugin', 'rflib.debug.loggersettings.get');
@@ -31,8 +29,9 @@ export default class RflibDebugLoggerSettingsGet extends SfCommand<RflibDebugLog
     const payload = await getLoggerSettings(conn);
     this.spinner.stop();
 
-    const result = JSON.stringify(payload);
-    this.log(result);
-    return { result };
+    // For human invocations, render the payload as JSON. Under --json, SfCommand
+    // suppresses log output and wraps this method's return value directly.
+    this.log(JSON.stringify(payload));
+    return payload;
   }
 }
