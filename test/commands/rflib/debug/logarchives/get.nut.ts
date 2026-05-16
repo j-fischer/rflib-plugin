@@ -38,7 +38,8 @@ describe('rflib debug logarchives get NUTs', () => {
     expect(harness.queries[0]).to.include('FROM rflib_Logs_Archive__b');
     expect(harness.queries[0]).to.include('CreatedDate__c >= 2024-06-01T00:00:00Z');
     expect(harness.queries[0]).to.include('CreatedDate__c <= 2024-06-02T00:00:00Z');
-    expect(harness.queries[0]).to.include('LIMIT 1000');
+    // SOQL asks for cap + 1 so we can detect overflow vs. an exact-cap result.
+    expect(harness.queries[0]).to.include('LIMIT 1001');
   });
 
   it('defaults to a 24-hour window when no dates are given', async () => {
@@ -56,15 +57,18 @@ describe('rflib debug logarchives get NUTs', () => {
 });
 
 describe('rflib debug logarchives get NUTs - truncated', () => {
-  const filled = Array.from({ length: 1000 }, () => sampleRecord);
+  // Return cap + 1 rows so the sentinel signals overflow; the trimmed result should
+  // expose exactly 1000 records with truncated=true.
+  const filled = Array.from({ length: 1001 }, () => sampleRecord);
   const harness = setupNut({
     query: () => filled,
   });
 
-  it('reports truncated=true when the cap is hit', async () => {
+  it('reports truncated=true when the cap is exceeded', async () => {
     const result = await RflibDebugLogArchivesGet.run(['--target-org', harness.testOrg.username]);
 
     expect(result.recordCount).to.equal(1000);
+    expect(result.records).to.have.lengthOf(1000);
     expect(result.truncated).to.equal(true);
   });
 });

@@ -10,7 +10,8 @@ describe('orgClient.getApplicationEvents', () => {
     expect(calls.queries[0]).to.not.include(' WHERE ');
     expect(calls.queries[0]).to.include('FROM rflib_Application_Event__c');
     expect(calls.queries[0]).to.include('ORDER BY Occurred_On__c DESC');
-    expect(calls.queries[0]).to.include('LIMIT 200');
+    // SOQL asks for recordLimit + 1 so overflow vs. an exact-cap result is distinguishable.
+    expect(calls.queries[0]).to.include('LIMIT 201');
   });
 
   it('uses an exact-match equality predicate when eventName has no wildcard', async () => {
@@ -35,7 +36,7 @@ describe('orgClient.getApplicationEvents', () => {
     const { conn, calls } = buildMockConnection({ query: () => [] });
     const result = await getApplicationEvents(conn, { recordLimit: 9999 });
     expect(result.recordLimit).to.equal(2000);
-    expect(calls.queries[0]).to.include('LIMIT 2000');
+    expect(calls.queries[0]).to.include('LIMIT 2001');
   });
 
   it('falls back to the default of 200 when recordLimit is non-positive', async () => {
@@ -44,19 +45,47 @@ describe('orgClient.getApplicationEvents', () => {
     expect(result.recordLimit).to.equal(200);
   });
 
-  it('sets truncated=true when the record count hits the requested limit', async () => {
+  it('sets truncated=true when the org returns more rows than the requested limit', async () => {
+    // SOQL asks for recordLimit + 1 (51). The mock returns 51 rows, which signals overflow.
+    const filled = Array.from({ length: 51 }, (_, i) => ({ Id: `id-${i}`, Event_Name__c: 'evt' }));
+    const { conn } = buildMockConnection({ query: () => filled });
+    const result = await getApplicationEvents(conn, { recordLimit: 50 });
+    expect(result.recordCount).to.equal(50);
+    expect(result.events).to.have.lengthOf(50);
+    expect(result.recordLimit).to.equal(50);
+    expect(result.truncated).to.equal(true);
+  });
+
+  it('does NOT report truncation when the org returns exactly the requested limit', async () => {
+    // Returning 50 rows under a LIMIT 51 SOQL means the org has exactly 50 matching
+    // events; no truncation. Previously this was a false-positive case.
     const filled = Array.from({ length: 50 }, (_, i) => ({ Id: `id-${i}`, Event_Name__c: 'evt' }));
     const { conn } = buildMockConnection({ query: () => filled });
     const result = await getApplicationEvents(conn, { recordLimit: 50 });
     expect(result.recordCount).to.equal(50);
-    expect(result.recordLimit).to.equal(50);
-    expect(result.truncated).to.equal(true);
+    expect(result.truncated).to.equal(false);
   });
 
   it('sets truncated=false when fewer records than the limit are returned', async () => {
     const { conn } = buildMockConnection({ query: () => [{ Id: '1', Event_Name__c: 'evt' }] });
     const result = await getApplicationEvents(conn);
     expect(result.truncated).to.equal(false);
+  });
+
+  it('paginates the query when Salesforce splits results across batches', async () => {
+    // Application Event payloads with large Additional_Details__c can cause Salesforce
+    // to chunk a LIMIT query across multiple batches with done:false. Walk the rest.
+    const page1 = Array.from({ length: 100 }, (_, i) => ({ Id: `id-${i}`, Event_Name__c: 'evt' }));
+    const page2 = Array.from({ length: 30 }, (_, i) => ({ Id: `id-${i + 100}`, Event_Name__c: 'evt' }));
+    const { conn, calls } = buildMockConnection({
+      query: () => ({ records: page1, done: false, totalSize: 130, nextRecordsUrl: '/q/events-page-2' }),
+      queryMore: () => ({ records: page2, done: true, totalSize: 130 }),
+    });
+
+    const result = await getApplicationEvents(conn, { recordLimit: 200 });
+    expect(result.recordCount).to.equal(130);
+    expect(result.truncated).to.equal(false);
+    expect(calls.queryMoreUrls).to.deep.equal(['/q/events-page-2']);
   });
 
   it('combines multiple filters with AND', async () => {

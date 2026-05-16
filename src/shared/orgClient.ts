@@ -159,28 +159,33 @@ export async function queryLogArchives(
   const startDate = parseDateTime(args.startDate, oneDayAgo)!;
   const endDate = parseDateTime(args.endDate, now)!;
 
+  // Query for one row beyond the cap so we can detect when the org has more matching
+  // rows and our LIMIT clipped them. The sentinel is dropped before returning.
   const soql =
     'SELECT CreatedDate__c, CreatedById__c, Context__c, Log_Level__c, Request_ID__c, Log_Messages__c, Platform_Info__c ' +
     `FROM ${ARCHIVE_OBJECT} ` +
     `WHERE CreatedDate__c >= ${formatSoqlDateTime(startDate)} ` +
     `AND CreatedDate__c <= ${formatSoqlDateTime(endDate)} ` +
-    `LIMIT ${ARCHIVE_QUERY_LIMIT}`;
+    `LIMIT ${ARCHIVE_QUERY_LIMIT + 1}`;
 
   let records: LogArchiveRecord[];
   try {
-    const result = await conn.query<LogArchiveRecord>(soql);
-    records = result.records;
+    // Log_Messages__c can be large, so Salesforce can split a single LIMIT query
+    // across multiple batches with done:false. Walk nextRecordsUrl to collect them all.
+    records = await queryWithPagination<LogArchiveRecord>(conn, soql);
   } catch (error) {
     return wrapMissingObject<LogArchivesResult>(error, ARCHIVE_OBJECT);
   }
 
+  const truncated = records.length > ARCHIVE_QUERY_LIMIT;
+  const trimmed = truncated ? records.slice(0, ARCHIVE_QUERY_LIMIT) : records;
   return {
-    recordCount: records.length,
+    recordCount: trimmed.length,
     queryLimit: ARCHIVE_QUERY_LIMIT,
-    truncated: records.length >= ARCHIVE_QUERY_LIMIT,
+    truncated,
     startDate: startDate.toISOString(),
     endDate: endDate.toISOString(),
-    records,
+    records: trimmed,
   };
 }
 
@@ -206,20 +211,24 @@ export async function getApplicationEvents(
   }
 
   const where = conditions.length === 0 ? '' : ` WHERE ${conditions.join(' AND ')}`;
+  // Query for one row beyond the requested limit so we can detect overflow precisely.
+  // Salesforce can also split a single LIMIT query across batches when Additional_Details__c
+  // payloads are large; queryWithPagination walks the rest via nextRecordsUrl.
   const soql =
     'SELECT Id, Name, Event_Name__c, Occurred_On__c, Related_Record_ID__c, ' +
     'Additional_Details__c, Created_By_ID__c, CreatedDate ' +
-    `FROM ${APP_EVENT_OBJECT}${where} ORDER BY Occurred_On__c DESC LIMIT ${recordLimit}`;
+    `FROM ${APP_EVENT_OBJECT}${where} ORDER BY Occurred_On__c DESC LIMIT ${recordLimit + 1}`;
 
   let events: ApplicationEventRecord[];
   try {
-    const result = await conn.query<ApplicationEventRecord>(soql);
-    events = result.records;
+    events = await queryWithPagination<ApplicationEventRecord>(conn, soql);
   } catch (error) {
     return wrapMissingObject<ApplicationEventsResult>(error, APP_EVENT_OBJECT);
   }
 
-  return { recordCount: events.length, recordLimit, truncated: events.length >= recordLimit, events };
+  const truncated = events.length > recordLimit;
+  const trimmed = truncated ? events.slice(0, recordLimit) : events;
+  return { recordCount: trimmed.length, recordLimit, truncated, events: trimmed };
 }
 
 type DescribeFieldLite = { name: string; custom: boolean };

@@ -29,7 +29,8 @@ describe('rflib debug applicationevents get NUTs', () => {
 
     expect(harness.queries[0]).to.include('FROM rflib_Application_Event__c');
     expect(harness.queries[0]).to.not.include(' WHERE ');
-    expect(harness.queries[0]).to.include('LIMIT 200');
+    // SOQL asks for recordLimit + 1 so overflow vs. an exact-cap result is distinguishable.
+    expect(harness.queries[0]).to.include('LIMIT 201');
   });
 
   it('builds the WHERE clause from event-name, date range, and related-record-id flags', async () => {
@@ -53,17 +54,19 @@ describe('rflib debug applicationevents get NUTs', () => {
     expect(soql).to.include('Occurred_On__c >= 2024-06-01T00:00:00Z');
     expect(soql).to.include('Occurred_On__c <= 2024-06-30T00:00:00Z');
     expect(soql).to.include("Related_Record_ID__c = '001000000000ABC'");
-    expect(soql).to.include('LIMIT 50');
+    expect(soql).to.include('LIMIT 51');
   });
 });
 
 describe('rflib debug applicationevents get NUTs - truncation', () => {
-  const filled = Array.from({ length: 50 }, (_, i) => ({ ...sampleEvent, Id: `id-${i}` }));
+  // Return 51 rows (recordLimit + 1) so the sentinel signals overflow; the trimmed
+  // result should expose exactly 50 records with truncated=true.
+  const filled = Array.from({ length: 51 }, (_, i) => ({ ...sampleEvent, Id: `id-${i}` }));
   const harness = setupNut({
     query: () => filled,
   });
 
-  it('flags truncated=true when the record count reaches the requested limit', async () => {
+  it('flags truncated=true when the record count exceeds the requested limit', async () => {
     const result = await RflibDebugApplicationEventsGet.run([
       '--target-org',
       harness.testOrg.username,
@@ -74,5 +77,6 @@ describe('rflib debug applicationevents get NUTs - truncation', () => {
     expect(result.recordCount).to.equal(50);
     expect(result.recordLimit).to.equal(50);
     expect(result.truncated).to.equal(true);
+    expect(result.events).to.have.lengthOf(50);
   });
 });

@@ -33,13 +33,41 @@ describe('orgClient.queryLogArchives', () => {
     expect(result.truncated).to.equal(false);
   });
 
-  it('sets truncated=true when the query returns at the cap', async () => {
+  it('sets truncated=true when the org returns more rows than the cap', async () => {
+    // SOQL asks for cap + 1; getting back 1001 means we have overflow. Trim to 1000.
+    const filled = Array.from({ length: 1001 }, () => sampleRecord);
+    const { conn } = buildMockConnection({ query: () => filled });
+    const result = await queryLogArchives(conn);
+    expect(result.recordCount).to.equal(1000);
+    expect(result.records).to.have.lengthOf(1000);
+    expect(result.queryLimit).to.equal(1000);
+    expect(result.truncated).to.equal(true);
+  });
+
+  it('does NOT report truncation when the org returns exactly cap rows', async () => {
+    // Returning 1000 rows under a LIMIT 1001 SOQL means the org has exactly 1000 rows
+    // in the window; no truncation. (Pre-FETCH_LIMIT this was a false-positive case.)
     const filled = Array.from({ length: 1000 }, () => sampleRecord);
     const { conn } = buildMockConnection({ query: () => filled });
     const result = await queryLogArchives(conn);
     expect(result.recordCount).to.equal(1000);
-    expect(result.queryLimit).to.equal(1000);
-    expect(result.truncated).to.equal(true);
+    expect(result.truncated).to.equal(false);
+  });
+
+  it('paginates the query when Salesforce splits results across batches', async () => {
+    // Large Log_Messages__c rows can cause Salesforce to chunk a single LIMIT query
+    // across multiple batches with done:false. The implementation must walk the rest.
+    const page1 = Array.from({ length: 200 }, (_, i) => ({ ...sampleRecord, Request_ID__c: `req-${i}` }));
+    const page2 = Array.from({ length: 100 }, (_, i) => ({ ...sampleRecord, Request_ID__c: `req-${i + 200}` }));
+    const { conn, calls } = buildMockConnection({
+      query: () => ({ records: page1, done: false, totalSize: 300, nextRecordsUrl: '/q/archives-page-2' }),
+      queryMore: () => ({ records: page2, done: true, totalSize: 300 }),
+    });
+
+    const result = await queryLogArchives(conn);
+    expect(result.recordCount).to.equal(300);
+    expect(result.truncated).to.equal(false);
+    expect(calls.queryMoreUrls).to.deep.equal(['/q/archives-page-2']);
   });
 
   it('defaults to a 24 hour window when no dates are supplied', async () => {
