@@ -133,6 +133,34 @@ describe('orgClient.updateLoggerSetting', () => {
     expect(result.warnings).to.have.lengthOf(1);
   });
 
+  it('translates a missing-object error on the SetupOwnerId lookup into the actionable RFLIB-not-installed message', async () => {
+    // The describe call still succeeds (covers the "object present at describe time but
+    // not queryable" edge case — e.g., perm flap, race, or permission scope mismatch).
+    // The SELECT SetupOwnerId, however, throws INVALID_TYPE. Without the wrapMissingObject
+    // call on this code path, the user would see the raw Salesforce error instead of the
+    // command's consistent "RFLIB is not installed" message.
+    const { conn } = buildMockConnection({
+      describe: () => describeFields,
+      query: () => {
+        const err = new Error("sObject type 'rflib_Logger_Settings__c' is not supported");
+        (err as Error & { errorCode: string }).errorCode = 'INVALID_TYPE';
+        throw err;
+      },
+    });
+
+    try {
+      await updateLoggerSetting(conn, {
+        recordId: 'a01EXISTING0001',
+        fieldName: 'Log_Event_Reporting_Level__c',
+        fieldValue: 'WARN',
+      });
+      expect.fail('expected an error');
+    } catch (err) {
+      expect((err as Error).message).to.include('rflib_Logger_Settings__c was not found');
+      expect((err as Error).message).to.include('RFLIB package');
+    }
+  });
+
   it('requires either recordId or setupOwnerId', async () => {
     const { conn } = buildMockConnection({ describe: () => describeFields });
     try {

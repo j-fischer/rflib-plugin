@@ -335,10 +335,17 @@ export async function updateLoggerSetting(
 
   let existingSetupOwnerId: string | undefined;
   if (args.recordId && !args.setupOwnerId) {
-    const existing = await conn.query<{ SetupOwnerId: string }>(
-      `SELECT SetupOwnerId FROM ${SETTINGS_OBJECT} WHERE Id = '${escapeSingleQuotes(args.recordId)}' LIMIT 1`,
-    );
-    existingSetupOwnerId = existing.records[0]?.SetupOwnerId;
+    try {
+      const existing = await conn.query<{ SetupOwnerId: string }>(
+        `SELECT SetupOwnerId FROM ${SETTINGS_OBJECT} WHERE Id = '${escapeSingleQuotes(args.recordId)}' LIMIT 1`,
+      );
+      existingSetupOwnerId = existing.records[0]?.SetupOwnerId;
+    } catch (error) {
+      // Match the rest of the module: a missing rflib_Logger_Settings__c on this query
+      // should surface the actionable "RFLIB not installed" message rather than the raw
+      // Salesforce INVALID_TYPE error.
+      return wrapMissingObject<UpdateLoggerSettingResult>(error, SETTINGS_OBJECT);
+    }
   }
 
   const warnings = collectWarnings({
