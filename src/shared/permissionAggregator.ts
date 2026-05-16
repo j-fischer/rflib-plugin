@@ -1,6 +1,12 @@
 import type { Connection } from '@salesforce/core';
 
 const QUERY_LIMIT = 24_995;
+// Query for one extra row beyond the cap so we can tell when Salesforce had more to
+// give and our LIMIT clipped it. Without the sentinel, a result set whose true size is
+// > QUERY_LIMIT comes back with exactly QUERY_LIMIT rows and `done: true`, so the
+// truncation check would silently report `false`. The sentinel row is dropped before
+// returning; its presence flips `truncated` to true.
+const FETCH_LIMIT = QUERY_LIMIT + 1;
 
 const FLS_FIELDS =
   'SELECT Parent.Label, Parent.Profile.Name, Parent.IsOwnedByProfile, Parent.PermissionSetGroupId, ' +
@@ -178,7 +184,7 @@ export async function getUserPermissions(
     const objectFilter = buildSObjectFilter(args.sobjectType);
     const { records, truncated } = await queryAll(
       conn,
-      `${FLS_FIELDS}${FLS_TABLE}${condition}${objectFilter}${FLS_ORDER} LIMIT ${QUERY_LIMIT}`,
+      `${FLS_FIELDS}${FLS_TABLE}${condition}${objectFilter}${FLS_ORDER} LIMIT ${FETCH_LIMIT}`,
     );
     result.flsPermissions = records;
     result.flsTruncated = truncated;
@@ -187,7 +193,7 @@ export async function getUserPermissions(
     const objectFilter = buildSObjectFilter(args.sobjectType);
     const { records, truncated } = await queryAll(
       conn,
-      `${OBJ_FIELDS}${OBJ_TABLE}${condition}${objectFilter}${OBJ_ORDER} LIMIT ${QUERY_LIMIT}`,
+      `${OBJ_FIELDS}${OBJ_TABLE}${condition}${objectFilter}${OBJ_ORDER} LIMIT ${FETCH_LIMIT}`,
     );
     result.olsPermissions = records;
     result.olsTruncated = truncated;
@@ -195,7 +201,7 @@ export async function getUserPermissions(
   if (args.permissionType === 'APEX' || args.permissionType === 'ALL') {
     const { records, truncated } = await queryAll(
       conn,
-      `${APEX_FIELDS}${APEX_TABLE}${condition}${APEX_CONDITIONS}${APEX_ORDER} LIMIT ${QUERY_LIMIT}`,
+      `${APEX_FIELDS}${APEX_TABLE}${condition}${APEX_CONDITIONS}${APEX_ORDER} LIMIT ${FETCH_LIMIT}`,
     );
     result.apexPermissions = records;
     result.apexTruncated = truncated;

@@ -185,6 +185,31 @@ describe('orgClient.getUserPermissions', () => {
     }
   });
 
+  it('surfaces flsTruncated=true when Salesforce satisfies the SOQL LIMIT in a single batch', async () => {
+    // The SOQL itself carries LIMIT QUERY_LIMIT+1 (24,996) precisely so that a single
+    // response of 24,996 rows with done:true can be distinguished from a clean
+    // 24,995-row org. Without the sentinel, this case would silently report
+    // flsTruncated=false even though Salesforce dropped rows.
+    const fls = Array.from({ length: 24_996 }, (_, i) => ({
+      SobjectType: 'Account',
+      Field: `Account.F${i}`,
+      PermissionsRead: true,
+      PermissionsEdit: false,
+    }));
+    const { conn } = buildMockConnection({
+      query: (soql: string) => {
+        if (soql.startsWith('SELECT Id, ProfileId')) return userRows;
+        if (soql.includes('FROM PermissionSetAssignment')) return psaRows;
+        if (soql.includes('FROM FieldPermissions')) return fls;
+        return [];
+      },
+    });
+
+    const result = await getUserPermissions(conn, { userId: VALID_USER_ID, permissionType: 'FLS' });
+    expect((result.flsPermissions as unknown[]).length).to.equal(24_995);
+    expect(result.flsTruncated).to.equal(true);
+  });
+
   it('surfaces flsTruncated=true when the FLS query exceeds the 24,995 cap', async () => {
     // Need to push more than QUERY_LIMIT rows through queryAll. Use a paginated
     // response: a first batch of 24,000 records with done:false followed by a
