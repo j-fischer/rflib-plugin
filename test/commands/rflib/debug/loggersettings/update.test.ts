@@ -133,6 +133,36 @@ describe('orgClient.updateLoggerSetting', () => {
     expect(result.warnings).to.have.lengthOf(1);
   });
 
+  it('does NOT translate a record-level NOT_FOUND from DML into the RFLIB-not-installed message', async () => {
+    // NOT_FOUND on DML means the targeted record id doesn't exist (e.g., it was just
+    // deleted) — the rflib_Logger_Settings__c object itself is perfectly present.
+    // Translating that to "RFLIB is not installed" would send users down the wrong
+    // remediation path. Verify the raw record-level error surfaces instead.
+    const { conn } = buildMockConnection({
+      describe: () => describeFields,
+      query: () => [{ SetupOwnerId: '00D000000000001' }],
+      update: () => {
+        const err = new Error('Record a01EXISTING0001 not found') as Error & { errorCode: string };
+        err.errorCode = 'NOT_FOUND';
+        throw err;
+      },
+    });
+
+    try {
+      await updateLoggerSetting(conn, {
+        recordId: 'a01EXISTING0001',
+        fieldName: 'General_Log_Level__c',
+        fieldValue: 'INFO',
+      });
+      expect.fail('expected an error');
+    } catch (err) {
+      const message = (err as Error).message;
+      expect(message).to.include('Record a01EXISTING0001 not found');
+      expect(message).to.not.include('RFLIB package');
+      expect(message).to.not.include('was not found in the target org');
+    }
+  });
+
   it('translates a missing-object error on the SetupOwnerId lookup into the actionable RFLIB-not-installed message', async () => {
     // The describe call still succeeds (covers the "object present at describe time but
     // not queryable" edge case — e.g., perm flap, race, or permission scope mismatch).

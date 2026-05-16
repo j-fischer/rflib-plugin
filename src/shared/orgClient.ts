@@ -127,7 +127,14 @@ function isMissingObjectError(error: unknown): boolean {
   if (!(error instanceof Error)) return false;
   const message = error.message.toLowerCase();
   const code = (error as { errorCode?: string }).errorCode;
-  if (code === 'INVALID_TYPE' || code === 'NOT_FOUND') return true;
+  // INVALID_TYPE is the unambiguous "sObject type doesn't exist" signal.
+  // Do NOT match NOT_FOUND by code alone — Salesforce returns it for record-level
+  // misses on a perfectly present object (e.g., DML against a deleted record id),
+  // and translating those to "RFLIB is not installed" sends users down the wrong path.
+  if (code === 'INVALID_TYPE') return true;
+  // Message-text fallbacks for cases where the error code isn't set but the wording
+  // clearly identifies a missing rflib_* type. Both patterns only appear when the
+  // sObject type itself is unknown, never for record-not-found errors.
   return message.includes("sobject type 'rflib_") || message.includes('does not support query');
 }
 
