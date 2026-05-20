@@ -10,6 +10,7 @@ Plugin for Salesforce CLI to help with the adoption of [RFLIB](https://github.co
 - Automatically instruments LWC components with RFLIB logging statements
 - Automatically instruments Aura components with RFLIB logging statements
 - Automatically instruments Salesforce Flows with RFLIB logging actions
+- Debug commands that read RFLIB log archives, application events, and logger settings, and tune logger settings — useful as a tool surface for AI agents driving a debugging session
 
 ## Installation
 
@@ -131,6 +132,121 @@ sf rflib logging flow instrument --sourcepath force-app --skip-instrumented
 - Preserves the original processType value
 - Handles both free-form and auto-layout flows, converting all to auto-layout
 - Supports both standard Flows (processType="Flow") and Auto-Launched Flows (processType="AutoLaunchedFlow")
+
+## RFLIB Debug Commands
+
+These commands query and tune RFLIB-instrumented data directly via the Salesforce REST API. The only prerequisite is that the [RFLIB](https://github.com/j-fischer/rflib) package is installed in the target org and the running user is assigned the `rflib_Ops_Center_Access` permission set (or has equivalent read access to `rflib_Logs_Archive__b`, `rflib_Application_Event__c`, and `rflib_Logger_Settings__c`, plus update access on Logger Settings to use the `update` command).
+
+These commands are designed to be invoked by an LLM agent (via a Claude skill or equivalent) to drive a debugging session: trigger code in the org, then read the resulting logs and adjust verbosity as needed.
+
+### `sf rflib debug applicationevents get`
+
+Query RFLIB Application Events from a Salesforce org.
+
+```bash
+# Get all recent application events
+sf rflib debug applicationevents get --target-org myOrg
+
+# Filter by event name with wildcard
+sf rflib debug applicationevents get --target-org myOrg --event-name "order-%"
+
+# Filter by date range
+sf rflib debug applicationevents get --target-org myOrg --start-date 2024-01-01T00:00:00Z --end-date 2024-12-31T23:59:59Z
+
+# Filter by related record and limit results
+sf rflib debug applicationevents get --target-org myOrg --related-record-id 001abc --record-limit 50
+```
+
+#### Command Options
+
+- `--target-org (-o)`: Username or alias of the target org *(required)*
+- `--event-name (-e)`: Filter by Event_Name__c. Use `%` as a wildcard
+- `--start-date (-s)`: Filter events on or after this ISO 8601 datetime
+- `--end-date (-d)`: Filter events on or before this ISO 8601 datetime
+- `--related-record-id (-r)`: Filter by Related_Record_ID__c (exact match)
+- `--record-limit (-l)`: Maximum number of records to return (default 200, max 2000)
+
+---
+
+### `sf rflib debug logarchives get`
+
+Query RFLIB log archives from the `rflib_Logs_Archive__b` big object.
+
+```bash
+# Get log archives from the last 24 hours
+sf rflib debug logarchives get --target-org myOrg
+
+# Get archives for a specific date range
+sf rflib debug logarchives get --target-org myOrg --start-date 2024-01-01T00:00:00Z --end-date 2024-01-02T00:00:00Z
+```
+
+#### Command Options
+
+- `--target-org (-o)`: Username or alias of the target org *(required)*
+- `--start-date (-s)`: Start of date range in ISO 8601 format (defaults to 24 hours ago)
+- `--end-date (-d)`: End of date range in ISO 8601 format (defaults to now)
+
+---
+
+### `sf rflib debug loggersettings get`
+
+Read all RFLIB Logger Settings from the target org.
+
+```bash
+sf rflib debug loggersettings get --target-org myOrg
+```
+
+#### Command Options
+
+- `--target-org (-o)`: Username or alias of the target org *(required)*
+
+---
+
+### `sf rflib debug loggersettings update`
+
+Create or update an RFLIB Logger Setting in the target org.
+
+```bash
+# Update an existing setting record
+sf rflib debug loggersettings update --target-org myOrg --record-id a01abc --field-name Log_Event_Reporting_Level__c --field-value WARN
+
+# Create a new org-wide setting
+sf rflib debug loggersettings update --target-org myOrg --setup-owner-id 00D000000000001 --field-name Log_Event_Reporting_Level__c --field-value WARN
+```
+
+#### Command Options
+
+- `--target-org (-o)`: Username or alias of the target org *(required)*
+- `--field-name (-f)`: API name of the field to update, e.g. `Log_Event_Reporting_Level__c` *(required)*
+- `--field-value (-v)`: New value for the field (e.g. TRACE, DEBUG, INFO, WARN, ERROR, FATAL, NONE) *(required)*
+- `--record-id (-r)`: ID of an existing `rflib_Logger_Settings__c` record to update
+- `--setup-owner-id (-s)`: Org ID, Profile ID, or User ID for creating a new setting record
+
+---
+
+### `sf rflib debug userpermissions get`
+
+Check Salesforce user permissions (FLS, OLS, Apex access) aggregated across profile, permission sets, and permission set groups.
+
+```bash
+# Check all permissions for a user
+sf rflib debug userpermissions get --target-org myOrg --user-id 0057000000XXXXXX --permission-type ALL
+
+# Check FLS for a specific SObject
+sf rflib debug userpermissions get --target-org myOrg --user-id 0057000000XXXXXX --permission-type FLS --sobject-type Account
+
+# Check Apex class/page access
+sf rflib debug userpermissions get --target-org myOrg --user-id 0057000000XXXXXX --permission-type APEX
+```
+
+#### Command Options
+
+- `--target-org (-o)`: Username or alias of the target org *(required)*
+- `--user-id (-u)`: Salesforce User ID (15 or 18 character) *(required)*
+- `--permission-type (-t)`: Type of permissions: `FLS`, `OLS`, `APEX`, or `ALL` *(required)*
+- `--sobject-type (-b)`: Optional SObject API name to filter FLS or OLS results (e.g. `Account`)
+
+---
 
 ## Contributing
 
