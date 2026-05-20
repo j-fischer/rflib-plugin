@@ -1,3 +1,12 @@
+# [0.19.0](https://github.com/j-fischer/rflib-plugin/compare/0.18.1...0.19.0) (2026-05-20)
+
+
+### Features
+
+* sf rflib debug commands — direct-REST debugging tool surface for LLM agents ([#205](https://github.com/j-fischer/rflib-plugin/issues/205)) ([d577629](https://github.com/j-fischer/rflib-plugin/commit/d5776290d99d44239412a7211832084ce10b418f))
+
+
+
 ## [0.18.1](https://github.com/j-fischer/rflib-plugin/compare/0.18.0...0.18.1) (2026-05-15)
 
 
