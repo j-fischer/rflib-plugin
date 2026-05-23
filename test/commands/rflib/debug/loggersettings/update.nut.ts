@@ -14,7 +14,13 @@ const describeFields = {
 
 describe('rflib debug loggersettings update NUTs', () => {
   const harness = setupNut({
-    query: () => [{ SetupOwnerId: '00D000000000001' }],
+    query: (soql) => {
+      if (typeof soql === 'string') {
+        if (soql.includes("WHERE Id = 'a01000000000ABC'")) return [{ SetupOwnerId: '00D000000000001' }];
+        if (soql.includes("WHERE SetupOwnerId = '005000000000001'")) return [{ Id: 'a01000000000XYZ', SetupOwnerId: '005000000000001' }];
+      }
+      return [];
+    },
     describe: {
       rflib_Logger_Settings__c: () => describeFields,
     },
@@ -48,6 +54,29 @@ describe('rflib debug loggersettings update NUTs', () => {
     expect(harness.creates[0].record).to.deep.equal({
       SetupOwnerId: '00D000000000001',
       Log_Event_Reporting_Level__c: 'WARN',
+    });
+  });
+
+  it('updates an existing record when setup-owner-id matches an existing record', async () => {
+    const result = await RflibDebugLoggerSettingsUpdate.run([
+      '--target-org',
+      harness.testOrg.username,
+      '--setup-owner-id',
+      '005000000000001',
+      '--field-name',
+      'Log_Event_Reporting_Level__c',
+      '--field-value',
+      'DEBUG',
+    ]);
+
+    expect(result.success).to.equal(true);
+    expect(result.recordId).to.equal('a01000000000XYZ');
+    
+    expect(harness.creates).to.have.lengthOf(0);
+    expect(harness.updates).to.have.lengthOf(1);
+    expect(harness.updates[0].record).to.deep.equal({
+      Id: 'a01000000000XYZ',
+      Log_Event_Reporting_Level__c: 'DEBUG',
     });
   });
 

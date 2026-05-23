@@ -321,6 +321,36 @@ export async function getLoggerSettings(conn: Connection): Promise<LoggerSetting
 
 type SaveResult = { success: boolean; id?: string; errors?: Array<{ message?: string; statusCode?: string }> };
 
+type ResolvedIds = { recordId?: string; setupOwnerId?: string } | UpdateLoggerSettingResult;
+
+async function resolveEffectiveIds(
+  conn: Connection,
+  recordId: string | undefined,
+  setupOwnerId: string | undefined,
+): Promise<ResolvedIds> {
+  if (setupOwnerId && !recordId) {
+    try {
+      const existing = await conn.query<{ Id: string }>(
+        `SELECT Id FROM ${SETTINGS_OBJECT} WHERE SetupOwnerId = '${escapeSingleQuotes(setupOwnerId)}' LIMIT 1`,
+      );
+      return { recordId: existing.records[0]?.Id, setupOwnerId };
+    } catch (error) {
+      return wrapMissingObject<UpdateLoggerSettingResult>(error, SETTINGS_OBJECT);
+    }
+  }
+  if (recordId && !setupOwnerId) {
+    try {
+      const existing = await conn.query<{ SetupOwnerId: string }>(
+        `SELECT SetupOwnerId FROM ${SETTINGS_OBJECT} WHERE Id = '${escapeSingleQuotes(recordId)}' LIMIT 1`,
+      );
+      return { recordId, setupOwnerId: existing.records[0]?.SetupOwnerId };
+    } catch (error) {
+      return wrapMissingObject<UpdateLoggerSettingResult>(error, SETTINGS_OBJECT);
+    }
+  }
+  return { recordId, setupOwnerId };
+}
+
 export async function updateLoggerSetting(
   conn: Connection,
   args: UpdateLoggerSettingArgs,
@@ -330,7 +360,7 @@ export async function updateLoggerSetting(
     throw new SfError('fieldValue is required', 'MissingArgument');
   }
   if (!args.recordId && !args.setupOwnerId) {
-    throw new SfError('setupOwnerId is required when creating a new record', 'MissingArgument');
+    throw new SfError('setupOwnerId is required when creating or updating a record', 'MissingArgument');
   }
   if (args.recordId && !ID_PATTERN.test(args.recordId)) {
     throw new SfError(`Invalid recordId "${args.recordId}".`, 'InvalidId');
@@ -349,36 +379,24 @@ export async function updateLoggerSetting(
   validateWritableField(args.fieldName, customFields);
   validateFieldValue(args.fieldName, args.fieldValue);
 
-  let existingSetupOwnerId: string | undefined;
-  if (args.recordId && !args.setupOwnerId) {
-    try {
-      const existing = await conn.query<{ SetupOwnerId: string }>(
-        `SELECT SetupOwnerId FROM ${SETTINGS_OBJECT} WHERE Id = '${escapeSingleQuotes(args.recordId)}' LIMIT 1`,
-      );
-      existingSetupOwnerId = existing.records[0]?.SetupOwnerId;
-    } catch (error) {
-      // Match the rest of the module: a missing rflib_Logger_Settings__c on this query
-      // should surface the actionable "RFLIB not installed" message rather than the raw
-      // Salesforce INVALID_TYPE error.
-      return wrapMissingObject<UpdateLoggerSettingResult>(error, SETTINGS_OBJECT);
-    }
-  }
+  const resolved = await resolveEffectiveIds(conn, args.recordId, args.setupOwnerId);
+  if ('success' in resolved) return resolved;
+  const { recordId: effectiveRecordId, setupOwnerId: effectiveSetupOwnerId } = resolved;
 
   const warnings = collectWarnings({
     fieldName: args.fieldName,
     fieldValue: args.fieldValue,
-    setupOwnerId: args.setupOwnerId,
-    existingSetupOwnerId,
+    setupOwnerId: effectiveSetupOwnerId,
   });
 
   const sobject = conn.sobject(SETTINGS_OBJECT);
   const payload: Record<string, unknown> = { [args.fieldName]: args.fieldValue };
   let saveResult: SaveResult;
   try {
-    if (args.recordId) {
-      saveResult = (await sobject.update({ Id: args.recordId, ...payload })) as unknown as SaveResult;
+    if (effectiveRecordId) {
+      saveResult = (await sobject.update({ Id: effectiveRecordId, ...payload })) as unknown as SaveResult;
     } else {
-      saveResult = (await sobject.create({ SetupOwnerId: args.setupOwnerId, ...payload })) as unknown as SaveResult;
+      saveResult = (await sobject.create({ SetupOwnerId: effectiveSetupOwnerId, ...payload })) as unknown as SaveResult;
     }
   } catch (error) {
     return wrapMissingObject<UpdateLoggerSettingResult>(error, SETTINGS_OBJECT);
@@ -389,7 +407,7 @@ export async function updateLoggerSetting(
     throw new SfError(`Failed to save setting: ${message}`, 'DmlError');
   }
 
-  const recordId = saveResult.id ?? args.recordId ?? '';
+  const recordId = saveResult.id ?? effectiveRecordId ?? '';
   return {
     success: true,
     recordId,
