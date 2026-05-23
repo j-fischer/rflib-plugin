@@ -1,3 +1,12 @@
+## [0.19.1](https://github.com/j-fischer/rflib-plugin/compare/0.19.0...0.19.1) (2026-05-23)
+
+
+### Bug Fixes
+
+* **debug:** upsert logger settings by SetupOwnerId instead of always creating ([#213](https://github.com/j-fischer/rflib-plugin/issues/213)) ([2b27815](https://github.com/j-fischer/rflib-plugin/commit/2b27815fb6b42150ab4005ddebd2881c18c4d490))
+
+
+
 # [0.19.0](https://github.com/j-fischer/rflib-plugin/compare/0.18.1...0.19.0) (2026-05-20)
 
 
