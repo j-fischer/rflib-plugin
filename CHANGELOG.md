@@ -1,3 +1,12 @@
+## [0.19.3](https://github.com/j-fischer/rflib-plugin/compare/0.19.2...0.19.3) (2026-05-24)
+
+
+### Bug Fixes
+
+* **deps:** bump axios from 1.7.9 to 1.16.1 ([#210](https://github.com/j-fischer/rflib-plugin/issues/210)) ([b22ecbe](https://github.com/j-fischer/rflib-plugin/commit/b22ecbe189446a8afba59bd244458f1b3f594580))
+
+
+
 ## [0.19.2](https://github.com/j-fischer/rflib-plugin/compare/0.19.1...0.19.2) (2026-05-23)
 
 
