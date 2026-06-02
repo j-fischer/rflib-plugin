@@ -4,7 +4,7 @@
   "version": "0.19.5",
   "dependencies": {
     "@oclif/core": "^4.10.5",
-    "@salesforce/core": "^8.27.1",
+    "@salesforce/core": "^8.31.0",
     "@salesforce/sf-plugins-core": "^12.2.24",
     "@types/xml2js": "^0.4.14",
     "minimatch": "^10.2.5",
