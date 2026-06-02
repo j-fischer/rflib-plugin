@@ -34,6 +34,21 @@ export type NutHarness = {
 };
 
 /**
+ * Queries issued internally by @salesforce/sf-plugins-core or @salesforce/core when
+ * resolving the --target-org flag (e.g. fetching org details from the Organization sObject).
+ * These are framework-level queries and should not appear in test assertions that count or
+ * inspect user-issued SOQL.
+ */
+const FRAMEWORK_QUERY_PATTERNS = [
+  // sf-plugins-core ≥12.2.22 issues this to refresh org metadata after flag resolution.
+  /^SELECT\s+Name\s*,\s*InstanceName\s*,\s*IsSandbox/i,
+];
+
+function isFrameworkQuery(soql: string): boolean {
+  return FRAMEWORK_QUERY_PATTERNS.some((re) => re.test(soql));
+}
+
+/**
  * Sets up a TestContext with a mock-authed org and stubs Connection.prototype.query
  * and Connection.prototype.sobject so command invocations don't touch a real org.
  *
@@ -66,7 +81,10 @@ export function setupNut(stubs: NutStubs): NutHarness {
 
     const queryStub = $$.SANDBOX.stub(Connection.prototype, 'query') as unknown as SinonStub;
     queryStub.callsFake(async (soql: string) => {
-      harness.queries.push(soql);
+      // Exclude framework-internal queries so test assertions only see user-issued SOQL.
+      if (!isFrameworkQuery(soql)) {
+        harness.queries.push(soql);
+      }
       const value = stubs.query ? stubs.query(soql) : [];
       if (Array.isArray(value)) {
         return Promise.resolve({ records: value, done: true, totalSize: value.length });
