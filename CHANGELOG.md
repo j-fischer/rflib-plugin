@@ -1,3 +1,13 @@
+## [0.19.7](https://github.com/j-fischer/rflib-plugin/compare/0.19.6...0.19.7) (2026-06-02)
+
+
+### Bug Fixes
+
+* **deps:** bump axios from 1.7.9 to 1.16.1 ([#219](https://github.com/j-fischer/rflib-plugin/issues/219)) ([964f150](https://github.com/j-fischer/rflib-plugin/commit/964f150dd1c6705b726dc93812e4e6b221213df2))
+* **deps:** bump lodash from 4.17.23 to 4.18.1 ([#220](https://github.com/j-fischer/rflib-plugin/issues/220)) ([00f6a3e](https://github.com/j-fischer/rflib-plugin/commit/00f6a3eda27169531dd4a4d1705f8bc04ec4fb6d))
+
+
+
 ## [0.19.6](https://github.com/j-fischer/rflib-plugin/compare/0.19.5...0.19.6) (2026-06-02)
 
 
