@@ -1,3 +1,12 @@
+## [0.19.5](https://github.com/j-fischer/rflib-plugin/compare/0.19.4...0.19.5) (2026-06-02)
+
+
+### Bug Fixes
+
+* **deps:** bump @salesforce/sf-plugins-core from 12.2.17 to 12.2.24 ([#215](https://github.com/j-fischer/rflib-plugin/issues/215)) ([3a9ae0e](https://github.com/j-fischer/rflib-plugin/commit/3a9ae0e51882bb510915493cde1bc7113076133e))
+
+
+
 ## [0.19.4](https://github.com/j-fischer/rflib-plugin/compare/0.19.3...0.19.4) (2026-06-02)
 
 
