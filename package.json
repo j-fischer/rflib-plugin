@@ -5,7 +5,7 @@
   "dependencies": {
     "@oclif/core": "^4.10.5",
     "@salesforce/core": "^8.27.1",
-    "@salesforce/sf-plugins-core": "^12.2.17",
+    "@salesforce/sf-plugins-core": "^12.2.24",
     "@types/xml2js": "^0.4.14",
     "minimatch": "^10.2.5",
     "prettier": "^3.8.3",
