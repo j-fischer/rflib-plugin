@@ -1,3 +1,20 @@
+## [0.19.10](https://github.com/j-fischer/rflib-plugin/compare/0.19.9...0.19.10) (2026-08-16)
+
+
+### Bug Fixes
+
+* **deps:** bump @babel/core from 7.26.0 to 7.29.7 ([8c3f014](https://github.com/j-fischer/rflib-plugin/commit/8c3f014d34af50ba1ac0881985d6ee11699055d7))
+* **deps:** bump axios from 1.16.1 to 1.18.1 ([bf1743c](https://github.com/j-fischer/rflib-plugin/commit/bf1743cfebf778ce987003a7bff7e68034bdd1a7))
+* **deps:** bump fast-uri from 3.0.3 to 3.1.5 ([b05cad1](https://github.com/j-fischer/rflib-plugin/commit/b05cad1c8b89305877805fb7908deb86efb047eb))
+* **deps:** bump form-data from 4.0.5 to 4.0.6 ([3ad71a2](https://github.com/j-fischer/rflib-plugin/commit/3ad71a25febfa011657e5382be00d175ca013ba7))
+* **deps:** bump linkify-it from 5.0.0 to 5.0.2 ([139c685](https://github.com/j-fischer/rflib-plugin/commit/139c6850bf048db3d462c0e11233493f7389d063))
+* **deps:** bump markdown-it from 14.1.0 to 14.2.0 ([3c921b8](https://github.com/j-fischer/rflib-plugin/commit/3c921b843b66716dc493487c8f2889f82611ee8d))
+* **deps:** bump websocket-driver from 0.7.4 to 0.7.5 ([fd2d43b](https://github.com/j-fischer/rflib-plugin/commit/fd2d43bd253294333eb1ff2b14f0df0d605933bf))
+* **deps:** bump ws from 8.18.0 to 8.21.0 ([f8cb4bf](https://github.com/j-fischer/rflib-plugin/commit/f8cb4bfff0c48967e785bb29f87214f526531a8c))
+* **deps:** consolidate open dependabot dependency bumps ([857deef](https://github.com/j-fischer/rflib-plugin/commit/857deef0d8cda6d5b1e70d2239c1950658280ffb)), closes [#235](https://github.com/j-fischer/rflib-plugin/issues/235) [#233](https://github.com/j-fischer/rflib-plugin/issues/233) [#232](https://github.com/j-fischer/rflib-plugin/issues/232) [#231](https://github.com/j-fischer/rflib-plugin/issues/231) [#230](https://github.com/j-fischer/rflib-plugin/issues/230) [#229](https://github.com/j-fischer/rflib-plugin/issues/229) [#228](https://github.com/j-fischer/rflib-plugin/issues/228) [#227](https://github.com/j-fischer/rflib-plugin/issues/227) [#226](https://github.com/j-fischer/rflib-plugin/issues/226)
+
+
+
 ## [0.19.9](https://github.com/j-fischer/rflib-plugin/compare/0.19.8...0.19.9) (2026-06-16)
 
 
