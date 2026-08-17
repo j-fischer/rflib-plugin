@@ -1,3 +1,12 @@
+## [0.19.11](https://github.com/j-fischer/rflib-plugin/compare/0.19.10...0.19.11) (2026-08-17)
+
+
+### Bug Fixes
+
+* **deps:** clear all js-yaml and brace-expansion advisories ([#238](https://github.com/j-fischer/rflib-plugin/issues/238)) ([a8c6be9](https://github.com/j-fischer/rflib-plugin/commit/a8c6be9773621bbaf425906d401e7852ba32b88d))
+
+
+
 ## [0.19.10](https://github.com/j-fischer/rflib-plugin/compare/0.19.9...0.19.10) (2026-08-16)
 
 
