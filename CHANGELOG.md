@@ -1,3 +1,12 @@
+## [0.19.12](https://github.com/j-fischer/rflib-plugin/compare/0.19.11...0.19.12) (2026-08-23)
+
+
+### Bug Fixes
+
+* **deps:** consolidate open dependency bumps and migrate to ESLint 10 ([#245](https://github.com/j-fischer/rflib-plugin/issues/245)) ([829e483](https://github.com/j-fischer/rflib-plugin/commit/829e483b422f34adb45ae1b528ce776cd8641889)), closes [#239](https://github.com/j-fischer/rflib-plugin/issues/239) [#240](https://github.com/j-fischer/rflib-plugin/issues/240) [#241](https://github.com/j-fischer/rflib-plugin/issues/241) [#242](https://github.com/j-fischer/rflib-plugin/issues/242) [#243](https://github.com/j-fischer/rflib-plugin/issues/243) [#244](https://github.com/j-fischer/rflib-plugin/issues/244)
+
+
+
 ## [0.19.11](https://github.com/j-fischer/rflib-plugin/compare/0.19.10...0.19.11) (2026-08-17)
 
 
