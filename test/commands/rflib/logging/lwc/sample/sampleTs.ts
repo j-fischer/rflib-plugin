@@ -60,7 +60,6 @@ export default class SampleTs extends LightningElement {
     });
   }
 
-  // eslint-disable-next-line class-methods-use-this, arrow-body-style
   public arrowFunction = (val: string): string => {
       return val.toUpperCase();
   }

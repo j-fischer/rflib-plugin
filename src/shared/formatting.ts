@@ -1,4 +1,3 @@
-/* eslint-disable no-param-reassign */
 import * as fs from 'node:fs';
 import * as prettier from 'prettier';
 import { Logger } from '@salesforce/core';
@@ -9,9 +8,9 @@ export async function formatContent(content: string, config: prettier.Options): 
     return await prettier.format(content, config);
   } catch (error) {
     if (error instanceof Error) {
-      throw new Error(`Formatting failed: ${error.message}`);
+      throw new Error(`Formatting failed: ${error.message}`, { cause: error });
     }
-    throw new Error('Formatting failed with unknown error');
+    throw new Error('Formatting failed with unknown error', { cause: error });
   }
 }
 

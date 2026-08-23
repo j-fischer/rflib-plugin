@@ -394,9 +394,9 @@ export async function updateLoggerSetting(
   let saveResult: SaveResult;
   try {
     if (effectiveRecordId) {
-      saveResult = (await sobject.update({ Id: effectiveRecordId, ...payload })) as unknown as SaveResult;
+      saveResult = await sobject.update({ Id: effectiveRecordId, ...payload });
     } else {
-      saveResult = (await sobject.create({ SetupOwnerId: effectiveSetupOwnerId, ...payload })) as unknown as SaveResult;
+      saveResult = await sobject.create({ SetupOwnerId: effectiveSetupOwnerId, ...payload });
     }
   } catch (error) {
     return wrapMissingObject<UpdateLoggerSettingResult>(error, SETTINGS_OBJECT);
