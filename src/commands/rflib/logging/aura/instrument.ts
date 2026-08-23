@@ -59,14 +59,14 @@ class AuraInstrumentationService {
         .map((p) => p.trim())
         .filter(Boolean);
       let loggerVar = 'logger';
-      let bodyContent = body;
+      let bodyContent: string;
 
       const paramsToLog = isHelper ? paramList : paramList.slice(1, 2);
       const placeholders = paramsToLog.map((_, i) => `{${i}}`).join(', ');
       const logParams = paramsToLog.length > 0 ? `, [${paramsToLog.join(', ')}]` : '';
 
       const loggerMatch = body.match(this.LOGGER_VAR_REGEX);
-      if (loggerMatch && loggerMatch[2] === loggerId) {
+      if (loggerMatch?.[2] === loggerId) {
         loggerVar = loggerMatch[1];
         const loggerIndex = body.indexOf(loggerMatch[0]) + loggerMatch[0].length;
         bodyContent = `${body.slice(0, loggerIndex)}\n        ${loggerVar}.info('${methodName}(${placeholders})'${logParams});${body.slice(loggerIndex)}`;
@@ -293,21 +293,19 @@ export default class RflibLoggingAuraInstrument extends SfCommand<RflibLoggingAu
     // Case 2: The sourcepath points to an 'aura' folder
     if (dirName === 'aura') {
       const entries = await fs.promises.readdir(dirPath, { withFileTypes: true });
-      const components = await Promise.all(
-        entries
-          .filter(entry => entry.isDirectory())
-          .map(entry => {
-            const cmpPath = path.join(dirPath, entry.name);
-            if (excludePattern && minimatch(cmpPath, excludePattern, { matchBase: true })) {
-              this.logger.debug(`Skipping excluded path: ${cmpPath}`);
-              return null;
-            }
-            return {
-              path: cmpPath,
-              name: entry.name
-            };
-          })
-      );
+      const components = entries
+        .filter(entry => entry.isDirectory())
+        .map(entry => {
+          const cmpPath = path.join(dirPath, entry.name);
+          if (excludePattern && minimatch(cmpPath, excludePattern, { matchBase: true })) {
+            this.logger.debug(`Skipping excluded path: ${cmpPath}`);
+            return null;
+          }
+          return {
+            path: cmpPath,
+            name: entry.name
+          };
+        });
       return components.filter((c): c is { path: string; name: string } => c !== null);
     }
 

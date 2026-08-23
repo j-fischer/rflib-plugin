@@ -1,40 +1,29 @@
-import js from '@eslint/js';
-import { FlatCompat } from '@eslint/eslintrc';
-import { dirname } from 'node:path';
-import { fileURLToPath } from 'node:url';
-
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = dirname(__filename);
-
-const compat = new FlatCompat({
-  baseDirectory: __dirname,
-  recommendedConfig: js.configs.recommended,
-  allConfig: js.configs.all,
-});
-
-const testConfigs = compat.config({
-  env: {
-    mocha: true,
-  },
-  rules: {
-    'no-unused-expressions': 'off',
-    '@typescript-eslint/explicit-function-return-type': 'off',
-    '@typescript-eslint/no-empty-function': 'off',
-    '@typescript-eslint/require-await': 'off',
-    header: 'off',
-  },
-});
-
-testConfigs.forEach((config) => {
-  config.files = ['test/**/*.ts'];
-});
+import salesforceTypescriptConfig from 'eslint-config-salesforce-typescript';
+import sfPlugin from 'eslint-plugin-sf-plugin';
 
 export default [
-  ...compat.extends('eslint-config-salesforce-typescript', 'plugin:sf-plugin/recommended'),
+  {
+    // Migrated from .eslintignore, which ESLint 10 no longer reads.
+    ignores: ['**/*.cjs'],
+  },
+  ...salesforceTypescriptConfig,
+  ...sfPlugin.configs.recommended,
   {
     rules: {
-      header: 'off',
+      'header/header': 'off',
+      // Flow/Aura metadata is parsed from XML, where an absent element yields an empty
+      // string rather than undefined. `||` is intentional at those fallbacks.
+      '@typescript-eslint/prefer-nullish-coalescing': ['error', { ignorePrimitives: { string: true } }],
     },
   },
-  ...testConfigs,
+  {
+    files: ['test/**/*.ts'],
+    rules: {
+      'no-unused-expressions': 'off',
+      '@typescript-eslint/explicit-function-return-type': 'off',
+      '@typescript-eslint/no-empty-function': 'off',
+      '@typescript-eslint/require-await': 'off',
+      'header/header': 'off',
+    },
+  },
 ];

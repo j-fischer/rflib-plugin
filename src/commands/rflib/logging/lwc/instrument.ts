@@ -1,4 +1,3 @@
-/* eslint-disable no-await-in-loop */
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { SfCommand, Flags } from '@salesforce/sf-plugins-core';

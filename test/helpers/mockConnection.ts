@@ -73,5 +73,5 @@ export function buildMockConnection(opts: MockConnectionOptions): { conn: Connec
     }),
   };
 
-  return { conn: conn as unknown as Connection, calls };
+  return { conn, calls };
 }

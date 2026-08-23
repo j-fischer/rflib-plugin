@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/quotes */
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { execCmd, TestSession } from '@salesforce/cli-plugins-testkit';

@@ -1,5 +1,4 @@
 /* eslint-disable sf-plugin/only-extend-SfCommand */
-/* eslint-disable @typescript-eslint/return-await */
 /* eslint-disable @typescript-eslint/no-explicit-any */
 /* eslint-disable @typescript-eslint/no-unsafe-call */
 /* eslint-disable @typescript-eslint/no-unsafe-assignment */
@@ -44,9 +43,9 @@ export class FlowInstrumentationService {
       return await this.parser.parseStringPromise(content);
     } catch (error) {
       if (error instanceof Error) {
-        throw new Error(`Flow parsing failed: ${error.message}`);
+        throw new Error(`Flow parsing failed: ${error.message}`, { cause: error });
       }
-      throw new Error('Flow parsing failed with unknown error');
+      throw new Error('Flow parsing failed with unknown error', { cause: error });
     }
   }
 
@@ -77,9 +76,9 @@ export class FlowInstrumentationService {
       return this.builder.buildObject({ Flow: orderedFlow });
     } catch (error) {
       if (error instanceof Error) {
-        throw new Error(`Flow building failed: ${error.message}`);
+        throw new Error(`Flow building failed: ${error.message}`, { cause: error });
       }
-      throw new Error('Flow building failed with unknown error');
+      throw new Error('Flow building failed with unknown error', { cause: error });
     }
   }
 
@@ -237,9 +236,7 @@ export class FlowInstrumentationService {
 
         // Update the decision's default connector to point to our logger
         // We're inside a forEach callback, so we have to modify the original object
-        /* eslint-disable no-param-reassign */
         decision.defaultConnector.targetReference = defaultLogger.name;
-        /* eslint-enable no-param-reassign */
       }
 
       // Process each rule if they exist
@@ -275,9 +272,7 @@ export class FlowInstrumentationService {
 
           // Update the rule's connector to point to our logger
           // We're inside a forEach callback, so we have to modify the original object
-          /* eslint-disable no-param-reassign */
           rule.connector.targetReference = ruleLogger.name;
-          /* eslint-enable no-param-reassign */
         });
       }
     });
@@ -287,7 +282,6 @@ export class FlowInstrumentationService {
   // Note: This method does modify the parameter directly - we accepted the eslint warning
   // since we need to modify the flow object within callback functions where returning a new value isn't possible
   private static addActionCallToFlow(flowObj: any, actionCall: any): void {
-    /* eslint-disable no-param-reassign */
     if (!flowObj.Flow.actionCalls) {
       flowObj.Flow.actionCalls = actionCall;
     } else if (Array.isArray(flowObj.Flow.actionCalls)) {
@@ -297,7 +291,6 @@ export class FlowInstrumentationService {
       // If only one action exists, convert to array with new action first
       flowObj.Flow.actionCalls = [actionCall, flowObj.Flow.actionCalls];
     }
-    /* eslint-enable no-param-reassign */
   }
 
   // Helper to create a logging action for decision paths
@@ -580,9 +573,7 @@ export class FlowInstrumentationService {
     }
 
     // Assign back the potentially modified array
-    /* eslint-disable no-param-reassign */
     flowObj.Flow.processMetadataValues = metadataValues;
-    /* eslint-enable no-param-reassign */
   }
 
   // Helper to add variable references to the logging message when available

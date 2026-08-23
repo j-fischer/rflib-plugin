@@ -274,8 +274,7 @@ describe('rflib logging flow instrument NUTs', () => {
     expect(flowInvocationLogger?.connector?.targetReference).to.equal('Check_Value');
 
     const decisionLoggers = actionCalls.filter((action: FlowAction | undefined): action is FlowAction =>
-      action?.name !== undefined &&
-      action.name.includes('RFLIB_Flow_Logger_Decision_')
+      action?.name?.includes('RFLIB_Flow_Logger_Decision_') === true
     );
 
     expect(decisionLoggers.length).to.equal(2);
