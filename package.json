@@ -20,7 +20,7 @@
     "@istanbuljs/nyc-config-typescript": "^1.0.2",
     "@oclif/plugin-command-snapshot": "^5.3.24",
     "@salesforce/cli-plugins-testkit": "^5.3.58",
-    "@salesforce/dev-scripts": "^11.0.4",
+    "@salesforce/dev-scripts": "^13.0.2",
     "@types/minimatch": "^5.1.2",
     "c8": "^10.1.3",
     "eslint": "^8.57.1",
