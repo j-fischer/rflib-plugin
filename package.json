@@ -9,7 +9,7 @@
     "@types/xml2js": "^0.4.14",
     "minimatch": "^10.2.6",
     "prettier": "^3.8.4",
-    "prettier-plugin-apex": "^2.2.6",
+    "prettier-plugin-apex": "^2.3.0",
     "wireit": "^0.14.12",
     "xml2js": "^0.6.2"
   },
