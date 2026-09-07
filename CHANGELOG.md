@@ -1,3 +1,16 @@
+## [0.19.13](https://github.com/j-fischer/rflib-plugin/compare/0.19.12...0.19.13) (2026-09-07)
+
+
+### Bug Fixes
+
+* **deps:** bump @oclif/core from 4.11.4 to 4.14.0 ([d31d99d](https://github.com/j-fischer/rflib-plugin/commit/d31d99dce9b8476cdbc0a578c6a8bc3bbe61aa3d))
+* **deps:** bump browserslist from 4.24.3 to 4.28.9 ([5553d69](https://github.com/j-fischer/rflib-plugin/commit/5553d69a3089a476a0d7a4b752941455be8497df))
+* **deps:** bump fast-uri from 3.1.5 to 3.1.7 ([73ae223](https://github.com/j-fischer/rflib-plugin/commit/73ae223008af69682461de172cddebc7553f3d6f))
+* **deps:** bump prettier-plugin-apex from 2.2.6 to 2.3.0 ([c291902](https://github.com/j-fischer/rflib-plugin/commit/c291902e7eb5554a955a9ad2045f484911aeafd3))
+* **deps:** consolidate open dependency bumps ([f2befa4](https://github.com/j-fischer/rflib-plugin/commit/f2befa4c1499a6aa7cc8dce7728af78dbb79eb54))
+
+
+
 ## [0.19.12](https://github.com/j-fischer/rflib-plugin/compare/0.19.11...0.19.12) (2026-08-23)
 
 
