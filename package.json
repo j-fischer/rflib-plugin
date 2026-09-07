@@ -32,6 +32,9 @@
     "tsconfig-paths": "^4.2.0",
     "typescript": "^5.9.3"
   },
+  "resolutions": {
+    "**/typescript": "^5.9.3"
+  },
   "engines": {
     "node": ">=22.0.0"
   },
