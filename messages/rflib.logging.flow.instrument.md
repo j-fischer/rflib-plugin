@@ -4,7 +4,7 @@ Adds RFLIB logging statements to Salesforce Flows.
 
 # description
 
-Automatically adds RFLIB logging statements to Salesforce Flows to provide enhanced tracking and debugging capabilities. Works with both standard Flows and Auto-Launched Flows. Instruments flow invocations and decision paths with logging actions. Also sets the CanvasMode to AUTO_LAYOUT_CANVAS for better flow visualization while preserving the original processType.
+Automatically adds RFLIB logging statements to Salesforce Flows to provide enhanced tracking and debugging capabilities. Works with both standard Flows and Auto-Launched Flows. Instruments flow invocations and decision paths with logging actions, and logs an error on the fault path of every element that can fail. Existing fault paths continue after the error is logged. Elements without a fault path get one that logs the error and then terminates the transaction, so the Flow still fails as before; this requires the Terminate Transaction option of the RFLIB Log Message action. Also sets the CanvasMode to AUTO_LAYOUT_CANVAS for better flow visualization while preserving the original processType.
 
 # flags.sourcepath.summary
 
@@ -38,6 +38,14 @@ Skips any files where a logger is already present.
 
 When provided, the command will not add log statements to any Flows that already contain RFLIB logging actions.
 
+# flags.skip-fault-paths.summary
+
+Skips logging errors on fault paths.
+
+# flags.skip-fault-paths.description
+
+When provided, the command will not add error logging to fault paths and will not create fault paths for elements that have none. Use this flag if the target org runs an RFLIB version without the Terminate Transaction option of the Log Message action.
+
 # flags.verbose.summary
 
 Enable verbose output.
@@ -67,4 +75,5 @@ Controls the maximum number of files to process at the same time. This is useful
 - <%= config.bin %> <%= command.id %> --sourcepath force-app
 - <%= config.bin %> <%= command.id %> --sourcepath force-app --dryrun
 - <%= config.bin %> <%= command.id %> --sourcepath force-app --skip-instrumented
+- <%= config.bin %> <%= command.id %> --sourcepath force-app --skip-fault-paths
 

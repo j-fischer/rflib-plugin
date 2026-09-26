@@ -114,6 +114,9 @@ sf rflib logging flow instrument --sourcepath force-app --dryrun
 
 # Skip instrumenting flows where logging is already present
 sf rflib logging flow instrument --sourcepath force-app --skip-instrumented
+
+# Do not add error logging to fault paths
+sf rflib logging flow instrument --sourcepath force-app --skip-fault-paths
 ```
 
 #### Command Options
@@ -121,6 +124,7 @@ sf rflib logging flow instrument --sourcepath force-app --skip-instrumented
 - `--sourcepath (-s)`: Directory containing Flow files to instrument
 - `--dryrun (-d)`: Preview changes without modifying files
 - `--skip-instrumented`: Do not instrument files where RFLIB logging is already present
+- `--skip-fault-paths`: Do not add error logging to fault paths or create fault paths for elements without one
 - `--verbose (-v)`: Print paths of the files that would be modified (useful with --dryrun)
 - `--exclude (-e)`: Exclude files or directories from instrumentation based on a glob pattern
 
@@ -128,6 +132,10 @@ sf rflib logging flow instrument --sourcepath force-app --skip-instrumented
 
 - Adds logging for flow invocation at the start of the flow
 - Adds logging for decision paths to track which branch is executed
+- Logs an `ERROR` on the fault path of every element that can fail (Actions, Apex Plugins, Create/Delete/Get/Update Records, and Waits). The message names the failing element and includes `{!$Flow.FaultMessage}`, the values the element used as input, the triggering record ID, and the flow's input variables
+  - If the element already has a fault path, the log action is inserted as its first step and the existing path continues as before
+  - If the element has no fault path, one is created that logs the error and then terminates the transaction using the `Terminate Transaction` option of the RFLIB `Log Message` action. The Flow still fails, rolls back, and shows the error just like an unhandled fault, so its behavior does not change
+  - Requires an RFLIB version that includes the `Terminate Transaction` option. Use `--skip-fault-paths` for orgs running an older version
 - Sets the flow's CanvasMode to AUTO_LAYOUT_CANVAS for better visualization in Flow Builder
 - Preserves the original processType value
 - Handles both free-form and auto-layout flows, converting all to auto-layout

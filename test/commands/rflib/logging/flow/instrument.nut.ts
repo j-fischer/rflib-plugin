@@ -19,10 +19,18 @@ type FlowAction = {
     targetReference: string;
   };
   inputParameters?: Array<{
+    name?: string;
     value?: {
       stringValue?: string;
+      booleanValue?: string;
     };
   }>;
+}
+
+type FlowFaultElement = {
+  faultConnector?: {
+    targetReference: string;
+  };
 }
 
 type FlowRule = {
@@ -55,6 +63,9 @@ type Flow = {
       triggerType?: string;
     };
     decisions?: FlowDecision;
+    recordCreates?: FlowFaultElement;
+    recordLookups?: FlowFaultElement;
+    recordUpdates?: FlowFaultElement;
   };
 }
 
@@ -314,5 +325,66 @@ describe('rflib logging flow instrument NUTs', () => {
 
     expect(canvasModeMetadata).to.exist;
     expect(canvasModeMetadata?.value.stringValue).to.equal('AUTO_LAYOUT_CANVAS');
+  });
+
+  const getActionCalls = (flowObj: Flow): FlowAction[] => {
+    const actionCalls = flowObj.Flow.actionCalls;
+    if (!actionCalls) {
+      return [];
+    }
+    return Array.isArray(actionCalls) ? actionCalls : [actionCalls];
+  };
+
+  const getParameter = (action: FlowAction | undefined, name: string): { stringValue?: string; booleanValue?: string } | undefined =>
+    action?.inputParameters?.find(param => param.name === name)?.value;
+
+  const copyFaultPathSample = async (): Promise<string> => {
+    const faultFlowPath = path.join(srcDir, 'Fault_Path_Test.flow-meta.xml');
+    await fs.promises.copyFile(path.join(dirname, 'sample', 'Fault_Path_Test.flow-meta.xml'), faultFlowPath);
+    return faultFlowPath;
+  };
+
+  it('should instrument fault paths with error logging', async () => {
+    const faultFlowPath = await copyFaultPathSample();
+
+    const command = `rflib logging flow instrument --sourcepath ${path.join(tempDir, 'force-app')}`;
+    execCmd(command, { ensureExitCode: 0 });
+
+    const modifiedFlow = await parseXml(await fs.promises.readFile(faultFlowPath, 'utf8'));
+    const actionCalls = getActionCalls(modifiedFlow);
+    const findAction = (name?: string): FlowAction | undefined => actionCalls.find(action => action.name === name);
+
+    // Elements without a fault path get one that logs the error and terminates the transaction
+    [modifiedFlow.Flow.recordLookups, modifiedFlow.Flow.recordCreates].forEach(element => {
+      const faultLogger = findAction(element?.faultConnector?.targetReference);
+
+      expect(faultLogger?.name).to.match(/^RFLIB_Flow_Logger_Fault_/);
+      expect(getParameter(faultLogger, 'logLevel')?.stringValue).to.equal('ERROR');
+      expect(getParameter(faultLogger, 'message')?.stringValue).to.contain('{!$Flow.FaultMessage}');
+      expect(getParameter(faultLogger, 'terminateTransaction')?.booleanValue).to.equal('true');
+      expect(faultLogger?.connector).to.be.undefined;
+    });
+
+    // Existing fault paths continue after the logger without terminating the transaction
+    const updateLogger = findAction(modifiedFlow.Flow.recordUpdates?.faultConnector?.targetReference);
+
+    expect(updateLogger?.name).to.match(/^RFLIB_Flow_Logger_Fault_Update_Account_/);
+    expect(getParameter(updateLogger, 'logLevel')?.stringValue).to.equal('ERROR');
+    expect(getParameter(updateLogger, 'terminateTransaction')).to.be.undefined;
+    expect(updateLogger?.connector?.targetReference).to.equal('Handle_Update_Error');
+  });
+
+  it('should respect the skip-fault-paths flag', async () => {
+    const faultFlowPath = await copyFaultPathSample();
+
+    const command = `rflib logging flow instrument --sourcepath ${path.join(tempDir, 'force-app')} --skip-fault-paths`;
+    execCmd(command, { ensureExitCode: 0 });
+
+    const modifiedFlow = await parseXml(await fs.promises.readFile(faultFlowPath, 'utf8'));
+
+    expect(hasRFLIBLogger(modifiedFlow)).to.be.true;
+    expect(getActionCalls(modifiedFlow).some(action => action.name?.startsWith('RFLIB_Flow_Logger_Fault_'))).to.be.false;
+    expect(modifiedFlow.Flow.recordCreates?.faultConnector).to.be.undefined;
+    expect(modifiedFlow.Flow.recordUpdates?.faultConnector?.targetReference).to.equal('Handle_Update_Error');
   });
 });

@@ -68,6 +68,11 @@ describe('rflib logging flow instrument', () => {
       expect(runStub.called).to.be.true;
     });
 
+    it('should accept the skip-fault-paths flag', async () => {
+      const result = await RflibLoggingFlowInstrument.run(['--sourcepath', 'force-app', '--skip-fault-paths']);
+      expect(result.processedFiles).to.equal(2);
+    });
+
     it('should respect the exclude flag', async () => {
       await RflibLoggingFlowInstrument.run(['--sourcepath', 'force-app', '--exclude', '**/Test_*']);
 
@@ -626,6 +631,299 @@ describe('rflib logging flow instrument', () => {
         expect(canvasModeMetadata).to.exist;
         expect(canvasModeMetadata.value.stringValue).to.equal('AUTO_LAYOUT_CANVAS');
       });
+    });
+  });
+
+  describe('fault path instrumentation', () => {
+    const toArray = (value: any): any[] => (Array.isArray(value) ? value : value ? [value] : []);
+    const findAction = (flow: any, name: unknown): any => toArray(flow.Flow.actionCalls).find((a: any) => a.name === name);
+    const getParam = (action: any, name: string): any =>
+      toArray(action.inputParameters).find((p: any) => p.name === name)?.value;
+    const faultLoggers = (flow: any): any[] =>
+      toArray(flow.Flow.actionCalls).filter(
+        (a: any) => typeof a.name === 'string' && Boolean(a.name.startsWith('RFLIB_Flow_Logger_Fault_'))
+      );
+
+    let sampleFlow: any;
+
+    beforeEach(async () => {
+      const samplePath = path.join(__dirname, 'sample', 'Fault_Path_Test.flow-meta.xml');
+      sampleFlow = await FlowInstrumentationService.parseFlowContent(await fs.promises.readFile(samplePath, 'utf8'));
+    });
+
+    it('should create a terminating fault path for elements without one', () => {
+      const instrumentedFlow = FlowInstrumentationService.instrumentFlow(sampleFlow, 'Fault_Path_Test', false);
+
+      const createContact = instrumentedFlow.Flow.recordCreates;
+      const logger = findAction(instrumentedFlow, createContact.faultConnector.targetReference);
+
+      expect(logger).to.exist;
+      expect(logger.name).to.match(/^RFLIB_Flow_Logger_Fault_Create_Contact_/);
+      expect(logger.label).to.equal('Log Fault: Create Contact');
+      expect(logger.actionName).to.equal('rflib_LoggerFlowAction');
+      expect(logger.connector).to.be.undefined;
+      expect(getParam(logger, 'context').stringValue).to.equal('Fault_Path_Test');
+      expect(getParam(logger, 'logLevel').stringValue).to.equal('ERROR');
+      expect(getParam(logger, 'terminateTransaction').booleanValue).to.equal('true');
+      expect(getParam(logger, 'message').stringValue).to.equal(
+        "Fault in Create Records 'Create Contact' (Create_Contact): {!$Flow.FaultMessage}" +
+          ' | $Record.Id: {!$Record.Id}, $Record.Name: {!$Record.Name}, varSource: {!varSource}'
+      );
+    });
+
+    it('should insert the logger at the start of an existing fault path without terminating', () => {
+      const instrumentedFlow = FlowInstrumentationService.instrumentFlow(sampleFlow, 'Fault_Path_Test', false);
+
+      const updateAccount = instrumentedFlow.Flow.recordUpdates;
+      const logger = findAction(instrumentedFlow, updateAccount.faultConnector.targetReference);
+
+      expect(logger.name).to.match(/^RFLIB_Flow_Logger_Fault_Update_Account_/);
+      expect(logger.connector.targetReference).to.equal('Handle_Update_Error');
+      expect(getParam(logger, 'terminateTransaction')).to.be.undefined;
+      expect(getParam(logger, 'message').stringValue).to.contain('$Record.Id: {!$Record.Id}, varOwner.Email: {!varOwner.Email}');
+    });
+
+    it('should only log scalar resources and never log collection or SObject variables', () => {
+      const instrumentedFlow = FlowInstrumentationService.instrumentFlow(sampleFlow, 'Fault_Path_Test', false);
+
+      faultLoggers(instrumentedFlow).forEach((logger: any) => {
+        const message: string = getParam(logger, 'message').stringValue;
+        expect(message).to.contain('varSource: {!varSource}');
+        expect(message).not.to.contain('varAccountIds');
+        expect(message).not.to.contain('{!varOwner}');
+      });
+    });
+
+    it('should add a fault logger for every fault-capable element', () => {
+      const instrumentedFlow = FlowInstrumentationService.instrumentFlow(sampleFlow, 'Fault_Path_Test', false);
+
+      expect(faultLoggers(instrumentedFlow)).to.have.lengthOf(3);
+      [instrumentedFlow.Flow.recordCreates, instrumentedFlow.Flow.recordLookups, instrumentedFlow.Flow.recordUpdates].forEach(
+        (element: any) => {
+          expect(element.faultConnector.targetReference).to.match(/^RFLIB_Flow_Logger_Fault_/);
+        }
+      );
+    });
+
+    it('should move isGoTo from the element to the fault logger connector', () => {
+      const flow = {
+        Flow: {
+          processType: 'Flow',
+          actionCalls: [
+            {
+              name: 'Send_Email',
+              label: 'Send Email',
+              actionName: 'emailSimple',
+              actionType: 'emailSimple',
+              faultConnector: { isGoTo: 'true', targetReference: 'Error_Screen' },
+            },
+          ],
+        },
+      };
+
+      const instrumentedFlow = FlowInstrumentationService.instrumentFlow(flow, 'TestFlow', false);
+      const sendEmail = findAction(instrumentedFlow, 'Send_Email');
+      const logger = findAction(instrumentedFlow, sendEmail.faultConnector.targetReference);
+
+      expect(sendEmail.faultConnector).to.deep.equal({ targetReference: logger.name });
+      expect(logger.connector).to.deep.equal({ isGoTo: 'true', targetReference: 'Error_Screen' });
+    });
+
+    it('should not add fault paths to RFLIB actions', () => {
+      const flow = {
+        Flow: {
+          processType: 'Flow',
+          actionCalls: [
+            { name: 'Log_Something', actionName: 'rflib_LoggerFlowAction', actionType: 'apex' },
+            { name: 'Log_App_Event', actionName: 'rflib_ApplicationEventLoggerAction', actionType: 'apex' },
+          ],
+          decisions: {
+            name: 'Check',
+            defaultConnector: { targetReference: 'Log_Something' },
+          },
+        },
+      };
+
+      const instrumentedFlow = FlowInstrumentationService.instrumentFlow(flow, 'TestFlow', false);
+
+      expect(faultLoggers(instrumentedFlow)).to.have.lengthOf(0);
+      toArray(instrumentedFlow.Flow.actionCalls).forEach((action: any) => {
+        expect(action.faultConnector).to.be.undefined;
+      });
+    });
+
+    it('should not instrument fault paths that already start with an RFLIB logger', () => {
+      const flow = {
+        Flow: {
+          processType: 'Flow',
+          actionCalls: { name: 'Log_Error', actionName: 'rflib_LoggerFlowAction', actionType: 'apex' },
+          recordDeletes: {
+            name: 'Delete_Record',
+            faultConnector: { targetReference: 'Log_Error' },
+          },
+        },
+      };
+
+      const instrumentedFlow = FlowInstrumentationService.instrumentFlow(flow, 'TestFlow', false);
+
+      expect(instrumentedFlow.Flow.recordDeletes.faultConnector.targetReference).to.equal('Log_Error');
+      expect(faultLoggers(instrumentedFlow)).to.have.lengthOf(0);
+
+      // Running the instrumentation again must not stack another logger onto the fault path
+      const reinstrumentedFlow = FlowInstrumentationService.instrumentFlow(sampleFlow, 'Fault_Path_Test', false);
+      const secondRun = FlowInstrumentationService.instrumentFlow(reinstrumentedFlow, 'Fault_Path_Test', false);
+      expect(faultLoggers(secondRun)).to.have.lengthOf(3);
+    });
+
+    it('should instrument fault paths that start with an application event instead of a log message', () => {
+      const flow = {
+        Flow: {
+          processType: 'Flow',
+          actionCalls: { name: 'Log_App_Event', actionName: 'rflib_ApplicationEventLoggerAction', actionType: 'apex' },
+          waits: {
+            name: 'Wait_For_Approval',
+            defaultConnectorLabel: 'Default',
+            faultConnector: { targetReference: 'Log_App_Event' },
+            waitEvents: { name: 'Approved' },
+          },
+        },
+      };
+
+      const instrumentedFlow = FlowInstrumentationService.instrumentFlow(flow, 'TestFlow', false);
+      const logger = findAction(instrumentedFlow, instrumentedFlow.Flow.waits.faultConnector.targetReference);
+
+      expect(logger.name).to.match(/^RFLIB_Flow_Logger_Fault_Wait_For_Approval_/);
+      expect(logger.connector.targetReference).to.equal('Log_App_Event');
+      expect(getParam(logger, 'message').stringValue).to.contain("Fault in Wait 'Wait_For_Approval' (Wait_For_Approval)");
+    });
+
+    it('should log element inputs, screen fields and formulas but not outputs or global variables', () => {
+      const flow = {
+        Flow: {
+          processType: 'Flow',
+          variables: [
+            { name: 'recordId', dataType: 'String', isCollection: 'false', isInput: 'true' },
+            { name: 'contactRecord', dataType: 'SObject', isCollection: 'false', isInput: 'false' },
+            { name: 'apexWrapper', dataType: 'Apex', isCollection: 'false', isInput: 'true' },
+            { name: 'resultId', dataType: 'String', isCollection: 'false', isInput: 'false' },
+          ],
+          formulas: { name: 'fullName', dataType: 'String' },
+          screens: {
+            name: 'Input_Screen',
+            fields: [
+              {
+                name: 'Section',
+                fieldType: 'RegionContainer',
+                fields: { name: 'Column', fieldType: 'Region', fields: { name: 'Email_Input', fieldType: 'InputField' } },
+              },
+              { name: 'Password_Input', fieldType: 'PasswordField' },
+            ],
+          },
+          apexPluginCalls: {
+            n: 'Legacy_Plugin',
+            label: 'Legacy Plugin',
+            inputParameters: [
+              { name: 'email', value: { elementReference: 'Email_Input' } },
+              { name: 'name', value: { elementReference: 'fullName' } },
+              { name: 'contact', value: { elementReference: 'contactRecord' } },
+              { name: 'password', value: { elementReference: 'Password_Input' } },
+              { name: 'session', value: { elementReference: '$Api.Session_ID' } },
+              { name: 'setting', value: { elementReference: '$Setup.Secret__c.Key__c' } },
+              { name: 'contactName', value: { elementReference: 'contactRecord.Name' } },
+            ],
+            outputParameters: { assignToReference: 'resultId', name: 'id', elementReference: 'resultId' },
+          },
+        },
+      };
+
+      const instrumentedFlow = FlowInstrumentationService.instrumentFlow(flow, 'TestFlow', false);
+      const logger = findAction(instrumentedFlow, instrumentedFlow.Flow.apexPluginCalls.faultConnector.targetReference);
+
+      expect(logger.name).to.match(/^RFLIB_Flow_Logger_Fault_Legacy_Plugin_/);
+      expect(getParam(logger, 'message').stringValue).to.equal(
+        "Fault in Apex Plugin 'Legacy Plugin' (Legacy_Plugin): {!$Flow.FaultMessage}" +
+          ' | Email_Input: {!Email_Input}, fullName: {!fullName}, contactRecord.Name: {!contactRecord.Name}, recordId: {!recordId}'
+      );
+    });
+
+    it('should cap the number of logged values', () => {
+      const variables = Array.from({ length: 15 }, (_, i) => ({
+        name: `var${i}`,
+        dataType: 'String',
+        isCollection: 'false',
+        isInput: 'true',
+      }));
+      const flow = { Flow: { processType: 'Flow', variables, recordLookups: { name: 'Get_Record' } } };
+
+      const instrumentedFlow = FlowInstrumentationService.instrumentFlow(flow, 'TestFlow', false);
+      const logger = findAction(instrumentedFlow, instrumentedFlow.Flow.recordLookups.faultConnector.targetReference);
+      const message: string = getParam(logger, 'message').stringValue;
+
+      expect(message.match(/\{!var\d+\}/g)).to.have.lengthOf(10);
+      expect(message).not.to.contain('var10');
+    });
+
+    it('should place the fault connector at its canonical position in the XML', () => {
+      const instrumentedFlow = FlowInstrumentationService.instrumentFlow(sampleFlow, 'Fault_Path_Test', false);
+
+      expect(Object.keys(instrumentedFlow.Flow.recordLookups as object)).to.deep.equal([
+        'name',
+        'label',
+        'locationX',
+        'locationY',
+        'assignNullValuesIfNoRecordsFound',
+        'connector',
+        'faultConnector',
+        'filterLogic',
+        'filters',
+        'getFirstRecordOnly',
+        'object',
+        'outputReference',
+        'queriedFields',
+      ]);
+      expect(Object.keys(instrumentedFlow.Flow.recordCreates as object).indexOf('faultConnector')).to.equal(4);
+
+      const xml = FlowInstrumentationService.buildFlowContent(instrumentedFlow);
+      const updateXml = xml.substring(xml.indexOf('<recordUpdates>'), xml.indexOf('</recordUpdates>'));
+      expect(updateXml.indexOf('<connector>')).to.be.lessThan(updateXml.indexOf('<faultConnector>'));
+      expect(updateXml.indexOf('<faultConnector>')).to.be.lessThan(updateXml.indexOf('<filterLogic>'));
+    });
+
+    it('should append the fault connector when no later property exists', () => {
+      const flow = { Flow: { processType: 'Flow', recordDeletes: { name: 'Delete_Record', connector: { targetReference: 'X' } } } };
+
+      const instrumentedFlow = FlowInstrumentationService.instrumentFlow(flow, 'TestFlow', false);
+
+      expect(Object.keys(instrumentedFlow.Flow.recordDeletes as object)).to.deep.equal(['name', 'connector', 'faultConnector']);
+    });
+
+    it('should leave fault paths untouched when skipFaultPaths is set', () => {
+      const instrumentedFlow = FlowInstrumentationService.instrumentFlow(sampleFlow, 'Fault_Path_Test', false, true);
+
+      expect(faultLoggers(instrumentedFlow)).to.have.lengthOf(0);
+      expect(instrumentedFlow.Flow.recordCreates.faultConnector).to.be.undefined;
+      expect(instrumentedFlow.Flow.recordLookups.faultConnector).to.be.undefined;
+      expect(instrumentedFlow.Flow.recordUpdates.faultConnector.targetReference).to.equal('Handle_Update_Error');
+    });
+
+    it('should keep fault logger names within Salesforce naming rules for long element names', () => {
+      const flow = {
+        Flow: {
+          processType: 'Flow',
+          recordUpdates: {
+            name: '_Update__the__record__with__a very long name that goes on!@# and on beyond the eighty character limit_',
+            label: 'An extremely long label for an update element that is well beyond the limit of eighty characters',
+          },
+        },
+      };
+
+      const instrumentedFlow = FlowInstrumentationService.instrumentFlow(flow, 'TestFlow', false);
+      const logger = faultLoggers(instrumentedFlow)[0];
+
+      expect(logger.name.length).to.be.at.most(80);
+      expect(logger.name).to.match(/^[a-zA-Z][a-zA-Z0-9_]*$/);
+      expect(logger.name).not.to.match(/__|_$/);
+      expect(logger.label.length).to.be.at.most(80);
     });
   });
 
