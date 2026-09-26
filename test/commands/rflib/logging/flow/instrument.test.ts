@@ -323,6 +323,77 @@ describe('rflib logging flow instrument', () => {
       });
     });
 
+    it('should move isGoTo from decision connectors to the decision loggers', () => {
+      const goToFlow = {
+        Flow: {
+          processType: 'Flow',
+          decisions: [
+            {
+              name: 'GoTo_Decision',
+              label: 'GoTo Decision',
+              defaultConnector: {
+                isGoTo: 'true',
+                targetReference: 'Shared_Target'
+              },
+              defaultConnectorLabel: 'Default Path',
+              rules: [
+                {
+                  name: 'GoTo_Rule',
+                  label: 'GoTo Rule',
+                  connector: {
+                    isGoTo: 'true',
+                    targetReference: 'Other_Target'
+                  }
+                },
+                {
+                  name: 'Plain_Rule',
+                  label: 'Plain Rule',
+                  connector: {
+                    targetReference: 'Plain_Target'
+                  }
+                }
+              ]
+            }
+          ]
+        }
+      };
+
+      const instrumentedFlow = FlowInstrumentationService.instrumentFlow(goToFlow, 'TestFlow', false);
+
+      const actionCalls = Array.isArray(instrumentedFlow.Flow.actionCalls)
+        ? instrumentedFlow.Flow.actionCalls
+        : [instrumentedFlow.Flow.actionCalls];
+      const decision = instrumentedFlow.Flow.decisions[0];
+      const [goToRule, plainRule] = decision.rules;
+
+      // Decision connectors become plain connectors pointing at the loggers
+      expect(decision.defaultConnector).to.have.all.keys('targetReference');
+      expect(goToRule.connector).to.have.all.keys('targetReference');
+      expect(plainRule.connector).to.have.all.keys('targetReference');
+
+      // Loggers carry the original connectors, including the isGoTo flag
+      const defaultLogger = actionCalls.find((a: any) => a.name === decision.defaultConnector.targetReference);
+      expect(defaultLogger.connector).to.deep.equal({ isGoTo: 'true', targetReference: 'Shared_Target' });
+
+      const goToRuleLogger = actionCalls.find((a: any) => a.name === goToRule.connector.targetReference);
+      expect(goToRuleLogger.connector).to.deep.equal({ isGoTo: 'true', targetReference: 'Other_Target' });
+
+      const plainRuleLogger = actionCalls.find((a: any) => a.name === plainRule.connector.targetReference);
+      expect(plainRuleLogger.connector).to.deep.equal({ targetReference: 'Plain_Target' });
+
+      // Original input must stay untouched
+      expect(goToFlow.Flow.decisions[0].defaultConnector).to.deep.equal({
+        isGoTo: 'true',
+        targetReference: 'Shared_Target'
+      });
+
+      // The generated XML only has isGoTo on the logger connectors
+      const xml = FlowInstrumentationService.buildFlowContent(instrumentedFlow);
+      expect(xml.match(/<isGoTo>true<\/isGoTo>/g)).to.have.lengthOf(2);
+      const decisionXml = xml.substring(xml.indexOf('<decisions>'), xml.indexOf('</decisions>'));
+      expect(decisionXml).not.to.include('isGoTo');
+    });
+
     it('should ensure logger names are less than 80 characters and follow Salesforce naming rules', async () => {
       // Create a flow with a very long name, special characters, and problematic names to test sanitization
       const problematicFlow = {

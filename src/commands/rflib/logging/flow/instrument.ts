@@ -214,7 +214,6 @@ export class FlowInstrumentationService {
 
       // Process default connector if it exists
       if (decision.defaultConnector?.targetReference) {
-        const defaultTarget = decision.defaultConnector.targetReference;
         const defaultConnectorLabel = decision.defaultConnectorLabel || 'Default Outcome';
 
         // Create a logger for the default path
@@ -226,17 +225,16 @@ export class FlowInstrumentationService {
           String(defaultConnectorLabel)
         );
 
-        // Connect logger to the original target
-        defaultLogger.connector = {
-          targetReference: defaultTarget
-        };
+        // Move the original connector onto the logger so properties such as isGoTo
+        // stay on the edge that actually jumps to the original target
+        defaultLogger.connector = { ...decision.defaultConnector };
 
         // Add logger to actionCalls first, before updating the decision connector
         this.addActionCallToFlow(flowObj, defaultLogger);
 
-        // Update the decision's default connector to point to our logger
+        // Point the decision's default connector at our logger with a plain connector
         // We're inside a forEach callback, so we have to modify the original object
-        decision.defaultConnector.targetReference = defaultLogger.name;
+        decision.defaultConnector = { targetReference: defaultLogger.name };
       }
 
       // Process each rule if they exist
@@ -249,7 +247,6 @@ export class FlowInstrumentationService {
           if (!rule.connector?.targetReference || !ruleNameRaw) {
             return;
           }
-          const ruleTarget = rule.connector.targetReference;
           const ruleName = ruleNameRaw;
           const ruleLabel = rule.label || ruleName;
 
@@ -262,17 +259,16 @@ export class FlowInstrumentationService {
             String(ruleLabel)
           );
 
-          // Connect logger to the original target
-          ruleLogger.connector = {
-            targetReference: ruleTarget
-          };
+          // Move the original connector onto the logger so properties such as isGoTo
+          // stay on the edge that actually jumps to the original target
+          ruleLogger.connector = { ...rule.connector };
 
           // Add logger to actionCalls first, before updating the rule connector
           this.addActionCallToFlow(flowObj, ruleLogger);
 
-          // Update the rule's connector to point to our logger
+          // Point the rule's connector at our logger with a plain connector
           // We're inside a forEach callback, so we have to modify the original object
-          rule.connector.targetReference = ruleLogger.name;
+          rule.connector = { targetReference: ruleLogger.name };
         });
       }
     });
