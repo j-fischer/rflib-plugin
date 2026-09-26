@@ -374,6 +374,27 @@ describe('rflib logging flow instrument NUTs', () => {
     expect(updateLogger?.connector?.targetReference).to.equal('Handle_Update_Error');
   });
 
+  it('should not add fault paths to RFLIB log actions or stack fault loggers on consecutive runs', async () => {
+    const faultFlowPath = await copyFaultPathSample();
+
+    const command = `rflib logging flow instrument --sourcepath ${path.join(tempDir, 'force-app')}`;
+    execCmd(command, { ensureExitCode: 0 });
+    execCmd(command, { ensureExitCode: 0 });
+
+    const modifiedFlow = await parseXml(await fs.promises.readFile(faultFlowPath, 'utf8'));
+    const actionCalls = getActionCalls(modifiedFlow) as Array<FlowAction & FlowFaultElement>;
+
+    const faultLoggers = actionCalls.filter(action => action.name?.startsWith('RFLIB_Flow_Logger_Fault_'));
+    expect(faultLoggers).to.have.lengthOf(3);
+
+    actionCalls
+      .filter(action => action.actionName === 'rflib_LoggerFlowAction')
+      .forEach(action => expect(action.faultConnector, `${action.name ?? ''} must not have a fault path`).to.be.undefined);
+
+    const updateLogger = actionCalls.find(action => action.name === modifiedFlow.Flow.recordUpdates?.faultConnector?.targetReference);
+    expect(updateLogger?.connector?.targetReference).to.equal('Handle_Update_Error');
+  });
+
   it('should respect the skip-fault-paths flag', async () => {
     const faultFlowPath = await copyFaultPathSample();
 

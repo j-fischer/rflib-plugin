@@ -768,11 +768,56 @@ describe('rflib logging flow instrument', () => {
 
       expect(instrumentedFlow.Flow.recordDeletes.faultConnector.targetReference).to.equal('Log_Error');
       expect(faultLoggers(instrumentedFlow)).to.have.lengthOf(0);
+    });
 
-      // Running the instrumentation again must not stack another logger onto the fault path
-      const reinstrumentedFlow = FlowInstrumentationService.instrumentFlow(sampleFlow, 'Fault_Path_Test', false);
-      const secondRun = FlowInstrumentationService.instrumentFlow(reinstrumentedFlow, 'Fault_Path_Test', false);
-      expect(faultLoggers(secondRun)).to.have.lengthOf(3);
+    it('should recognize RFLIB loggers with a legacy name property at the start of a fault path', () => {
+      const flow = {
+        Flow: {
+          processType: 'Flow',
+          actionCalls: { n: 'Log_Error', actionName: 'rflib_LoggerFlowAction', actionType: 'apex' },
+          recordUpdates: { n: 'Update_Record', faultConnector: { targetReference: 'Log_Error' } },
+        },
+      };
+
+      const instrumentedFlow = FlowInstrumentationService.instrumentFlow(flow, 'TestFlow', false);
+
+      expect(instrumentedFlow.Flow.recordUpdates.faultConnector.targetReference).to.equal('Log_Error');
+      expect(faultLoggers(instrumentedFlow)).to.have.lengthOf(0);
+    });
+
+    it('should never add fault paths to RFLIB log actions on consecutive runs', () => {
+      let instrumentedFlow = sampleFlow;
+      for (let run = 0; run < 3; run++) {
+        instrumentedFlow = FlowInstrumentationService.instrumentFlow(instrumentedFlow, 'Fault_Path_Test', false);
+      }
+
+      const rflibActions = toArray(instrumentedFlow.Flow.actionCalls).filter((action: any) =>
+        FlowInstrumentationService.isRFLIBLoggerAction(action)
+      );
+      expect(rflibActions.length).to.be.greaterThan(3);
+      rflibActions.forEach((action: any) => {
+        expect(action.faultConnector, `${String(action.name)} must not have a fault path`).to.be.undefined;
+      });
+    });
+
+    it('should not add another logger to a fault path on consecutive runs', () => {
+      const firstRun = FlowInstrumentationService.instrumentFlow(sampleFlow, 'Fault_Path_Test', false);
+      const faultTargets = (flow: any): string[] =>
+        [flow.Flow.recordCreates, flow.Flow.recordLookups, flow.Flow.recordUpdates].map(
+          (element: any) => element.faultConnector.targetReference as string
+        );
+
+      let instrumentedFlow = firstRun;
+      for (let run = 0; run < 2; run++) {
+        instrumentedFlow = FlowInstrumentationService.instrumentFlow(instrumentedFlow, 'Fault_Path_Test', false);
+      }
+
+      // Each fault path still starts with the logger from the first run, followed by the original path
+      expect(faultLoggers(instrumentedFlow)).to.have.lengthOf(3);
+      expect(faultTargets(instrumentedFlow)).to.deep.equal(faultTargets(firstRun));
+
+      const updateLogger = findAction(instrumentedFlow, instrumentedFlow.Flow.recordUpdates.faultConnector.targetReference);
+      expect(updateLogger.connector.targetReference).to.equal('Handle_Update_Error');
     });
 
     it('should instrument fault paths that start with an application event instead of a log message', () => {
@@ -887,6 +932,42 @@ describe('rflib logging flow instrument', () => {
       const updateXml = xml.substring(xml.indexOf('<recordUpdates>'), xml.indexOf('</recordUpdates>'));
       expect(updateXml.indexOf('<connector>')).to.be.lessThan(updateXml.indexOf('<faultConnector>'));
       expect(updateXml.indexOf('<faultConnector>')).to.be.lessThan(updateXml.indexOf('<filterLogic>'));
+    });
+
+    it('should place the fault connector of an action call after its action metadata and connector', async () => {
+      const xml = `<?xml version="1.0" encoding="UTF-8"?>
+<Flow xmlns="http://soap.sforce.com/2006/04/metadata">
+    <actionCalls>
+        <name>FS_Check</name>
+        <label>FS Check</label>
+        <locationX>176</locationX>
+        <locationY>134</locationY>
+        <actionName>rflib_GetFeatureSwitchValueAction</actionName>
+        <actionType>apex</actionType>
+        <connector>
+            <targetReference>Next_Step</targetReference>
+        </connector>
+        <flowTransactionModel>CurrentTransaction</flowTransactionModel>
+        <nameSegment>rflib_GetFeatureSwitchValueAction</nameSegment>
+    </actionCalls>
+    <processType>Flow</processType>
+</Flow>`;
+      const flow = await FlowInstrumentationService.parseFlowContent(xml);
+
+      const instrumentedFlow = FlowInstrumentationService.instrumentFlow(flow, 'TestFlow', false);
+
+      expect(Object.keys(findAction(instrumentedFlow, 'FS_Check') as object)).to.deep.equal([
+        'name',
+        'label',
+        'locationX',
+        'locationY',
+        'actionName',
+        'actionType',
+        'connector',
+        'faultConnector',
+        'flowTransactionModel',
+        'nameSegment',
+      ]);
     });
 
     it('should append the fault connector when no later property exists', () => {

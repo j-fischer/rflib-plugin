@@ -348,11 +348,11 @@ export class FlowInstrumentationService {
   // Existing fault paths continue after the logger; new fault paths terminate the transaction
   // after logging so that the flow fails the same way as without a fault path.
   private static instrumentFaultPaths(flowObj: any, flowName: string): void {
-    // Fault paths starting with one of these actions are already logged
+    // Fault paths starting with one of these actions are already logged, e.g. by a previous run
     const logMessageActionNames = new Set(
       this.toArray(flowObj.Flow.actionCalls)
         .filter((action: any) => this.isRFLIBLoggerAction(action) && action.actionName !== 'rflib_ApplicationEventLoggerAction')
-        .map((action: any) => action.name)
+        .map((action: any) => this.getElementName(action))
     );
     const scalarResourceNames = this.collectScalarResourceNames(flowObj);
 
@@ -367,8 +367,8 @@ export class FlowInstrumentationService {
         }
 
         const originalFaultConnector = element.faultConnector;
-        const originalTarget = originalFaultConnector?.targetReference;
-        if (originalTarget && logMessageActionNames.has(originalTarget)) {
+        const originalTarget: unknown = originalFaultConnector?.targetReference;
+        if (typeof originalTarget === 'string' && logMessageActionNames.has(originalTarget)) {
           return;
         }
 
