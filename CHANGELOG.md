@@ -1,3 +1,12 @@
+## [0.19.14](https://github.com/j-fischer/rflib-plugin/compare/0.19.13...0.19.14) (2026-09-26)
+
+
+### Bug Fixes
+
+* **flow:** preserve Go To connectors when instrumenting decision outcomes ([#263](https://github.com/j-fischer/rflib-plugin/issues/263)) ([ffbb3a5](https://github.com/j-fischer/rflib-plugin/commit/ffbb3a5aa44f988e6361f55de7ba2a7b96849e45))
+
+
+
 ## [0.19.13](https://github.com/j-fischer/rflib-plugin/compare/0.19.12...0.19.13) (2026-09-07)
 
 
