@@ -6,11 +6,17 @@
 /* eslint-disable @typescript-eslint/no-unsafe-member-access */
 import * as fs from 'node:fs';
 import * as path from 'node:path';
-import { Messages, Logger } from '@salesforce/core';
+import { Messages, Logger, type Connection } from '@salesforce/core';
 import { SfCommand, Flags } from '@salesforce/sf-plugins-core';
 import * as xml2js from 'xml2js';
 import { minimatch } from 'minimatch';
 import { processWithConcurrency } from '../../../../shared/concurrency.js';
+import {
+  compareVersions,
+  formatVersion,
+  getInstalledPackages,
+  type PackageVersionNumber,
+} from '../../../../shared/packageClient.js';
 
 export type RflibLoggingFlowInstrumentResult = {
   processedFiles: number;
@@ -20,6 +26,12 @@ export type RflibLoggingFlowInstrumentResult = {
 
 Messages.importMessagesDirectoryFromMetaUrl(import.meta.url);
 const messages = Messages.loadMessages('rflib-plugin', 'rflib.logging.flow.instrument');
+
+const RFLIB_PACKAGE_NAME = 'RFLIB';
+
+// First RFLIB version whose Log Message flow action has the Terminate Transaction option,
+// which the fault paths created by this command rely on
+const FAULT_PATH_MIN_RFLIB_VERSION: Readonly<PackageVersionNumber> = { major: 11, minor: 4, patch: 0, build: 0 };
 
 export class FlowInstrumentationService {
   private static readonly parser = new xml2js.Parser({
@@ -790,6 +802,12 @@ export default class RflibLoggingFlowInstrument extends SfCommand<RflibLoggingFl
   public static readonly examples = messages.getMessages('examples');
 
   public static readonly flags = {
+    'target-org': Flags.requiredOrg({
+      summary: messages.getMessage('flags.target-org.summary'),
+      description: messages.getMessage('flags.target-org.description'),
+      char: 'o',
+      required: true,
+    }),
     sourcepath: Flags.string({
       summary: messages.getMessage('flags.sourcepath.summary'),
       description: messages.getMessage('flags.sourcepath.description'),
@@ -846,7 +864,8 @@ export default class RflibLoggingFlowInstrument extends SfCommand<RflibLoggingFl
     const sourcePath = flags.sourcepath;
     const isDryRun = flags.dryrun;
     const skipInstrumented = flags['skip-instrumented'];
-    const skipFaultPaths = flags['skip-fault-paths'];
+    const skipFaultPaths =
+      flags['skip-fault-paths'] || !(await this.isFaultPathLoggingSupported(flags['target-org'].getConnection(undefined)));
     const isVerbose = flags.verbose;
     const excludePattern = flags.exclude;
 
@@ -876,6 +895,26 @@ export default class RflibLoggingFlowInstrument extends SfCommand<RflibLoggingFl
     this.log(`Modified files: ${this.stats.modifiedFiles}`);
 
     return { ...this.stats };
+  }
+
+  // Fault paths are only instrumented if the RFLIB package in the target org supports terminating the transaction
+  private async isFaultPathLoggingSupported(conn: Connection): Promise<boolean> {
+    const minVersion = `${FAULT_PATH_MIN_RFLIB_VERSION.major}.${FAULT_PATH_MIN_RFLIB_VERSION.minor}.${FAULT_PATH_MIN_RFLIB_VERSION.patch}`;
+    const [rflib] = await getInstalledPackages(conn, [RFLIB_PACKAGE_NAME]);
+
+    if (!rflib) {
+      this.warn(messages.getMessage('warning.faultPaths.rflibNotInstalled', [minVersion]));
+      return false;
+    }
+
+    const installedVersion = formatVersion(rflib.version);
+    if (compareVersions(rflib.version, FAULT_PATH_MIN_RFLIB_VERSION) < 0) {
+      this.warn(messages.getMessage('warning.faultPaths.rflibOutdated', [installedVersion, minVersion]));
+      return false;
+    }
+
+    this.logger.debug(`RFLIB ${installedVersion} supports fault path logging`);
+    return true;
   }
 
   private async findAllFlowFiles(dirPath: string, excludePattern?: string): Promise<string[]> {
