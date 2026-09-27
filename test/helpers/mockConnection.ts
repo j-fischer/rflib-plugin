@@ -13,6 +13,12 @@ export type QueryMoreHandler = (url: string) => unknown[] | QueryResultLike;
 export type DescribeHandler = () => unknown;
 export type SaveResultLike = { success: boolean; id?: string; errors?: Array<{ message?: string }> };
 export type SaveHandler = (record: Record<string, unknown>) => SaveResultLike | Promise<SaveResultLike>;
+export type ToolingSaveResultLike = { success: boolean; id?: string; errors?: Array<string | { message?: string }> };
+export type ToolingHandlers = {
+  query?: QueryHandler;
+  create?: (object: string, record: Record<string, unknown>) => ToolingSaveResultLike;
+  retrieve?: (object: string, id: string) => unknown;
+};
 
 export type MockConnectionOptions = {
   query?: QueryHandler;
@@ -20,6 +26,7 @@ export type MockConnectionOptions = {
   describe?: DescribeHandler;
   create?: SaveHandler;
   update?: SaveHandler;
+  tooling?: ToolingHandlers;
 };
 
 export type CapturedCalls = {
@@ -28,6 +35,9 @@ export type CapturedCalls = {
   describes: string[];
   creates: Array<{ object: string; record: Record<string, unknown> }>;
   updates: Array<{ object: string; record: Record<string, unknown> }>;
+  toolingQueries: string[];
+  toolingCreates: Array<{ object: string; record: Record<string, unknown> }>;
+  toolingRetrieves: Array<{ object: string; id: string }>;
 };
 
 export function buildMockConnection(opts: MockConnectionOptions): { conn: Connection; calls: CapturedCalls } {
@@ -37,6 +47,9 @@ export function buildMockConnection(opts: MockConnectionOptions): { conn: Connec
     describes: [],
     creates: [],
     updates: [],
+    toolingQueries: [],
+    toolingCreates: [],
+    toolingRetrieves: [],
   };
 
   const wrapQueryResult = <T>(value: unknown[] | QueryResultLike): QueryResultLike<T> => {
@@ -71,6 +84,21 @@ export function buildMockConnection(opts: MockConnectionOptions): { conn: Connec
         return Promise.resolve(opts.update?.(record) ?? { success: true, id: (record.Id as string) ?? '' });
       },
     }),
+    tooling: {
+      query: <T>(soql: string): Promise<QueryResultLike<T>> => {
+        calls.toolingQueries.push(soql);
+        const value = opts.tooling?.query?.(soql) ?? [];
+        return Promise.resolve(wrapQueryResult<T>(value));
+      },
+      create: async (object: string, record: Record<string, unknown>): Promise<ToolingSaveResultLike> => {
+        calls.toolingCreates.push({ object, record });
+        return Promise.resolve(opts.tooling?.create?.(object, record) ?? { success: true, id: '0HfCREATEDID0000' });
+      },
+      retrieve: async (object: string, id: string): Promise<unknown> => {
+        calls.toolingRetrieves.push({ object, id });
+        return Promise.resolve(opts.tooling?.retrieve?.(object, id) ?? {});
+      },
+    },
   };
 
   return { conn, calls };
