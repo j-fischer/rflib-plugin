@@ -1,3 +1,12 @@
+# [0.20.0](https://github.com/j-fischer/rflib-plugin/compare/0.19.15...0.20.0) (2026-09-27)
+
+
+### Features
+
+* add rflib packages upgrade command ([#264](https://github.com/j-fischer/rflib-plugin/issues/264)) ([beb57a9](https://github.com/j-fischer/rflib-plugin/commit/beb57a95f1851790e72772413ecbde82687b416b))
+
+
+
 ## [0.19.15](https://github.com/j-fischer/rflib-plugin/compare/0.19.14...0.19.15) (2026-09-27)
 
 
