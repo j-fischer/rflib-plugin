@@ -122,13 +122,24 @@ sf rflib logging flow instrument --target-org myOrg --sourcepath force-app --ski
 
 #### Command Options
 
-- `--target-org (-o)`: Username or alias of the org the Flows will be deployed to, used to check its RFLIB version *(required)*
+- `--target-org (-o)`: Username or alias of the org the Flows will be deployed to. Its RFLIB version decides whether fault paths are instrumented, see [Why `--target-org` is required](#why---target-org-is-required) *(required)*
 - `--sourcepath (-s)`: Directory containing Flow files to instrument
 - `--dryrun (-d)`: Preview changes without modifying files
 - `--skip-instrumented`: Do not instrument files where RFLIB logging is already present
 - `--skip-fault-paths`: Do not add error logging to fault paths or create fault paths for elements without one, regardless of the RFLIB version in the target org
 - `--verbose (-v)`: Print paths of the files that would be modified (useful with --dryrun)
 - `--exclude (-e)`: Exclude files or directories from instrumentation based on a glob pattern
+
+#### Why `--target-org` is required
+
+The fault paths this command creates log the error and then stop the Flow using the `Terminate Transaction` option of the RFLIB `Log Message` action. That option was added in RFLIB 11.4.0, so a Flow that uses it fails to deploy to an org running an older RFLIB version.
+
+To avoid producing Flows that won't deploy, the command checks the RFLIB package installed in the target org before it changes any files:
+
+- **RFLIB 11.4.0 or later:** fault paths are instrumented.
+- **An older RFLIB version, or RFLIB not installed as a package** (for example, deployed as unpackaged source): fault paths are skipped and a warning is shown. Flow start and decision logging are still added. Run `sf rflib packages upgrade` to upgrade the org.
+
+The check is a single read-only Tooling API query of the org's installed packages (`InstalledSubscriberPackage`). The command doesn't change or deploy anything to the org; it only edits the Flow files under `--sourcepath`. Pass the org you'll deploy the instrumented Flows to. The flag is required even with `--skip-fault-paths`, although the org isn't queried in that case.
 
 #### Features
 
@@ -137,7 +148,7 @@ sf rflib logging flow instrument --target-org myOrg --sourcepath force-app --ski
 - Logs an `ERROR` on the fault path of every element that can fail (Actions, Apex Plugins, Create/Delete/Get/Update Records, and Waits). The message names the failing element and includes `{!$Flow.FaultMessage}`, the values the element used as input, the triggering record ID, and the flow's input variables
   - If the element already has a fault path, the log action is inserted as its first step and the existing path continues as before
   - If the element has no fault path, one is created that logs the error and then terminates the transaction using the `Terminate Transaction` option of the RFLIB `Log Message` action. The Flow still fails, rolls back, and shows the error just like an unhandled fault, so its behavior does not change
-  - Requires RFLIB 11.4.0 or later, the first version with the `Terminate Transaction` option. The command checks the RFLIB package installed in the target org and skips fault paths with a warning if it is older or not installed. Run `sf rflib packages upgrade` to upgrade the org
+  - Requires RFLIB 11.4.0 or later in the target org. Otherwise fault paths are skipped with a warning, see [Why `--target-org` is required](#why---target-org-is-required)
 - Sets the flow's CanvasMode to AUTO_LAYOUT_CANVAS for better visualization in Flow Builder
 - Preserves the original processType value
 - Handles both free-form and auto-layout flows, converting all to auto-layout

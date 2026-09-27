@@ -12,7 +12,7 @@ Username or alias of the target org.
 
 # flags.target-org.description
 
-The Salesforce org the instrumented Flows will be deployed to. The command checks the version of the RFLIB package installed in this org to decide whether fault paths can be instrumented.
+The Salesforce org the instrumented Flows will be deployed to. The fault paths this command creates use the Terminate Transaction option of the RFLIB Log Message action, which was added in RFLIB 11.4.0, so Flows that use it fail to deploy to an org running an older RFLIB version. Before changing any files, the command runs a single read-only Tooling API query for the packages installed in this org. If RFLIB 11.4.0 or later is installed, fault paths are instrumented; if an older version is installed, or RFLIB is not installed as a package, they are skipped with a warning. Nothing in the org is changed. The flag is required even with --skip-fault-paths, although the org is not queried in that case.
 
 # flags.sourcepath.summary
 
