@@ -1,4 +1,4 @@
-import { Connection } from '@salesforce/core';
+import { Connection, Org } from '@salesforce/core';
 import { MockTestOrgData, TestContext } from '@salesforce/core/testSetup';
 import type { SinonStub } from 'sinon';
 
@@ -9,6 +9,16 @@ export type QueryShape =
   | { records: unknown[]; done: boolean; totalSize: number; nextRecordsUrl?: string };
 export type StubbedQuery = (soql: string) => QueryShape;
 export type StubbedQueryMore = (url: string) => QueryShape;
+export type StubbedToolingSave = (
+  object: string,
+  record: Record<string, unknown>,
+) => Promise<{ success: boolean; id?: string; errors?: Array<string | { message?: string }> }>;
+export type StubbedToolingRetrieve = (object: string, id: string) => Promise<unknown>;
+export type ToolingStubs = {
+  query?: StubbedQuery;
+  create?: StubbedToolingSave;
+  retrieve?: StubbedToolingRetrieve;
+};
 
 export type NutStubs = {
   query?: StubbedQuery;
@@ -16,6 +26,8 @@ export type NutStubs = {
   describe?: Record<string, StubbedDescribe>;
   create?: Record<string, StubbedSave>;
   update?: Record<string, StubbedSave>;
+  /** When provided, Connection#tooling is replaced by a fake backed by these handlers. */
+  tooling?: ToolingStubs;
 };
 
 export type NutHarness = {
@@ -28,6 +40,10 @@ export type NutHarness = {
   /** Captured create/update payloads, keyed by sobject name. */
   creates: Array<{ object: string; record: Record<string, unknown> }>;
   updates: Array<{ object: string; record: Record<string, unknown> }>;
+  /** Captured Tooling API calls, in order. */
+  toolingQueries: string[];
+  toolingCreates: Array<{ object: string; record: Record<string, unknown> }>;
+  toolingRetrieves: Array<{ object: string; id: string }>;
   /** Reset captured calls between tests. */
   reset: () => void;
 };
@@ -63,11 +79,17 @@ export function setupNut(stubs: NutStubs): NutHarness {
     queryMoreUrls: [],
     creates: [],
     updates: [],
+    toolingQueries: [],
+    toolingCreates: [],
+    toolingRetrieves: [],
     reset: () => {
       harness.queries.length = 0;
       harness.queryMoreUrls.length = 0;
       harness.creates.length = 0;
       harness.updates.length = 0;
+      harness.toolingQueries.length = 0;
+      harness.toolingCreates.length = 0;
+      harness.toolingRetrieves.length = 0;
     },
   };
 
@@ -118,6 +140,8 @@ export function setupNut(stubs: NutStubs): NutHarness {
         return fn ? fn(record) : Promise.resolve({ success: true, id: (record.Id as string) ?? '' });
       },
     }));
+
+    if (stubs.tooling) stubTooling(harness, stubs.tooling);
   });
 
   afterEach(() => {
@@ -125,4 +149,39 @@ export function setupNut(stubs: NutStubs): NutHarness {
   });
 
   return harness;
+}
+
+/**
+ * Replaces the Tooling API of every connection handed out by Org#getConnection with a fake
+ * that records calls and delegates to the provided handlers. jsforce defines `tooling` as an
+ * own property of each Connection instance, so it can't be stubbed on the prototype.
+ */
+function stubTooling(harness: NutHarness, stubs: ToolingStubs): void {
+  const tooling = {
+    query: async (soql: string) => {
+      harness.toolingQueries.push(soql);
+      const value = stubs.query ? stubs.query(soql) : [];
+      if (Array.isArray(value)) {
+        return Promise.resolve({ records: value, done: true, totalSize: value.length });
+      }
+      return Promise.resolve(value);
+    },
+    create: async (object: string, record: Record<string, unknown>) => {
+      harness.toolingCreates.push({ object, record });
+      return stubs.create ? stubs.create(object, record) : Promise.resolve({ success: true, id: '0HfCREATEDID0000' });
+    },
+    retrieve: async (object: string, id: string) => {
+      harness.toolingRetrieves.push({ object, id });
+      return stubs.retrieve ? stubs.retrieve(object, id) : Promise.resolve({});
+    },
+  };
+
+  // eslint-disable-next-line @typescript-eslint/unbound-method
+  const getConnection = Org.prototype.getConnection;
+  const getConnectionStub = harness.$$.SANDBOX.stub(Org.prototype, 'getConnection') as unknown as SinonStub;
+  getConnectionStub.callsFake(function (this: Org, apiVersion?: string) {
+    const conn = getConnection.call(this, apiVersion);
+    Object.defineProperty(conn, 'tooling', { get: () => tooling, configurable: true });
+    return conn;
+  });
 }
