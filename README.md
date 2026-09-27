@@ -11,6 +11,7 @@ Plugin for Salesforce CLI to help with the adoption of [RFLIB](https://github.co
 - Automatically instruments Aura components with RFLIB logging statements
 - Automatically instruments Salesforce Flows with RFLIB logging actions
 - Debug commands that read RFLIB log archives, application events, and logger settings, and tune logger settings — useful as a tool surface for AI agents driving a debugging session
+- Checks the RFLIB packages installed in an org against the latest versions in the RFLIB repository and installs the upgrades you confirm
 
 ## Installation
 
@@ -253,6 +254,36 @@ sf rflib debug userpermissions get --target-org myOrg --user-id 0057000000XXXXXX
 - `--user-id (-u)`: Salesforce User ID (15 or 18 character) *(required)*
 - `--permission-type (-t)`: Type of permissions: `FLS`, `OLS`, `APEX`, or `ALL` *(required)*
 - `--sobject-type (-b)`: Optional SObject API name to filter FLS or OLS results (e.g. `Account`)
+
+---
+
+## RFLIB Package Commands
+
+### `sf rflib packages upgrade`
+
+Compare the RFLIB packages installed in the target org (RFLIB, RFLIB-FS, RFLIB-TF, RFLIB-PHAROS) with the latest versions published in the [RFLIB repository](https://github.com/j-fischer/rflib), and upgrade them.
+
+The latest versions are looked up in the repository's `sfdx-project.json` every time the command runs, so no version numbers are built into the plugin. For every installed package with a newer version, the command asks whether to install the upgrade and, if confirmed, starts the installation in the org. Upgrades are installed one at a time in dependency order (RFLIB first); if an installation fails or is still running when the wait time elapses, the remaining upgrades are skipped.
+
+Packages that aren't installed in the org are only reported. The command never installs a package that isn't already present.
+
+```bash
+# Check the installed packages and choose which upgrades to install
+sf rflib packages upgrade --target-org myOrg
+
+# Only report the available upgrades
+sf rflib packages upgrade --target-org myOrg --dryrun
+
+# Install all available upgrades without prompting, waiting up to 60 minutes per installation
+sf rflib packages upgrade --target-org myOrg --no-prompt --wait 60
+```
+
+#### Command Options
+
+- `--target-org (-o)`: Username or alias of the target org *(required)*
+- `--dryrun (-d)`: Report the available upgrades without installing them
+- `--no-prompt (-r)`: Install all available upgrades without asking for confirmation. Required to install upgrades when using `--json`
+- `--wait (-w)`: Minutes to wait for each installation to complete (default 30)
 
 ---
 
