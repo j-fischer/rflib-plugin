@@ -1,3 +1,12 @@
+# [0.21.0](https://github.com/j-fischer/rflib-plugin/compare/0.20.0...0.21.0) (2026-09-27)
+
+
+### Features
+
+* **flow:** log errors on every fault path ([#262](https://github.com/j-fischer/rflib-plugin/issues/262)) ([e76030e](https://github.com/j-fischer/rflib-plugin/commit/e76030e2c2e35db30ad193b926ea5821c3cf2308))
+
+
+
 # [0.20.0](https://github.com/j-fischer/rflib-plugin/compare/0.19.15...0.20.0) (2026-09-27)
 
 
