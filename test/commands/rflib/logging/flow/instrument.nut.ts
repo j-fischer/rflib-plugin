@@ -1,9 +1,12 @@
 import * as fs from 'node:fs';
+import * as os from 'node:os';
 import * as path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { expect } from 'chai';
-import { execCmd, TestSession } from '@salesforce/cli-plugins-testkit';
+import { stubSfCommandUx } from '@salesforce/sf-plugins-core';
 import * as xml2js from 'xml2js';
+import RflibLoggingFlowInstrument from '../../../../../src/commands/rflib/logging/flow/instrument.js';
+import { setupNut } from '../../../../helpers/nutTestContext.js';
 
 type FlowMetadata = {
   name: string;
@@ -19,10 +22,18 @@ type FlowAction = {
     targetReference: string;
   };
   inputParameters?: Array<{
+    name?: string;
     value?: {
       stringValue?: string;
+      booleanValue?: string;
     };
   }>;
+}
+
+type FlowFaultElement = {
+  faultConnector?: {
+    targetReference: string;
+  };
 }
 
 type FlowRule = {
@@ -55,6 +66,9 @@ type Flow = {
       triggerType?: string;
     };
     decisions?: FlowDecision;
+    recordCreates?: FlowFaultElement;
+    recordLookups?: FlowFaultElement;
+    recordUpdates?: FlowFaultElement;
   };
 }
 
@@ -62,14 +76,50 @@ type Flow = {
 const filename = fileURLToPath(import.meta.url);
 const dirname = path.dirname(filename);
 
+// Row returned by the Tooling API query for the packages installed in the target org
+const installedRflib = (major: number, minor: number, patch: number, build: number): Record<string, unknown> => ({
+  SubscriberPackageId: '033000000000001',
+  SubscriberPackage: { Name: 'RFLIB' },
+  SubscriberPackageVersion: {
+    Id: '04t000000000001',
+    MajorVersion: major,
+    MinorVersion: minor,
+    PatchVersion: patch,
+    BuildNumber: build,
+  },
+});
+
 describe('rflib logging flow instrument NUTs', () => {
-  let testSession: TestSession;
+  let installedPackages: Array<Record<string, unknown>> = [];
   let tempDir: string;
   let srcDir: string;
+  let uxStubs: ReturnType<typeof stubSfCommandUx>;
+
+  const harness = setupNut({
+    tooling: {
+      query: () => installedPackages,
+    },
+  });
+
+  beforeEach(() => {
+    installedPackages = [installedRflib(11, 4, 0, 1)];
+    uxStubs = stubSfCommandUx(harness.$$.SANDBOX);
+  });
+
+  const instrument = (...flags: string[]): Promise<unknown> =>
+    RflibLoggingFlowInstrument.run([
+      '--target-org',
+      harness.testOrg.username,
+      '--sourcepath',
+      path.join(tempDir, 'force-app'),
+      ...flags,
+    ]);
+
+  const warnings = (): string[] =>
+    uxStubs.warn.args.map(([warning]) => (typeof warning === 'string' ? warning : warning.message));
 
   before(async () => {
-    testSession = await TestSession.create();
-    tempDir = testSession.dir;
+    tempDir = await fs.promises.mkdtemp(path.join(os.tmpdir(), 'rflib-flow-instrument-'));
 
     srcDir = path.join(tempDir, 'force-app', 'main', 'default', 'flows');
     await fs.promises.mkdir(srcDir, { recursive: true });
@@ -89,7 +139,7 @@ describe('rflib logging flow instrument NUTs', () => {
   });
 
   after(async () => {
-    await testSession?.clean();
+    await fs.promises.rm(tempDir, { recursive: true, force: true });
   });
 
   const parseXml = async (content: string): Promise<Flow> => {
@@ -131,8 +181,7 @@ describe('rflib logging flow instrument NUTs', () => {
     );
     expect(originalCanvasModeValues?.value.stringValue).to.equal('AUTO_LAYOUT_CANVAS');
 
-    const command = `rflib logging flow instrument --sourcepath ${path.join(tempDir, 'force-app')}`;
-    execCmd(command, { ensureExitCode: 0 });
+    await instrument();
 
     const modifiedContent = await fs.promises.readFile(standardFlowPath, 'utf8');
     const modifiedFlow = await parseXml(modifiedContent);
@@ -166,8 +215,7 @@ describe('rflib logging flow instrument NUTs', () => {
     const originalStartTarget = originalFlow.Flow.start?.connector?.targetReference;
     expect(originalStartTarget).to.exist;
 
-    const command = `rflib logging flow instrument --sourcepath ${path.join(tempDir, 'force-app')}`;
-    execCmd(command, { ensureExitCode: 0 });
+    await instrument();
 
     const modifiedContent = await fs.promises.readFile(autoLaunchedFlowPath, 'utf8');
     const modifiedFlow = await parseXml(modifiedContent);
@@ -210,8 +258,7 @@ describe('rflib logging flow instrument NUTs', () => {
 
     const originalContent = await fs.promises.readFile(autoLaunchedFlowDestPath, 'utf8');
 
-    const command = `rflib logging flow instrument --sourcepath ${path.join(tempDir, 'force-app')} --dryrun`;
-    execCmd(command, { ensureExitCode: 0 });
+    await instrument('--dryrun');
 
     const afterDryRunContent = await fs.promises.readFile(autoLaunchedFlowDestPath, 'utf8');
     expect(afterDryRunContent).to.equal(originalContent);
@@ -223,8 +270,7 @@ describe('rflib logging flow instrument NUTs', () => {
     const autoLaunchedFlowDestPath = path.join(srcDir, 'Flow_with_Free_Form_Layout.flow-meta.xml');
     await fs.promises.copyFile(autoLaunchedFlowSourcePath, autoLaunchedFlowDestPath);
 
-    let command = `rflib logging flow instrument --sourcepath ${path.join(tempDir, 'force-app')}`;
-    execCmd(command, { ensureExitCode: 0 });
+    await instrument();
 
     const instrumentedContent = await fs.promises.readFile(autoLaunchedFlowDestPath, 'utf8');
     const instrumentedFlow = await parseXml(instrumentedContent);
@@ -233,8 +279,7 @@ describe('rflib logging flow instrument NUTs', () => {
       ? instrumentedFlow.Flow.actionCalls.length
       : (instrumentedFlow.Flow.actionCalls ? 1 : 0);
 
-    command = `rflib logging flow instrument --sourcepath ${path.join(tempDir, 'force-app')} --skip-instrumented`;
-    execCmd(command, { ensureExitCode: 0 });
+    await instrument('--skip-instrumented');
 
     const afterSkipContent = await fs.promises.readFile(autoLaunchedFlowDestPath, 'utf8');
     const afterSkipFlow = await parseXml(afterSkipContent);
@@ -252,8 +297,7 @@ describe('rflib logging flow instrument NUTs', () => {
     const decisionFlowPath = path.join(srcDir, 'Decision_Path_Test.flow-meta.xml');
     await fs.promises.copyFile(decisionFlowSourcePath, decisionFlowPath);
 
-    const command = `rflib logging flow instrument --sourcepath ${path.join(tempDir, 'force-app')}`;
-    execCmd(command, { ensureExitCode: 0 });
+    await instrument();
 
     const modifiedContent = await fs.promises.readFile(decisionFlowPath, 'utf8');
     const modifiedFlow = await parseXml(modifiedContent);
@@ -314,5 +358,133 @@ describe('rflib logging flow instrument NUTs', () => {
 
     expect(canvasModeMetadata).to.exist;
     expect(canvasModeMetadata?.value.stringValue).to.equal('AUTO_LAYOUT_CANVAS');
+  });
+
+  const getActionCalls = (flowObj: Flow): FlowAction[] => {
+    const actionCalls = flowObj.Flow.actionCalls;
+    if (!actionCalls) {
+      return [];
+    }
+    return Array.isArray(actionCalls) ? actionCalls : [actionCalls];
+  };
+
+  const getParameter = (action: FlowAction | undefined, name: string): { stringValue?: string; booleanValue?: string } | undefined =>
+    action?.inputParameters?.find(param => param.name === name)?.value;
+
+  const copyFaultPathSample = async (): Promise<string> => {
+    const faultFlowPath = path.join(srcDir, 'Fault_Path_Test.flow-meta.xml');
+    await fs.promises.copyFile(path.join(dirname, 'sample', 'Fault_Path_Test.flow-meta.xml'), faultFlowPath);
+    return faultFlowPath;
+  };
+
+  it('should instrument fault paths with error logging', async () => {
+    const faultFlowPath = await copyFaultPathSample();
+
+    await instrument();
+
+    expect(harness.toolingQueries).to.have.lengthOf(1);
+    expect(harness.toolingQueries[0]).to.include('FROM InstalledSubscriberPackage');
+    expect(warnings()).to.deep.equal([]);
+
+    const modifiedFlow = await parseXml(await fs.promises.readFile(faultFlowPath, 'utf8'));
+    const actionCalls = getActionCalls(modifiedFlow);
+    const findAction = (name?: string): FlowAction | undefined => actionCalls.find(action => action.name === name);
+
+    // Elements without a fault path get one that logs the error and terminates the transaction
+    [modifiedFlow.Flow.recordLookups, modifiedFlow.Flow.recordCreates].forEach(element => {
+      const faultLogger = findAction(element?.faultConnector?.targetReference);
+
+      expect(faultLogger?.name).to.match(/^RFLIB_Flow_Logger_Fault_/);
+      expect(getParameter(faultLogger, 'logLevel')?.stringValue).to.equal('ERROR');
+      expect(getParameter(faultLogger, 'message')?.stringValue).to.contain('{!$Flow.FaultMessage}');
+      expect(getParameter(faultLogger, 'terminateTransaction')?.booleanValue).to.equal('true');
+      expect(faultLogger?.connector).to.be.undefined;
+    });
+
+    // Existing fault paths continue after the logger without terminating the transaction
+    const updateLogger = findAction(modifiedFlow.Flow.recordUpdates?.faultConnector?.targetReference);
+
+    expect(updateLogger?.name).to.match(/^RFLIB_Flow_Logger_Fault_Update_Account_/);
+    expect(getParameter(updateLogger, 'logLevel')?.stringValue).to.equal('ERROR');
+    expect(getParameter(updateLogger, 'terminateTransaction')).to.be.undefined;
+    expect(updateLogger?.connector?.targetReference).to.equal('Handle_Update_Error');
+  });
+
+  it('should not add fault paths to RFLIB log actions or stack fault loggers on consecutive runs', async () => {
+    const faultFlowPath = await copyFaultPathSample();
+
+    await instrument();
+    await instrument();
+
+    const modifiedFlow = await parseXml(await fs.promises.readFile(faultFlowPath, 'utf8'));
+    const actionCalls = getActionCalls(modifiedFlow) as Array<FlowAction & FlowFaultElement>;
+
+    const faultLoggers = actionCalls.filter(action => action.name?.startsWith('RFLIB_Flow_Logger_Fault_'));
+    expect(faultLoggers).to.have.lengthOf(3);
+
+    actionCalls
+      .filter(action => action.actionName === 'rflib_LoggerFlowAction')
+      .forEach(action => expect(action.faultConnector, `${action.name ?? ''} must not have a fault path`).to.be.undefined);
+
+    const updateLogger = actionCalls.find(action => action.name === modifiedFlow.Flow.recordUpdates?.faultConnector?.targetReference);
+    expect(updateLogger?.connector?.targetReference).to.equal('Handle_Update_Error');
+  });
+
+  it('should respect the skip-fault-paths flag', async () => {
+    const faultFlowPath = await copyFaultPathSample();
+
+    await instrument('--skip-fault-paths');
+
+    // The RFLIB version is irrelevant when fault paths are skipped, so the org isn't queried
+    expect(harness.toolingQueries).to.deep.equal([]);
+    expect(warnings()).to.deep.equal([]);
+    await expectFaultPathsSkipped(faultFlowPath);
+  });
+
+  const expectFaultPathsSkipped = async (faultFlowPath: string): Promise<void> => {
+    const modifiedFlow = await parseXml(await fs.promises.readFile(faultFlowPath, 'utf8'));
+
+    expect(hasRFLIBLogger(modifiedFlow)).to.be.true;
+    expect(getActionCalls(modifiedFlow).some(action => action.name?.startsWith('RFLIB_Flow_Logger_Fault_'))).to.be.false;
+    expect(modifiedFlow.Flow.recordCreates?.faultConnector).to.be.undefined;
+    expect(modifiedFlow.Flow.recordUpdates?.faultConnector?.targetReference).to.equal('Handle_Update_Error');
+  };
+
+  it('should skip fault paths with a warning if the target org runs an RFLIB version before 11.4.0', async () => {
+    installedPackages = [installedRflib(11, 3, 1, 1)];
+    const faultFlowPath = await copyFaultPathSample();
+
+    await instrument();
+
+    expect(harness.toolingQueries[0]).to.include('FROM InstalledSubscriberPackage');
+    expect(warnings()).to.have.lengthOf(1);
+    expect(warnings()[0]).to.include('the target org runs RFLIB 11.3.1-1');
+    expect(warnings()[0]).to.include('requires RFLIB 11.4.0 or later');
+    await expectFaultPathsSkipped(faultFlowPath);
+  });
+
+  it('should skip fault paths with a warning if RFLIB is not installed as a package in the target org', async () => {
+    installedPackages = [];
+    const faultFlowPath = await copyFaultPathSample();
+
+    await instrument();
+
+    expect(warnings()).to.have.lengthOf(1);
+    expect(warnings()[0]).to.include('RFLIB is not installed as a package in the target org');
+    await expectFaultPathsSkipped(faultFlowPath);
+  });
+
+  it('should require the target-org flag', async () => {
+    const faultFlowPath = await copyFaultPathSample();
+    const originalContent = await fs.promises.readFile(faultFlowPath, 'utf8');
+
+    try {
+      await RflibLoggingFlowInstrument.run(['--sourcepath', path.join(tempDir, 'force-app')]);
+      expect.fail('Expected the command to fail without a target org');
+    } catch (error) {
+      expect((error as Error).name).to.equal('NoDefaultEnvError');
+    }
+
+    expect(await fs.promises.readFile(faultFlowPath, 'utf8')).to.equal(originalContent);
   });
 });

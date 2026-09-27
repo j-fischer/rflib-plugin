@@ -126,7 +126,7 @@ async function main() {
   runCmd('node', [...nodeArgs, 'rflib', 'logging', 'apex', 'instrument', '--sourcepath', sourcePath, '--prettier']);
   runCmd('node', [...nodeArgs, 'rflib', 'logging', 'aura', 'instrument', '--sourcepath', sourcePath, '--prettier']);
   runCmd('node', [...nodeArgs, 'rflib', 'logging', 'lwc', 'instrument', '--sourcepath', sourcePath, '--prettier']);
-  runCmd('node', [...nodeArgs, 'rflib', 'logging', 'flow', 'instrument', '--sourcepath', sourcePath]);
+  runCmd('node', [...nodeArgs, 'rflib', 'logging', 'flow', 'instrument', '--target-org', scratchOrgAlias, '--sourcepath', sourcePath]);
 
   console.log('Deploying instrumented demo source...');
   // Notice --ignore-conflicts might be needed again or not depending on scratch org tracking,

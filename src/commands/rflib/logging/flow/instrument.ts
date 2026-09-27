@@ -6,11 +6,17 @@
 /* eslint-disable @typescript-eslint/no-unsafe-member-access */
 import * as fs from 'node:fs';
 import * as path from 'node:path';
-import { Messages, Logger } from '@salesforce/core';
+import { Messages, Logger, type Connection } from '@salesforce/core';
 import { SfCommand, Flags } from '@salesforce/sf-plugins-core';
 import * as xml2js from 'xml2js';
 import { minimatch } from 'minimatch';
 import { processWithConcurrency } from '../../../../shared/concurrency.js';
+import {
+  compareVersions,
+  formatVersion,
+  getInstalledPackages,
+  type PackageVersionNumber,
+} from '../../../../shared/packageClient.js';
 
 export type RflibLoggingFlowInstrumentResult = {
   processedFiles: number;
@@ -20,6 +26,12 @@ export type RflibLoggingFlowInstrumentResult = {
 
 Messages.importMessagesDirectoryFromMetaUrl(import.meta.url);
 const messages = Messages.loadMessages('rflib-plugin', 'rflib.logging.flow.instrument');
+
+const RFLIB_PACKAGE_NAME = 'RFLIB';
+
+// First RFLIB version whose Log Message flow action has the Terminate Transaction option,
+// which the fault paths created by this command rely on
+const FAULT_PATH_MIN_RFLIB_VERSION: Readonly<PackageVersionNumber> = { major: 11, minor: 4, patch: 0, build: 0 };
 
 export class FlowInstrumentationService {
   private static readonly parser = new xml2js.Parser({
@@ -37,6 +49,48 @@ export class FlowInstrumentationService {
       newline: '\n'
     }
   });
+
+  // Flow element types that support a fault connector, mapped to the name used in Flow Builder
+  private static readonly FAULT_CAPABLE_ELEMENTS: Readonly<Record<string, string>> = {
+    actionCalls: 'Action',
+    apexPluginCalls: 'Apex Plugin',
+    recordCreates: 'Create Records',
+    recordDeletes: 'Delete Records',
+    recordLookups: 'Get Records',
+    recordUpdates: 'Update Records',
+    waits: 'Wait',
+  };
+
+  // Keys common to all flow elements, which precede the type specific keys in the metadata
+  private static readonly BASE_ELEMENT_KEYS: ReadonlySet<string> = new Set([
+    'processMetadataValues',
+    'description',
+    'name',
+    'n',
+    'elementSubtype',
+    'label',
+    'locationX',
+    'locationY',
+  ]);
+
+  // Keys whose element references are outputs or navigation rather than inputs of an element
+  private static readonly NON_INPUT_KEYS: ReadonlySet<string> = new Set([
+    'connector',
+    'faultConnector',
+    'outputAssignments',
+    'outputParameters',
+    'processMetadataValues',
+  ]);
+
+  // Screen field types that hold a single input value
+  private static readonly SCALAR_SCREEN_FIELD_TYPES: ReadonlySet<string> = new Set([
+    'InputField',
+    'LargeTextArea',
+    'DropdownBox',
+    'RadioButtons',
+  ]);
+
+  private static readonly MAX_FAULT_LOG_REFERENCES = 10;
 
   public static async parseFlowContent(content: string): Promise<any> {
     try {
@@ -92,12 +146,16 @@ export class FlowInstrumentationService {
       ? flowObj.Flow.actionCalls
       : [flowObj.Flow.actionCalls];
 
-    return actionCalls.some(
-      (action: any) =>
-        action.actionName === 'rflib:Logger' ||
-        action.actionName === 'rflib_LoggerFlowAction' ||
-        action.actionName === 'rflib_ApplicationEventLoggerAction' ||
-        (action.name && typeof action.name === 'string' && action.name.startsWith('RFLIB_Flow_Logger'))
+    return actionCalls.some((action: any) => this.isRFLIBLoggerAction(action));
+  }
+
+  // Helper to check if a single action call is an RFLIB logging action
+  public static isRFLIBLoggerAction(action: any): boolean {
+    return (
+      action?.actionName === 'rflib:Logger' ||
+      action?.actionName === 'rflib_LoggerFlowAction' ||
+      action?.actionName === 'rflib_ApplicationEventLoggerAction' ||
+      (typeof action?.name === 'string' && action.name.startsWith('RFLIB_Flow_Logger'))
     );
   }
 
@@ -111,7 +169,7 @@ export class FlowInstrumentationService {
   }
 
   // Main instrumentation function
-  public static instrumentFlow(flowObj: any, flowName: string, skipInstrumented = false): any {
+  public static instrumentFlow(flowObj: any, flowName: string, skipInstrumented = false, skipFaultPaths = false): any {
     // Deep clone the object to avoid modifying the original
     const instrumentedFlow = JSON.parse(JSON.stringify(flowObj));
 
@@ -172,6 +230,11 @@ export class FlowInstrumentationService {
     // Instrument decisions with logging for each outcome
     if (instrumentedFlow.Flow.decisions) {
       this.instrumentDecisions(instrumentedFlow, flowName);
+    }
+
+    // Log an error on every fault path of elements that can fail
+    if (!skipFaultPaths) {
+      this.instrumentFaultPaths(instrumentedFlow, flowName);
     }
 
     // Reorder Flow properties
@@ -289,6 +352,201 @@ export class FlowInstrumentationService {
     }
   }
 
+  // Helper to add error logging to the fault path of every element that can fail.
+  // Existing fault paths continue after the logger; new fault paths terminate the transaction
+  // after logging so that the flow fails the same way as without a fault path.
+  private static instrumentFaultPaths(flowObj: any, flowName: string): void {
+    // Fault paths starting with one of these actions are already logged, e.g. by a previous run
+    const logMessageActionNames = new Set(
+      this.toArray(flowObj.Flow.actionCalls)
+        .filter((action: any) => this.isRFLIBLoggerAction(action) && action.actionName !== 'rflib_ApplicationEventLoggerAction')
+        .map((action: any) => this.getElementName(action))
+    );
+    const scalarResourceNames = this.collectScalarResourceNames(flowObj);
+
+    Object.entries(this.FAULT_CAPABLE_ELEMENTS).forEach(([elementType, elementTypeLabel]) => {
+      // Copy the list since fault loggers are added to actionCalls while iterating
+      const elements = [...this.toArray(flowObj.Flow[elementType])];
+
+      elements.forEach((element: any) => {
+        const elementName = this.getElementName(element);
+        if (!elementName || (elementType === 'actionCalls' && this.isRFLIBLoggerAction(element))) {
+          return;
+        }
+
+        const originalFaultConnector = element.faultConnector;
+        const originalTarget: unknown = originalFaultConnector?.targetReference;
+        if (typeof originalTarget === 'string' && logMessageActionNames.has(originalTarget)) {
+          return;
+        }
+
+        const faultLogger = this.createFaultPathLogger(
+          flowName,
+          elementTypeLabel,
+          elementName,
+          String(element.label || elementName),
+          this.collectFaultLogReferences(flowObj, element, scalarResourceNames),
+          !originalTarget
+        );
+
+        if (originalTarget) {
+          // Continue with the existing fault path, keeping connector properties such as isGoTo
+          faultLogger.connector = { ...originalFaultConnector };
+        }
+
+        this.addActionCallToFlow(flowObj, faultLogger);
+        this.setFaultConnector(element, { targetReference: faultLogger.name });
+      });
+    });
+  }
+
+  // Helper to create the error logging action for a fault path
+  private static createFaultPathLogger(
+    flowName: string,
+    elementTypeLabel: string,
+    elementName: string,
+    elementLabel: string,
+    references: string[],
+    terminateTransaction: boolean
+  ): any {
+    const loggerId = this.generateUniqueId();
+    const prefix = 'RFLIB_Flow_Logger_Fault_';
+
+    // Keep the name under 80 characters: prefix + element name + '_' + id
+    const sanitizedElementName = this.sanitizeForName(elementName, 80 - prefix.length - loggerId.length - 1);
+    const name = `${prefix}${sanitizedElementName}_${loggerId}`;
+    const label = this.truncateLabel(`Log Fault: ${elementLabel}`);
+
+    const values = references.map((reference) => `${reference}: {!${reference}}`).join(', ');
+    const message =
+      `Fault in ${elementTypeLabel} '${elementLabel}' (${elementName}): {!$Flow.FaultMessage}` +
+      (values ? ` | ${values}` : '');
+
+    const additionalParameters = terminateTransaction
+      ? [{ name: 'terminateTransaction', value: { booleanValue: 'true' } }]
+      : [];
+
+    return this.buildLoggerAction(name, label, flowName, 'ERROR', message, additionalParameters);
+  }
+
+  // Helper to collect the resources whose values are logged when an element faults: the scalar inputs
+  // of the element, the triggering record and the input variables of the flow
+  private static collectFaultLogReferences(flowObj: any, element: any, scalarResourceNames: ReadonlySet<string>): string[] {
+    const references: string[] = [];
+
+    const addReference = (reference: unknown): void => {
+      if (typeof reference !== 'string' || references.includes(reference)) {
+        return;
+      }
+
+      // Global variables other than the triggering record, such as $Api or $Setup, may hold sensitive values
+      if (reference.startsWith('$') && !/^\$Record(__Prior)?\./.test(reference)) {
+        return;
+      }
+
+      if (reference.includes('.') || scalarResourceNames.has(reference)) {
+        references.push(reference);
+      }
+    };
+
+    this.findElementReferences(element).forEach(addReference);
+
+    const triggerType = flowObj.Flow.start?.triggerType;
+    if (typeof triggerType === 'string' && triggerType.startsWith('Record')) {
+      addReference('$Record.Id');
+    }
+
+    this.toArray(flowObj.Flow.variables)
+      .filter((variable: any) => variable.isInput === 'true')
+      .forEach((variable: any) => addReference(this.getElementName(variable)));
+
+    return references.slice(0, this.MAX_FAULT_LOG_REFERENCES);
+  }
+
+  // Helper to find all element references within an element that are used as inputs
+  private static findElementReferences(node: any, references: string[] = []): string[] {
+    if (Array.isArray(node)) {
+      node.forEach((item) => this.findElementReferences(item, references));
+    } else if (node && typeof node === 'object') {
+      Object.entries(node as Record<string, unknown>).forEach(([key, value]) => {
+        if (this.NON_INPUT_KEYS.has(key)) {
+          return;
+        }
+
+        if (key === 'elementReference' && typeof value === 'string') {
+          references.push(value);
+        } else {
+          this.findElementReferences(value, references);
+        }
+      });
+    }
+
+    return references;
+  }
+
+  // Helper to collect the names of flow resources that hold a single value and can be merged into a text
+  private static collectScalarResourceNames(flowObj: any): Set<string> {
+    const names = new Set<string>();
+    const addName = (resource: any): void => {
+      const name = this.getElementName(resource);
+      if (name) {
+        names.add(name);
+      }
+    };
+
+    this.toArray(flowObj.Flow.variables)
+      .filter((variable: any) => variable.isCollection !== 'true' && variable.dataType !== 'SObject' && variable.dataType !== 'Apex')
+      .forEach((variable: any) => addName(variable));
+
+    this.toArray(flowObj.Flow.formulas).forEach((formula: any) => addName(formula));
+
+    const addScreenFields = (fields: any): void => {
+      this.toArray(fields).forEach((field: any) => {
+        if (this.SCALAR_SCREEN_FIELD_TYPES.has(String(field.fieldType))) {
+          addName(field);
+        }
+        // Sections and columns contain nested fields
+        addScreenFields(field.fields);
+      });
+    };
+    this.toArray(flowObj.Flow.screens).forEach((screen: any) => addScreenFields(screen.fields));
+
+    return names;
+  }
+
+  // Helper to set the fault connector of an element. The Metadata API expects the fault connector
+  // at its alphabetical position among the element's type specific properties.
+  private static setFaultConnector(element: any, faultConnector: any): void {
+    if (element.faultConnector !== undefined) {
+      element.faultConnector = faultConnector;
+      return;
+    }
+
+    const entries = Object.entries(element as Record<string, unknown>);
+    const insertIndex = entries.findIndex(([key]) => !this.BASE_ELEMENT_KEYS.has(key) && key > 'faultConnector');
+    entries.splice(insertIndex === -1 ? entries.length : insertIndex, 0, ['faultConnector', faultConnector]);
+
+    // Rebuild the element in place to preserve references held by the flow object
+    Object.keys(element as Record<string, unknown>).forEach((key) => Reflect.deleteProperty(element as object, key));
+    entries.forEach(([key, value]) => {
+      element[key] = value;
+    });
+  }
+
+  // Helper to read the name of a flow element, supporting the legacy 'n' property
+  private static getElementName(element: any): string | undefined {
+    const name: unknown = element?.name ?? element?.n;
+    return typeof name === 'string' && name ? name : undefined;
+  }
+
+  // Helper to normalize a single parsed XML element or a list of elements to an array
+  private static toArray(value: any): any[] {
+    if (value === undefined || value === null) {
+      return [];
+    }
+    return Array.isArray(value) ? value : [value];
+  }
+
   // Helper to create a logging action for decision paths
   private static createDecisionPathLogger(
     flowName: string,
@@ -322,39 +580,27 @@ export class FlowInstrumentationService {
 
     // Create and truncate the label to ensure it's under 80 chars
     const label = this.truncateLabel(`Log Decision: ${decisionLabelStr} - ${outcomeLabelStr}`);
+    const message = `Decision '${decisionLabelStr}' outcome: ${outcomeLabelStr}`;
 
     // Fallback if still too long
-    if (name.length > 80) {
-      return {
-        actionName: 'rflib_LoggerFlowAction',
-        actionType: 'apex',
-        name: `RFLIBLogDec${loggerId}`,
-        label,
-        locationX: 176,
-        locationY: 50,
-        inputParameters: [
-          {
-            name: 'context',
-            value: {
-              stringValue: flowName,
-            },
-          },
-          {
-            name: 'logLevel',
-            value: {
-              stringValue: 'INFO',
-            },
-          },
-          {
-            name: 'message',
-            value: {
-              stringValue: `Decision '${decisionLabelStr}' outcome: ${outcomeLabelStr}`,
-            },
-          },
-        ],
-      };
-    }
+    return this.buildLoggerAction(
+      name.length > 80 ? `RFLIBLogDec${loggerId}` : name,
+      label,
+      flowName,
+      'INFO',
+      message
+    );
+  }
 
+  // Helper to build an rflib_LoggerFlowAction action call element
+  private static buildLoggerAction(
+    name: string,
+    label: string,
+    context: string,
+    logLevel: string,
+    message: string,
+    additionalParameters: any[] = []
+  ): any {
     return {
       actionName: 'rflib_LoggerFlowAction',
       actionType: 'apex',
@@ -366,21 +612,22 @@ export class FlowInstrumentationService {
         {
           name: 'context',
           value: {
-            stringValue: flowName,
+            stringValue: context,
           },
         },
         {
           name: 'logLevel',
           value: {
-            stringValue: 'INFO',
+            stringValue: logLevel,
           },
         },
         {
           name: 'message',
           value: {
-            stringValue: `Decision '${decisionLabelStr}' outcome: ${outcomeLabelStr}`,
+            stringValue: message,
           },
         },
+        ...additionalParameters,
       ],
     };
   }
@@ -462,67 +709,14 @@ export class FlowInstrumentationService {
     // Create and truncate the label to ensure it's under 80 chars
     const label = this.truncateLabel(`Log Flow Invocation: ${flowName}`);
 
-    // Verify name length
-    if (name.length > 80) {
-      // If still too long, use a simpler naming scheme (fallback)
-      return {
-        actionName: 'rflib_LoggerFlowAction',
-        actionType: 'apex',
-        name: `RFLIBLogger${loggerId}`,
-        label,
-        locationX: 176,
-        locationY: 50,
-        inputParameters: [
-          {
-            name: 'context',
-            value: {
-              stringValue: flowName,
-            },
-          },
-          {
-            name: 'logLevel',
-            value: {
-              stringValue: 'INFO',
-            },
-          },
-          {
-            name: 'message',
-            value: {
-              stringValue: `Flow ${flowName} started`,
-            },
-          },
-        ],
-      };
-    }
-
-    return {
-      actionName: 'rflib_LoggerFlowAction',
-      actionType: 'apex',
-      name,
+    // If still too long, use a simpler naming scheme (fallback)
+    return this.buildLoggerAction(
+      name.length > 80 ? `RFLIBLogger${loggerId}` : name,
       label,
-      locationX: 176,
-      locationY: 50,
-      inputParameters: [
-        {
-          name: 'context',
-          value: {
-            stringValue: flowName,
-          },
-        },
-        {
-          name: 'logLevel',
-          value: {
-            stringValue: 'INFO',
-          },
-        },
-        {
-          name: 'message',
-          value: {
-            stringValue: `Flow ${flowName} started`,
-          },
-        },
-      ],
-    };
+      flowName,
+      'INFO',
+      `Flow ${flowName} started`
+    );
   }
 
   // Helper to set CanvasMode to AUTO_LAYOUT_CANVAS for better flow layout
@@ -608,6 +802,12 @@ export default class RflibLoggingFlowInstrument extends SfCommand<RflibLoggingFl
   public static readonly examples = messages.getMessages('examples');
 
   public static readonly flags = {
+    'target-org': Flags.requiredOrg({
+      summary: messages.getMessage('flags.target-org.summary'),
+      description: messages.getMessage('flags.target-org.description'),
+      char: 'o',
+      required: true,
+    }),
     sourcepath: Flags.string({
       summary: messages.getMessage('flags.sourcepath.summary'),
       description: messages.getMessage('flags.sourcepath.description'),
@@ -623,6 +823,11 @@ export default class RflibLoggingFlowInstrument extends SfCommand<RflibLoggingFl
     'skip-instrumented': Flags.boolean({
       summary: messages.getMessage('flags.skip-instrumented.summary') || 'Skip flows that already have RFLIB logging',
       description: messages.getMessage('flags.skip-instrumented.description') || 'Do not instrument flows where RFLIB logging is already present',
+      default: false,
+    }),
+    'skip-fault-paths': Flags.boolean({
+      summary: messages.getMessage('flags.skip-fault-paths.summary'),
+      description: messages.getMessage('flags.skip-fault-paths.description'),
       default: false,
     }),
     verbose: Flags.boolean({
@@ -659,12 +864,15 @@ export default class RflibLoggingFlowInstrument extends SfCommand<RflibLoggingFl
     const sourcePath = flags.sourcepath;
     const isDryRun = flags.dryrun;
     const skipInstrumented = flags['skip-instrumented'];
+    const skipFaultPaths =
+      flags['skip-fault-paths'] || !(await this.isFaultPathLoggingSupported(flags['target-org'].getConnection(undefined)));
     const isVerbose = flags.verbose;
     const excludePattern = flags.exclude;
 
     this.log(`Scanning Flow files in ${sourcePath} and sub directories`);
     this.logger.debug(`Dry run mode: ${isDryRun}`);
     this.logger.debug(`Skip instrumented: ${skipInstrumented}`);
+    this.logger.debug(`Skip fault paths: ${skipFaultPaths}`);
 
     this.spinner.start('Running...');
 
@@ -673,7 +881,7 @@ export default class RflibLoggingFlowInstrument extends SfCommand<RflibLoggingFl
       files,
       flags.concurrency,
       async (filePath) => {
-        await this.instrumentFlowFile(filePath, isDryRun, skipInstrumented, isVerbose);
+        await this.instrumentFlowFile(filePath, { isDryRun, skipInstrumented, skipFaultPaths, isVerbose });
       }
     );
 
@@ -687,6 +895,26 @@ export default class RflibLoggingFlowInstrument extends SfCommand<RflibLoggingFl
     this.log(`Modified files: ${this.stats.modifiedFiles}`);
 
     return { ...this.stats };
+  }
+
+  // Fault paths are only instrumented if the RFLIB package in the target org supports terminating the transaction
+  private async isFaultPathLoggingSupported(conn: Connection): Promise<boolean> {
+    const minVersion = `${FAULT_PATH_MIN_RFLIB_VERSION.major}.${FAULT_PATH_MIN_RFLIB_VERSION.minor}.${FAULT_PATH_MIN_RFLIB_VERSION.patch}`;
+    const [rflib] = await getInstalledPackages(conn, [RFLIB_PACKAGE_NAME]);
+
+    if (!rflib) {
+      this.warn(messages.getMessage('warning.faultPaths.rflibNotInstalled', [minVersion]));
+      return false;
+    }
+
+    const installedVersion = formatVersion(rflib.version);
+    if (compareVersions(rflib.version, FAULT_PATH_MIN_RFLIB_VERSION) < 0) {
+      this.warn(messages.getMessage('warning.faultPaths.rflibOutdated', [installedVersion, minVersion]));
+      return false;
+    }
+
+    this.logger.debug(`RFLIB ${installedVersion} supports fault path logging`);
+    return true;
   }
 
   private async findAllFlowFiles(dirPath: string, excludePattern?: string): Promise<string[]> {
@@ -717,7 +945,11 @@ export default class RflibLoggingFlowInstrument extends SfCommand<RflibLoggingFl
     return results.flat();
   }
 
-  private async instrumentFlowFile(filePath: string, isDryRun: boolean, skipInstrumented: boolean, isVerbose: boolean): Promise<void> {
+  private async instrumentFlowFile(
+    filePath: string,
+    options: Readonly<{ isDryRun: boolean; skipInstrumented: boolean; skipFaultPaths: boolean; isVerbose: boolean }>
+  ): Promise<void> {
+    const { isDryRun, skipInstrumented, skipFaultPaths, isVerbose } = options;
     const flowName = path.basename(filePath, '.flow-meta.xml');
     this.logger.debug(`Processing flow: ${flowName}`);
 
@@ -738,7 +970,7 @@ export default class RflibLoggingFlowInstrument extends SfCommand<RflibLoggingFl
         return;
       }
 
-      const instrumentedFlow = FlowInstrumentationService.instrumentFlow(flowObj, flowName, skipInstrumented);
+      const instrumentedFlow = FlowInstrumentationService.instrumentFlow(flowObj, flowName, skipInstrumented, skipFaultPaths);
       const newContent = FlowInstrumentationService.buildFlowContent(instrumentedFlow);
 
       if (content !== newContent) {
