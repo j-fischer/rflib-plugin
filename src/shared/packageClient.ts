@@ -8,8 +8,15 @@ export const RFLIB_REPOSITORY_URL = 'https://github.com/j-fischer/rflib';
 /** Raw sfdx-project.json of the RFLIB repository; its packageAliases list every released package version. */
 export const RFLIB_PROJECT_URL = 'https://raw.githubusercontent.com/j-fischer/rflib/master/sfdx-project.json';
 
+/**
+ * Custom label holding the RFLIB version, e.g. `11.4.0`. RFLIB ships it with its source, so it also
+ * exists in orgs where RFLIB was deployed as unpackaged source rather than installed as a package.
+ */
+export const RFLIB_VERSION_LABEL = 'RFLIB_Version';
+
 const PACKAGE_VERSION_ALIAS = /^(?<name>.+)@(?<major>\d+)\.(?<minor>\d+)\.(?<patch>\d+)-(?<build>\d+)$/;
 const PACKAGE_VERSION_ID = /^04t(?:[a-zA-Z0-9]{12}|[a-zA-Z0-9]{15})$/;
+const VERSION_LABEL_VALUE = /^\s*v?(?<major>\d+)\.(?<minor>\d+)\.(?<patch>\d+)(?:[.-](?<build>\d+))?\s*$/i;
 const DEFAULT_POLL_INTERVAL_MS = 5000;
 
 const INSTALLED_PACKAGES_QUERY =
@@ -17,6 +24,8 @@ const INSTALLED_PACKAGES_QUERY =
   'SubscriberPackageVersion.MajorVersion, SubscriberPackageVersion.MinorVersion, ' +
   'SubscriberPackageVersion.PatchVersion, SubscriberPackageVersion.BuildNumber ' +
   'FROM InstalledSubscriberPackage';
+
+const RFLIB_VERSION_LABEL_QUERY = `SELECT Value FROM ExternalString WHERE Name = '${RFLIB_VERSION_LABEL}'`;
 
 export type PackageVersionNumber = {
   major: number;
@@ -83,6 +92,10 @@ type InstalledSubscriberPackageRow = {
     PatchVersion?: number;
     BuildNumber?: number;
   } | null;
+};
+
+type ExternalStringRow = {
+  Value?: string | null;
 };
 
 type ToolingSaveResult = {
@@ -196,6 +209,34 @@ export async function getInstalledPackages(
 
   const wanted = new Set(packageNames.map(normalizePackageName));
   return packages.filter((pkg) => wanted.has(normalizePackageName(pkg.name)));
+}
+
+/**
+ * Reads the RFLIB version from the RFLIB_Version custom label deployed to an org, using the Tooling
+ * API. Use it as a fallback for orgs where RFLIB is not installed as a package, such as development
+ * orgs that RFLIB was deployed to as source.
+ *
+ * @returns the version, with build number 0 unless the label includes one, or undefined if the label
+ * does not exist or does not contain a version number.
+ */
+export async function getRflibVersionFromLabel(conn: Connection): Promise<PackageVersionNumber | undefined> {
+  const result = await conn.tooling.query<ExternalStringRow>(RFLIB_VERSION_LABEL_QUERY);
+  return result.records.map((row) => parseVersionLabel(row.Value ?? '')).find((version) => version !== undefined);
+}
+
+/**
+ * Parses a version label such as `11.4.0`, `v11.4.0`, or `11.4.0.1`.
+ */
+export function parseVersionLabel(value: string): PackageVersionNumber | undefined {
+  const groups = VERSION_LABEL_VALUE.exec(value)?.groups;
+  if (!groups) return undefined;
+
+  return {
+    major: Number(groups.major),
+    minor: Number(groups.minor),
+    patch: Number(groups.patch),
+    build: Number(groups.build ?? 0),
+  };
 }
 
 /**

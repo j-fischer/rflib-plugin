@@ -134,12 +134,12 @@ sf rflib logging flow instrument --target-org myOrg --sourcepath force-app --ski
 
 The fault paths this command creates log the error and then stop the Flow using the `Terminate Transaction` option of the RFLIB `Log Message` action. That option was added in RFLIB 11.4.0, so a Flow that uses it fails to deploy to an org running an older RFLIB version.
 
-To avoid producing Flows that won't deploy, the command checks the RFLIB package installed in the target org before it changes any files:
+To avoid producing Flows that won't deploy, the command checks the RFLIB version of the target org before it changes any files. It uses the installed RFLIB package or, if RFLIB was deployed as unpackaged source (as in a development org), the `RFLIB_Version` custom label that RFLIB ships with its source:
 
 - **RFLIB 11.4.0 or later:** fault paths are instrumented.
-- **An older RFLIB version, or RFLIB not installed as a package** (for example, deployed as unpackaged source): fault paths are skipped and a warning is shown. Flow start and decision logging are still added. Run `sf rflib packages upgrade` to upgrade the org.
+- **An older RFLIB version, RFLIB not found, or the version can't be determined:** fault paths are skipped and a warning is shown. Flow start and decision logging are still added. Run `sf rflib packages upgrade` to upgrade an installed package, or deploy a newer RFLIB version if RFLIB was deployed as source.
 
-The check is a single read-only Tooling API query of the org's installed packages (`InstalledSubscriberPackage`). The command doesn't change or deploy anything to the org; it only edits the Flow files under `--sourcepath`. Pass the org you'll deploy the instrumented Flows to. The flag is required even with `--skip-fault-paths`, although the org isn't queried in that case.
+The check is a read-only Tooling API query of the org's installed packages (`InstalledSubscriberPackage`), followed by a query of the `RFLIB_Version` custom label (`ExternalString`) if RFLIB is not installed as a package. The command doesn't change or deploy anything to the org; it only edits the Flow files under `--sourcepath`. Pass the org you'll deploy the instrumented Flows to. The flag is required even with `--skip-fault-paths`, although the org isn't queried in that case.
 
 #### Features
 

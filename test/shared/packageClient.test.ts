@@ -6,9 +6,11 @@ import {
   fetchLatestPackageVersions,
   formatVersion,
   getInstalledPackages,
+  getRflibVersionFromLabel,
   installPackageVersion,
   packageNamesMatch,
   parseLatestPackageVersions,
+  parseVersionLabel,
   RFLIB_PROJECT_URL,
   type InstalledPackage,
   type LatestPackageVersion,
@@ -268,6 +270,39 @@ describe('packageClient', () => {
       });
 
       expect(await getInstalledPackages(conn, [])).to.deep.equal([]);
+    });
+  });
+
+  describe('parseVersionLabel', () => {
+    it('parses versions with and without a build number', () => {
+      expect(parseVersionLabel('11.4.0')).to.deep.equal({ major: 11, minor: 4, patch: 0, build: 0 });
+      expect(parseVersionLabel(' v11.4.0 ')).to.deep.equal({ major: 11, minor: 4, patch: 0, build: 0 });
+      expect(parseVersionLabel('11.4.0.2')).to.deep.equal({ major: 11, minor: 4, patch: 0, build: 2 });
+      expect(parseVersionLabel('11.4.0-2')).to.deep.equal({ major: 11, minor: 4, patch: 0, build: 2 });
+    });
+
+    it('rejects values that are not version numbers', () => {
+      expect(parseVersionLabel('')).to.equal(undefined);
+      expect(parseVersionLabel('11.4')).to.equal(undefined);
+      expect(parseVersionLabel('ver 11.4.0')).to.equal(undefined);
+      expect(parseVersionLabel('11.4.0.NEXT')).to.equal(undefined);
+    });
+  });
+
+  describe('getRflibVersionFromLabel', () => {
+    it('reads the RFLIB_Version custom label through the Tooling API', async () => {
+      const { conn, calls } = buildMockConnection({ tooling: { query: () => [{ Value: '11.4.0' }] } });
+
+      expect(await getRflibVersionFromLabel(conn)).to.deep.equal({ major: 11, minor: 4, patch: 0, build: 0 });
+      expect(calls.toolingQueries).to.deep.equal(["SELECT Value FROM ExternalString WHERE Name = 'RFLIB_Version'"]);
+    });
+
+    it('returns undefined if the label does not exist or holds no version number', async () => {
+      const missing = buildMockConnection({ tooling: { query: () => [] } });
+      const invalid = buildMockConnection({ tooling: { query: () => [{ Value: null }, { Value: 'unknown' }] } });
+
+      expect(await getRflibVersionFromLabel(missing.conn)).to.equal(undefined);
+      expect(await getRflibVersionFromLabel(invalid.conn)).to.equal(undefined);
     });
   });
 

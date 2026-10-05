@@ -4,7 +4,7 @@ Adds RFLIB logging statements to Salesforce Flows.
 
 # description
 
-Automatically adds RFLIB logging statements to Salesforce Flows to provide enhanced tracking and debugging capabilities. Works with both standard Flows and Auto-Launched Flows. Instruments flow invocations and decision paths with logging actions, and logs an error on the fault path of every element that can fail. Existing fault paths continue after the error is logged. Elements without a fault path get one that logs the error and then terminates the transaction, so the Flow still fails as before; this requires the Terminate Transaction option of the RFLIB Log Message action, which was added in RFLIB 11.4.0. The command checks the RFLIB version installed in the target org and skips the fault paths if the org runs an older version or RFLIB is not installed as a package. Also sets the CanvasMode to AUTO_LAYOUT_CANVAS for better flow visualization while preserving the original processType.
+Automatically adds RFLIB logging statements to Salesforce Flows to provide enhanced tracking and debugging capabilities. Works with both standard Flows and Auto-Launched Flows. Instruments flow invocations and decision paths with logging actions, and logs an error on the fault path of every element that can fail. Existing fault paths continue after the error is logged. Elements without a fault path get one that logs the error and then terminates the transaction, so the Flow still fails as before; this requires the Terminate Transaction option of the RFLIB Log Message action, which was added in RFLIB 11.4.0. The command checks the RFLIB version in the target org, using the installed RFLIB package or, if RFLIB was deployed as source, its RFLIB_Version custom label, and skips the fault paths if the org runs an older version, RFLIB is not found, or the version cannot be determined. Also sets the CanvasMode to AUTO_LAYOUT_CANVAS for better flow visualization while preserving the original processType.
 
 # flags.target-org.summary
 
@@ -12,7 +12,7 @@ Username or alias of the target org.
 
 # flags.target-org.description
 
-The Salesforce org the instrumented Flows will be deployed to. The fault paths this command creates use the Terminate Transaction option of the RFLIB Log Message action, which was added in RFLIB 11.4.0, so Flows that use it fail to deploy to an org running an older RFLIB version. Before changing any files, the command runs a single read-only Tooling API query for the packages installed in this org. If RFLIB 11.4.0 or later is installed, fault paths are instrumented; if an older version is installed, or RFLIB is not installed as a package, they are skipped with a warning. Nothing in the org is changed. The flag is required even with --skip-fault-paths, although the org is not queried in that case.
+The Salesforce org the instrumented Flows will be deployed to. The fault paths this command creates use the Terminate Transaction option of the RFLIB Log Message action, which was added in RFLIB 11.4.0, so Flows that use it fail to deploy to an org running an older RFLIB version. Before changing any files, the command runs a read-only Tooling API query for the packages installed in this org. If RFLIB is not installed as a package, for example because it was deployed as source, a second query reads the RFLIB_Version custom label instead. If the org runs RFLIB 11.4.0 or later, fault paths are instrumented; if it runs an older version, RFLIB is not found, or a query fails, they are skipped with a warning. Nothing in the org is changed. The flag is required even with --skip-fault-paths, although the org is not queried in that case.
 
 # flags.sourcepath.summary
 
@@ -80,11 +80,19 @@ Controls the maximum number of files to process at the same time. This is useful
 
 # warning.faultPaths.rflibNotInstalled
 
-Skipping fault path instrumentation because RFLIB is not installed as a package in the target org. Fault path logging requires RFLIB %s or later.
+Skipping fault path instrumentation because RFLIB was not found in the target org, neither as an installed package nor as deployed source with the %s custom label. Fault path logging requires RFLIB %s or later.
 
 # warning.faultPaths.rflibOutdated
 
 Skipping fault path instrumentation because the target org runs RFLIB %s. Fault path logging requires RFLIB %s or later; run "sf rflib packages upgrade" to upgrade the org.
+
+# warning.faultPaths.rflibSourceOutdated
+
+Skipping fault path instrumentation because the RFLIB source deployed to the target org is version %s, according to its %s custom label. Fault path logging requires RFLIB %s or later; deploy a newer version of the RFLIB source to the org.
+
+# warning.faultPaths.versionCheckFailed
+
+Skipping fault path instrumentation because the RFLIB version of the target org could not be determined: %s. Fault path logging requires RFLIB %s or later.
 
 # examples
 
