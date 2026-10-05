@@ -7,6 +7,7 @@ import {
   formatVersion,
   getInstalledPackages,
   installPackageVersion,
+  packageNamesMatch,
   parseLatestPackageVersions,
   RFLIB_PROJECT_URL,
   type InstalledPackage,
@@ -43,7 +44,12 @@ function installed(name: string, major: number, minor: number, patch: number, bu
 }
 
 function latest(name: string, major: number, minor: number, patch: number, build: number): LatestPackageVersion {
-  return { name, versionId: '04tKY0000005Sv1YAE', version: { major, minor, patch, build } };
+  return {
+    name,
+    versionId: '04tKY0000005Sv1YAE',
+    knownVersionIds: ['04tKY0000005Sv1YAE'],
+    version: { major, minor, patch, build },
+  };
 }
 
 describe('packageClient', () => {
@@ -75,6 +81,17 @@ describe('packageClient', () => {
       ]);
     });
 
+    it('lists every version ID of a package as known version IDs', () => {
+      const result = parseLatestPackageVersions(sampleProject);
+
+      expect(result.map((pkg) => [pkg.name, pkg.knownVersionIds])).to.deep.equal([
+        ['RFLIB', ['04tKY000000xX6HYAU', '04tKY0000005Sv1YAE', '04tKY0000005SuhYAE']],
+        ['RFLIB-FS', ['04tKY0000005SfyYAE']],
+        ['RFLIB-TF', ['04tKY0000005SfjYAE', '04tKY0000005SoJYAU']],
+        ['RFLIB-PHAROS', ['04tKY000000xhxmYAA']],
+      ]);
+    });
+
     it('compares versions numerically rather than alphabetically', () => {
       const result = parseLatestPackageVersions({
         packageAliases: { 'RFLIB@9.4.0-1': '04tKY000000xX6HYAU', 'RFLIB@10.0.0-1': '04tKY000000xdPOYAY' },
@@ -96,7 +113,12 @@ describe('packageClient', () => {
       });
 
       expect(result).to.deep.equal([
-        { name: 'RFLIB', versionId: '04t3h000002rTGPAA2', version: { major: 1, minor: 0, patch: 0, build: 1 } },
+        {
+          name: 'RFLIB',
+          versionId: '04t3h000002rTGPAA2',
+          knownVersionIds: ['04t3h000002rTGPAA2'],
+          version: { major: 1, minor: 0, patch: 0, build: 1 },
+        },
       ]);
     });
 
@@ -208,18 +230,19 @@ describe('packageClient', () => {
   });
 
   describe('getInstalledPackages with a package name filter', () => {
+    const row = (name: string): Record<string, unknown> => ({
+      SubscriberPackageId: '033000000000001',
+      SubscriberPackage: { Name: name },
+      SubscriberPackageVersion: {
+        Id: '04t000000000001',
+        MajorVersion: 1,
+        MinorVersion: 0,
+        PatchVersion: 0,
+        BuildNumber: 1,
+      },
+    });
+
     it('returns only the requested packages, matching names case-insensitively', async () => {
-      const row = (name: string): Record<string, unknown> => ({
-        SubscriberPackageId: '033000000000001',
-        SubscriberPackage: { Name: name },
-        SubscriberPackageVersion: {
-          Id: '04t000000000001',
-          MajorVersion: 1,
-          MinorVersion: 0,
-          PatchVersion: 0,
-          BuildNumber: 1,
-        },
-      });
       const { conn } = buildMockConnection({
         tooling: { query: () => [row('RFLIB'), row('rflib-fs'), row('Other Package')] },
       });
@@ -229,12 +252,36 @@ describe('packageClient', () => {
       expect(result.map((pkg) => pkg.name)).to.deep.equal(['RFLIB', 'rflib-fs']);
     });
 
+    it('matches subscriber package names that use underscores instead of hyphens', async () => {
+      const { conn } = buildMockConnection({
+        tooling: { query: () => [row('RFLIB'), row('RFLIB_FS'), row('RFLIB_TF')] },
+      });
+
+      expect((await getInstalledPackages(conn, ['RFLIB-TF'])).map((pkg) => pkg.name)).to.deep.equal(['RFLIB_TF']);
+      // A plain RFLIB filter, as used by flow instrument, must not pick up the RFLIB extensions.
+      expect((await getInstalledPackages(conn, ['RFLIB'])).map((pkg) => pkg.name)).to.deep.equal(['RFLIB']);
+    });
+
     it('returns an empty list when the filter is empty', async () => {
       const { conn } = buildMockConnection({
         tooling: { query: () => [{ SubscriberPackageId: '033000000000001', SubscriberPackage: { Name: 'RFLIB' } }] },
       });
 
       expect(await getInstalledPackages(conn, [])).to.deep.equal([]);
+    });
+  });
+
+  describe('packageNamesMatch', () => {
+    it('ignores case and treats hyphens, underscores, and whitespace as equivalent', () => {
+      expect(packageNamesMatch('RFLIB-TF', 'RFLIB_TF')).to.equal(true);
+      expect(packageNamesMatch('rflib-tf', 'RFLIB TF')).to.equal(true);
+      expect(packageNamesMatch('RFLIB', 'rflib')).to.equal(true);
+    });
+
+    it('does not match different packages', () => {
+      expect(packageNamesMatch('RFLIB', 'RFLIB-TF')).to.equal(false);
+      expect(packageNamesMatch('RFLIB-FS', 'RFLIB-TF')).to.equal(false);
+      expect(packageNamesMatch('RFLIBTF', 'RFLIB-TF')).to.equal(false);
     });
   });
 
@@ -264,6 +311,44 @@ describe('packageClient', () => {
         },
         { name: 'RFLIB-TF', status: 'NotInstalled', latestVersion: '4.0.0-2', latestVersionId: '04tKY0000005Sv1YAE' },
       ]);
+    });
+
+    it('matches an installed RFLIB_TF package to the RFLIB-TF alias', () => {
+      const [result] = comparePackages([latest('RFLIB-TF', 4, 0, 0, 2)], [installed('RFLIB_TF', 4, 0, 0, 1)]);
+
+      expect(result).to.include({
+        name: 'RFLIB-TF',
+        status: 'UpgradeAvailable',
+        installedVersion: '4.0.0-1',
+        latestVersion: '4.0.0-2',
+      });
+    });
+
+    it('matches an installed package by a known version ID regardless of its name', () => {
+      const tf: LatestPackageVersion = {
+        ...latest('RFLIB-TF', 4, 0, 0, 2),
+        versionId: '04tKY0000005SoJYAU',
+        knownVersionIds: ['04tKY0000005SfjYAE', '04tKY0000005SoJYAU'],
+      };
+      // The org returns the 18-character ID; the project may list the 15-character form, or vice versa.
+      const renamed = { ...installed('RFLIB Trigger Framework', 4, 0, 0, 1), versionId: '04tKY0000005Sfj' };
+
+      const [result] = comparePackages([tf], [installed('Other Package', 1, 0, 0, 1), renamed]);
+
+      expect(result).to.include({
+        status: 'UpgradeAvailable',
+        installedVersion: '4.0.0-1',
+        installedVersionId: '04tKY0000005Sfj',
+      });
+    });
+
+    it('prefers a version ID match over a name match', () => {
+      const rflib: LatestPackageVersion = { ...latest('RFLIB', 11, 3, 1, 1), knownVersionIds: ['04tKY0000005SuhYAE'] };
+      const byId = { ...installed('Renamed RFLIB', 11, 3, 0, 1), versionId: '04tKY0000005SuhYAE' };
+
+      const [result] = comparePackages([rflib], [installed('RFLIB', 1, 0, 0, 1), byId]);
+
+      expect(result).to.include({ installedVersion: '11.3.0-1', installedVersionId: '04tKY0000005SuhYAE' });
     });
 
     it('treats an installed version newer than the repository version as up to date', () => {

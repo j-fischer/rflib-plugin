@@ -29,6 +29,8 @@ export type LatestPackageVersion = {
   name: string;
   version: PackageVersionNumber;
   versionId: string;
+  /** Every version ID the project lists for this package, used to recognize the package once installed. */
+  knownVersionIds: string[];
 };
 
 export type InstalledPackage = {
@@ -122,11 +124,18 @@ export function parseLatestPackageVersions(project: unknown): LatestPackageVersi
   }
 
   const latestByName = new Map<string, LatestPackageVersion>();
+  const versionIdsByName = new Map<string, string[]>();
   for (const [alias, versionId] of Object.entries(aliases)) {
     const candidate = toLatestPackageVersion(alias, versionId);
-    if (candidate && isNewer(candidate, latestByName.get(candidate.name))) {
+    if (!candidate) continue;
+
+    versionIdsByName.set(candidate.name, [...(versionIdsByName.get(candidate.name) ?? []), candidate.versionId]);
+    if (isNewer(candidate, latestByName.get(candidate.name))) {
       latestByName.set(candidate.name, candidate);
     }
+  }
+  for (const pkg of latestByName.values()) {
+    pkg.knownVersionIds = versionIdsByName.get(pkg.name) ?? [pkg.versionId];
   }
 
   return sortByDependencyOrder([...latestByName.values()], project as SfdxProjectLite);
@@ -171,8 +180,9 @@ export async function fetchLatestPackageVersions(url: string = RFLIB_PROJECT_URL
  * present before running) should reuse this function rather than querying the org themselves.
  *
  * @param conn connection to the org to inspect.
- * @param packageNames optional package names (case-insensitive) to limit the result to, such as the
- * names returned by fetchLatestPackageVersions(). Every installed package is returned when omitted.
+ * @param packageNames optional package names to limit the result to, such as the names returned by
+ * fetchLatestPackageVersions(). Names are compared with packageNamesMatch(). Every installed package
+ * is returned when omitted.
  */
 export async function getInstalledPackages(
   conn: Connection,
@@ -184,23 +194,32 @@ export async function getInstalledPackages(
   const packages = result.records.map(toInstalledPackage);
   if (!packageNames) return packages;
 
-  const wanted = new Set(packageNames.map((name) => name.toLowerCase()));
-  return packages.filter((pkg) => wanted.has(pkg.name.toLowerCase()));
+  const wanted = new Set(packageNames.map(normalizePackageName));
+  return packages.filter((pkg) => wanted.has(normalizePackageName(pkg.name)));
 }
 
 /**
- * Matches each latest package version to the installed package of the same name.
+ * Tells whether two package names refer to the same package. The comparison ignores case and treats
+ * hyphens, underscores, and whitespace as the same separator, because the subscriber package name in
+ * an org does not always match the package alias in sfdx-project.json (RFLIB-TF installs as RFLIB_TF).
+ */
+export function packageNamesMatch(a: string, b: string): boolean {
+  return normalizePackageName(a) === normalizePackageName(b);
+}
+
+/**
+ * Matches each latest package version to its installed package. An installed version whose ID the
+ * project lists for the package identifies it reliably; otherwise the package names are compared
+ * with packageNamesMatch().
  */
 export function comparePackages(latest: LatestPackageVersion[], installed: InstalledPackage[]): PackageComparison[] {
-  const installedByName = new Map(installed.map((pkg) => [pkg.name.toLowerCase(), pkg]));
-
   return latest.map((pkg): PackageComparison => {
     const base = {
       name: pkg.name,
       latestVersion: formatVersion(pkg.version),
       latestVersionId: pkg.versionId,
     };
-    const current = installedByName.get(pkg.name.toLowerCase());
+    const current = findInstalledPackage(pkg, installed);
     if (!current) return { ...base, status: 'NotInstalled' };
 
     return {
@@ -274,6 +293,26 @@ async function waitForInstall(
   }
 }
 
+function findInstalledPackage(pkg: LatestPackageVersion, installed: InstalledPackage[]): InstalledPackage | undefined {
+  const knownVersionIds = new Set(pkg.knownVersionIds.map(toShortId));
+  return (
+    installed.find((candidate) => knownVersionIds.has(toShortId(candidate.versionId))) ??
+    installed.find((candidate) => packageNamesMatch(candidate.name, pkg.name))
+  );
+}
+
+function normalizePackageName(name: string): string {
+  return name
+    .trim()
+    .toLowerCase()
+    .replace(/[\s_-]+/g, '-');
+}
+
+/** Salesforce IDs are case-sensitive in their 15-character form; the 18-character form only adds a checksum. */
+function toShortId(id: string): string {
+  return id.slice(0, 15);
+}
+
 function toInstalledPackage(row: InstalledSubscriberPackageRow): InstalledPackage {
   const version = row.SubscriberPackageVersion;
   return {
@@ -296,6 +335,7 @@ function toLatestPackageVersion(alias: string, versionId: unknown): LatestPackag
   return {
     name: groups.name,
     versionId,
+    knownVersionIds: [versionId],
     version: {
       major: Number(groups.major),
       minor: Number(groups.minor),

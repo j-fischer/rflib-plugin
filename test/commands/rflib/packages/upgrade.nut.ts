@@ -83,7 +83,8 @@ describe('rflib packages upgrade NUTs', () => {
     installedRows = [
       installedRow('RFLIB', '11.2.0-1'),
       installedRow('RFLIB-FS', '4.0.0-1'),
-      installedRow('RFLIB-TF', '4.0.0-1'),
+      // Orgs report the RFLIB-TF package as RFLIB_TF.
+      installedRow('RFLIB_TF', '4.0.0-1'),
     ];
     installStatusByVersion = {};
     uxStubs = stubSfCommandUx(harness.$$.SANDBOX);
