@@ -1,3 +1,12 @@
+## [0.21.1](https://github.com/j-fischer/rflib-plugin/compare/0.21.0...0.21.1) (2026-10-06)
+
+
+### Bug Fixes
+
+* **logging:** match --exclude patterns in dot-prefixed and Windows paths ([#272](https://github.com/j-fischer/rflib-plugin/issues/272)) ([49da41f](https://github.com/j-fischer/rflib-plugin/commit/49da41f02460d45668aa66aeedfe3e1e7878b575))
+
+
+
 # [0.21.0](https://github.com/j-fischer/rflib-plugin/compare/0.20.0...0.21.0) (2026-09-27)
 
 
