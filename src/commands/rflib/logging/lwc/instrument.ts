@@ -3,8 +3,8 @@ import * as path from 'node:path';
 import { SfCommand, Flags } from '@salesforce/sf-plugins-core';
 import { Messages, Logger } from '@salesforce/core';
 import * as prettier from 'prettier';
-import { minimatch } from 'minimatch';
 import { processWithConcurrency } from '../../../../shared/concurrency.js';
+import { isExcluded } from '../../../../shared/exclude.js';
 
 import { IfCondition, InstrumentationOptions, LoggerInfo } from '../../../../shared/types.js';
 import { writeInstrumentedFile } from '../../../../shared/formatting.js';
@@ -317,7 +317,7 @@ export default class RflibLoggingLwcInstrument extends SfCommand<RflibLoggingLwc
       entries.map(async (entry) => {
         const filePath = path.join(dirPath, entry.name);
 
-        if (excludePattern && minimatch(filePath, excludePattern, { matchBase: true })) {
+        if (isExcluded(filePath, excludePattern)) {
           this.logger.debug(`Skipping excluded path: ${filePath}`);
           return [];
         }
