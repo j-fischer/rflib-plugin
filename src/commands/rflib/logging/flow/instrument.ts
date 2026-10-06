@@ -9,8 +9,8 @@ import * as path from 'node:path';
 import { Messages, Logger, type Connection } from '@salesforce/core';
 import { SfCommand, Flags } from '@salesforce/sf-plugins-core';
 import * as xml2js from 'xml2js';
-import { minimatch } from 'minimatch';
 import { processWithConcurrency } from '../../../../shared/concurrency.js';
+import { isExcluded } from '../../../../shared/exclude.js';
 import {
   compareVersions,
   formatVersion,
@@ -925,7 +925,7 @@ export default class RflibLoggingFlowInstrument extends SfCommand<RflibLoggingFl
       entries.map(async (entry) => {
         const filePath = path.join(dirPath, entry.name);
 
-        if (excludePattern && minimatch(filePath, excludePattern, { matchBase: true })) {
+        if (isExcluded(filePath, excludePattern)) {
           this.logger.debug(`Skipping excluded path: ${filePath}`);
           return [];
         }
