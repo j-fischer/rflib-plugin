@@ -6,6 +6,8 @@ Check the RFLIB packages installed in a Salesforce org and upgrade them to the l
 
 Compares the RFLIB packages (RFLIB, RFLIB-FS, RFLIB-TF, RFLIB-PHAROS) installed in the target org with the latest package versions published in the RFLIB GitHub repository (https://github.com/j-fischer/rflib).
 
+New package versions are listed in the repository before they are released. The command asks Salesforce for the release state of each version and only offers released versions. Newer versions that aren't released yet are reported and skipped.
+
 For every installed package with a newer version available, the command asks whether to install the upgrade and, if confirmed, starts the installation in the target org. Upgrades are installed one at a time in dependency order (RFLIB first), and the remaining upgrades are skipped if an installation does not complete successfully.
 
 Packages that are not installed in the target org are only reported; this command never installs a package that isn't already present.
@@ -50,7 +52,15 @@ Latest RFLIB package versions are published in %s.
 
 # info.notInstalled
 
-%s is not installed in the target org. The latest version is %s (%s).
+%s is not installed in the target org. The latest released version is %s (%s).
+
+# info.unreleased
+
+%s: skipped version(s) %s because they aren't released yet. The latest released version is %s.
+
+# info.noReleasedVersion
+
+%s: skipped version(s) %s because they aren't released yet. No released version is available.
 
 # info.noInstalledPackages
 
