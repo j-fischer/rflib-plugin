@@ -279,6 +279,20 @@ The latest versions are looked up in the repository's `sfdx-project.json` every 
 
 Packages that aren't installed in the org are only reported. The command never installs a package that isn't already present.
 
+#### Only released versions are offered
+
+A new package version is added to `sfdx-project.json` when it is created, but it is only promoted to a released version later, after it has passed the release tests. Salesforce doesn't install beta versions in production orgs, and a beta version installed in a sandbox can't be upgraded later.
+
+The command therefore asks Salesforce for the release state of each version (a read-only Tooling API query of `SubscriberPackageVersion.ReleaseState` in the target org) and only offers released versions. If the newest version of a package isn't released yet, the command falls back to the newest released version and reports the skipped versions, for example:
+
+```text
+RFLIB: skipped version(s) 11.5.0-1 because they aren't released yet. The latest released version is 11.4.0-1.
+```
+
+With `--json`, skipped versions are listed in the `unreleasedVersions` property of the package. A package without any released version has the status `NoReleasedVersion` and is never upgraded. If the release state can't be checked, the command stops before installing anything.
+
+Salesforce is used as the source of truth because promotion is what releases a version. The release tags in the RFLIB repository (for example `RFLIB_v11.4.0`) are only created after the promotion, don't include the build number, and checking them would need GitHub API calls, which are rate limited.
+
 ```bash
 # Check the installed packages and choose which upgrades to install
 sf rflib packages upgrade --target-org myOrg

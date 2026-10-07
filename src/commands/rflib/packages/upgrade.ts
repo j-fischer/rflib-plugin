@@ -2,7 +2,8 @@ import { SfCommand, Flags } from '@salesforce/sf-plugins-core';
 import { Messages, SfError, type Connection } from '@salesforce/core';
 import {
   comparePackages,
-  fetchLatestPackageVersions,
+  fetchPackageVersions,
+  findLatestReleasedVersions,
   getInstalledPackages,
   installPackageVersion,
   RFLIB_REPOSITORY_URL,
@@ -20,6 +21,7 @@ const STATUS_LABELS: Record<PackageComparisonStatus, string> = {
   NotInstalled: 'Not installed',
   UpToDate: 'Up to date',
   UpgradeAvailable: 'Upgrade available',
+  NoReleasedVersion: 'No released version',
 };
 
 export type PackageUpgradeStatus =
@@ -43,6 +45,13 @@ export type RflibPackagesUpgradeResult = {
 
 /** How available upgrades are handled: install them, ask first, or only report them. */
 type UpgradeMode = 'install' | 'prompt' | 'report';
+
+/** A package with an available upgrade, which always has a latest released version. */
+type UpgradeCandidate = PackageComparison & { latestVersion: string; latestVersionId: string };
+
+function isUpgradeCandidate(pkg: PackageComparison): pkg is UpgradeCandidate {
+  return pkg.status === 'UpgradeAvailable' && pkg.latestVersion !== undefined && pkg.latestVersionId !== undefined;
+}
 
 export default class RflibPackagesUpgrade extends SfCommand<RflibPackagesUpgradeResult> {
   public static readonly summary = messages.getMessage('summary');
@@ -83,7 +92,12 @@ export default class RflibPackagesUpgrade extends SfCommand<RflibPackagesUpgrade
     const conn = flags['target-org'].getConnection(undefined);
 
     this.spinner.start(messages.getMessage('spinner.retrieve'));
-    const [latest, installed] = await Promise.all([fetchLatestPackageVersions(), getInstalledPackages(conn)]);
+    // Package aliases are added to sfdx-project.json before the versions are promoted, so only
+    // versions that Salesforce reports as released are offered.
+    const [latest, installed] = await Promise.all([
+      fetchPackageVersions().then((versions) => findLatestReleasedVersions(conn, versions)),
+      getInstalledPackages(conn),
+    ]);
     this.spinner.stop();
 
     const comparisons = comparePackages(latest, installed);
@@ -121,19 +135,29 @@ export default class RflibPackagesUpgrade extends SfCommand<RflibPackagesUpgrade
         data: installed.map((pkg) => ({
           name: pkg.name,
           installedVersion: pkg.installedVersion ?? '',
-          latestVersion: pkg.latestVersion,
+          latestVersion: pkg.latestVersion ?? '',
           status: STATUS_LABELS[pkg.status],
         })),
         columns: [
           { key: 'name', name: 'Package' },
           { key: 'installedVersion', name: 'Installed Version' },
-          { key: 'latestVersion', name: 'Latest Version' },
+          { key: 'latestVersion', name: 'Latest Released Version' },
           { key: 'status', name: 'Status' },
         ],
       });
     }
 
-    for (const pkg of comparisons.filter((p) => p.status === 'NotInstalled')) {
+    for (const pkg of comparisons) {
+      if (!pkg.unreleasedVersions) continue;
+      const versions = pkg.unreleasedVersions.map((unreleased) => unreleased.version).join(', ');
+      this.log(
+        pkg.latestVersion
+          ? messages.getMessage('info.unreleased', [pkg.name, versions, pkg.latestVersion])
+          : messages.getMessage('info.noReleasedVersion', [pkg.name, versions]),
+      );
+    }
+
+    for (const pkg of comparisons.filter((p) => p.status === 'NotInstalled' && p.latestVersion)) {
       this.log(messages.getMessage('info.notInstalled', [pkg.name, pkg.latestVersion, pkg.latestVersionId]));
     }
 
@@ -178,7 +202,7 @@ export default class RflibPackagesUpgrade extends SfCommand<RflibPackagesUpgrade
     waitMinutes: number,
     blockedBy: string | undefined,
   ): Promise<PackageUpgradeInfo> {
-    if (pkg.status !== 'UpgradeAvailable') return pkg;
+    if (!isUpgradeCandidate(pkg)) return pkg;
     if (mode === 'report') return { ...pkg, message: messages.getMessage('status.notRequested') };
 
     let outcome: PackageUpgradeInfo;
@@ -194,7 +218,7 @@ export default class RflibPackagesUpgrade extends SfCommand<RflibPackagesUpgrade
     return outcome;
   }
 
-  private async confirmUpgrade(pkg: PackageComparison): Promise<boolean> {
+  private async confirmUpgrade(pkg: UpgradeCandidate): Promise<boolean> {
     return this.confirm({
       message: messages.getMessage('prompt.upgrade', [pkg.name, pkg.installedVersion ?? '', pkg.latestVersion]),
       ms: PROMPT_TIMEOUT_MS,
@@ -204,7 +228,7 @@ export default class RflibPackagesUpgrade extends SfCommand<RflibPackagesUpgrade
 
   private async installUpgrade(
     conn: Connection,
-    pkg: PackageComparison,
+    pkg: UpgradeCandidate,
     waitMinutes: number,
   ): Promise<PackageUpgradeInfo> {
     this.spinner.start(messages.getMessage('spinner.install', [pkg.name, pkg.latestVersion]));

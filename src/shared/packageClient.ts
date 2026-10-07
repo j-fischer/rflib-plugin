@@ -5,7 +5,10 @@ import { SfError } from '@salesforce/core';
 /** Human-facing location of the RFLIB source repository. */
 export const RFLIB_REPOSITORY_URL = 'https://github.com/j-fischer/rflib';
 
-/** Raw sfdx-project.json of the RFLIB repository; its packageAliases list every released package version. */
+/**
+ * Raw sfdx-project.json of the RFLIB repository. Its packageAliases list every package version that
+ * was created, including versions that haven't been promoted to released versions yet.
+ */
 export const RFLIB_PROJECT_URL = 'https://raw.githubusercontent.com/j-fischer/rflib/master/sfdx-project.json';
 
 /**
@@ -25,6 +28,8 @@ const INSTALLED_PACKAGES_QUERY =
   'SubscriberPackageVersion.PatchVersion, SubscriberPackageVersion.BuildNumber ' +
   'FROM InstalledSubscriberPackage';
 
+const RELEASE_STATE_QUERY = 'SELECT Id, ReleaseState FROM SubscriberPackageVersion WHERE Id = ';
+
 const RFLIB_VERSION_LABEL_QUERY = `SELECT Value FROM ExternalString WHERE Name = '${RFLIB_VERSION_LABEL}'`;
 
 export type PackageVersionNumber = {
@@ -34,10 +39,34 @@ export type PackageVersionNumber = {
   build: number;
 };
 
-export type LatestPackageVersion = {
+export type PackageVersion = {
   name: string;
   version: PackageVersionNumber;
   versionId: string;
+};
+
+/** Every version of one package listed in the RFLIB project definition, newest first. */
+export type PackageVersionHistory = {
+  name: string;
+  versions: PackageVersion[];
+};
+
+/**
+ * Release state of a package version as reported by Salesforce. NotFound means the query returned
+ * no record for the version.
+ */
+export type PackageReleaseState = 'Released' | 'Beta' | 'NotFound';
+
+export type UnreleasedPackageVersion = PackageVersion & {
+  releaseState: Exclude<PackageReleaseState, 'Released'>;
+};
+
+export type LatestReleasedPackageVersion = {
+  name: string;
+  /** The newest released version, or undefined if none of the listed versions is released. */
+  latest?: PackageVersion;
+  /** Versions newer than `latest` that were skipped because they aren't released, newest first. */
+  unreleased: UnreleasedPackageVersion[];
   /** Every version ID the project lists for this package, used to recognize the package once installed. */
   knownVersionIds: string[];
 };
@@ -49,15 +78,24 @@ export type InstalledPackage = {
   versionId: string;
 };
 
-export type PackageComparisonStatus = 'NotInstalled' | 'UpToDate' | 'UpgradeAvailable';
+export type PackageComparisonStatus = 'NotInstalled' | 'UpToDate' | 'UpgradeAvailable' | 'NoReleasedVersion';
+
+export type UnreleasedVersionInfo = {
+  version: string;
+  versionId: string;
+  releaseState: UnreleasedPackageVersion['releaseState'];
+};
 
 export type PackageComparison = {
   name: string;
   status: PackageComparisonStatus;
-  latestVersion: string;
-  latestVersionId: string;
+  /** The newest released version. Missing only if no released version of the package exists. */
+  latestVersion?: string;
+  latestVersionId?: string;
   installedVersion?: string;
   installedVersionId?: string;
+  /** Newer versions that were skipped because they aren't released. Missing if there are none. */
+  unreleasedVersions?: UnreleasedVersionInfo[];
 };
 
 export type PackageInstallStatus = 'SUCCESS' | 'ERROR' | 'IN_PROGRESS' | 'UNKNOWN';
@@ -94,6 +132,11 @@ type InstalledSubscriberPackageRow = {
   } | null;
 };
 
+type SubscriberPackageVersionRow = {
+  Id: string;
+  ReleaseState?: string;
+};
+
 type ExternalStringRow = {
   Value?: string | null;
 };
@@ -126,38 +169,40 @@ export function compareVersions(a: PackageVersionNumber, b: PackageVersionNumber
 }
 
 /**
- * Extracts the newest version of every package from an sfdx-project.json definition.
+ * Extracts every version of every package from an sfdx-project.json definition, newest first.
  * Packages are returned in packageDirectories order, which RFLIB keeps in dependency order
  * (RFLIB before RFLIB-FS before RFLIB-TF), so upgrades can be installed sequentially.
+ *
+ * The aliases don't say whether a version is released: RFLIB adds the alias when the version is
+ * created and promotes it later. Use findLatestReleasedVersions() to pick the versions to install.
  */
-export function parseLatestPackageVersions(project: unknown): LatestPackageVersion[] {
+export function parsePackageVersions(project: unknown): PackageVersionHistory[] {
   const aliases = (project as SfdxProjectLite | null)?.packageAliases;
   if (!aliases || typeof aliases !== 'object') {
     throw new SfError('The RFLIB project definition does not contain any package aliases.', 'InvalidProjectDefinition');
   }
 
-  const latestByName = new Map<string, LatestPackageVersion>();
-  const versionIdsByName = new Map<string, string[]>();
+  const versionsByName = new Map<string, PackageVersion[]>();
   for (const [alias, versionId] of Object.entries(aliases)) {
-    const candidate = toLatestPackageVersion(alias, versionId);
+    const candidate = toPackageVersion(alias, versionId);
     if (!candidate) continue;
-
-    versionIdsByName.set(candidate.name, [...(versionIdsByName.get(candidate.name) ?? []), candidate.versionId]);
-    if (isNewer(candidate, latestByName.get(candidate.name))) {
-      latestByName.set(candidate.name, candidate);
-    }
-  }
-  for (const pkg of latestByName.values()) {
-    pkg.knownVersionIds = versionIdsByName.get(pkg.name) ?? [pkg.versionId];
+    const versions = versionsByName.get(candidate.name) ?? [];
+    versions.push(candidate);
+    versionsByName.set(candidate.name, versions);
   }
 
-  return sortByDependencyOrder([...latestByName.values()], project as SfdxProjectLite);
+  const histories = [...versionsByName].map(([name, versions]) => ({
+    name,
+    versions: versions.sort((a, b) => compareVersions(b.version, a.version)),
+  }));
+  return sortByDependencyOrder(histories, project as SfdxProjectLite);
 }
 
 /**
- * Downloads the RFLIB sfdx-project.json and returns the latest version of each package.
+ * Downloads the RFLIB sfdx-project.json and returns every version of each package, newest first.
+ * The result includes versions that aren't released yet; see parsePackageVersions().
  */
-export async function fetchLatestPackageVersions(url: string = RFLIB_PROJECT_URL): Promise<LatestPackageVersion[]> {
+export async function fetchPackageVersions(url: string = RFLIB_PROJECT_URL): Promise<PackageVersionHistory[]> {
   let response: Response;
   try {
     response = await fetch(url);
@@ -184,7 +229,45 @@ export async function fetchLatestPackageVersions(url: string = RFLIB_PROJECT_URL
       'InvalidProjectDefinition',
     );
   }
-  return parseLatestPackageVersions(project);
+  return parsePackageVersions(project);
+}
+
+/**
+ * Asks Salesforce, through the Tooling API of the given org, whether a package version is released.
+ * Salesforce is the authority here: `sf package version promote` is what turns a beta version into
+ * a released one, and Salesforce refuses to install beta versions in production orgs.
+ *
+ * @throws ReleaseStateCheckFailed if the query fails, which is also what Salesforce does for an ID
+ * it doesn't know.
+ */
+export async function getPackageVersionReleaseState(conn: Connection, versionId: string): Promise<PackageReleaseState> {
+  assertPackageVersionId(versionId);
+
+  let rows: SubscriberPackageVersionRow[];
+  try {
+    rows = (await conn.tooling.query<SubscriberPackageVersionRow>(`${RELEASE_STATE_QUERY}'${versionId}'`)).records;
+  } catch (error) {
+    throw new SfError(
+      `Unable to check whether package version ${versionId} is released: ${errorMessage(error)}`,
+      'ReleaseStateCheckFailed',
+    );
+  }
+
+  const row = rows[0];
+  if (!row) return 'NotFound';
+  return row.ReleaseState === 'Released' ? 'Released' : 'Beta';
+}
+
+/**
+ * Finds the newest released version of each package. Versions are checked newest first, so usually
+ * only the newest one is queried; unreleased versions are skipped and returned in `unreleased`.
+ * Packages keep their order, so the dependency order of parsePackageVersions() is preserved.
+ */
+export async function findLatestReleasedVersions(
+  conn: Connection,
+  histories: PackageVersionHistory[],
+): Promise<LatestReleasedPackageVersion[]> {
+  return Promise.all(histories.map((history) => findLatestReleasedVersion(conn, history)));
 }
 
 /**
@@ -194,8 +277,8 @@ export async function fetchLatestPackageVersions(url: string = RFLIB_PROJECT_URL
  *
  * @param conn connection to the org to inspect.
  * @param packageNames optional package names to limit the result to, such as the names returned by
- * fetchLatestPackageVersions(). Names are compared with packageNamesMatch(). Every installed package
- * is returned when omitted.
+ * fetchPackageVersions(). Names are compared with packageNamesMatch(). Every installed package is
+ * returned when omitted.
  */
 export async function getInstalledPackages(
   conn: Connection,
@@ -249,26 +332,33 @@ export function packageNamesMatch(a: string, b: string): boolean {
 }
 
 /**
- * Matches each latest package version to its installed package. An installed version whose ID the
- * project lists for the package identifies it reliably; otherwise the package names are compared
- * with packageNamesMatch().
+ * Matches the latest released version of each package to its installed package. An installed version
+ * whose ID the project lists for the package identifies it reliably; otherwise the package names are
+ * compared with packageNamesMatch().
  */
-export function comparePackages(latest: LatestPackageVersion[], installed: InstalledPackage[]): PackageComparison[] {
+export function comparePackages(
+  latest: LatestReleasedPackageVersion[],
+  installed: InstalledPackage[],
+): PackageComparison[] {
   return latest.map((pkg): PackageComparison => {
-    const base = {
-      name: pkg.name,
-      latestVersion: formatVersion(pkg.version),
-      latestVersionId: pkg.versionId,
-    };
     const current = findInstalledPackage(pkg, installed);
-    if (!current) return { ...base, status: 'NotInstalled' };
-
-    return {
-      ...base,
-      status: compareVersions(current.version, pkg.version) < 0 ? 'UpgradeAvailable' : 'UpToDate',
-      installedVersion: formatVersion(current.version),
-      installedVersionId: current.versionId,
-    };
+    const comparison: PackageComparison = { name: pkg.name, status: comparisonStatus(pkg.latest, current) };
+    if (pkg.latest) {
+      comparison.latestVersion = formatVersion(pkg.latest.version);
+      comparison.latestVersionId = pkg.latest.versionId;
+    }
+    if (current) {
+      comparison.installedVersion = formatVersion(current.version);
+      comparison.installedVersionId = current.versionId;
+    }
+    if (pkg.unreleased.length > 0) {
+      comparison.unreleasedVersions = pkg.unreleased.map((version) => ({
+        version: formatVersion(version.version),
+        versionId: version.versionId,
+        releaseState: version.releaseState,
+      }));
+    }
+    return comparison;
   });
 }
 
@@ -283,9 +373,7 @@ export async function installPackageVersion(
   versionId: string,
   options: InstallPackageOptions,
 ): Promise<PackageInstallResult> {
-  if (!PACKAGE_VERSION_ID.test(versionId)) {
-    throw new SfError(`Invalid package version ID "${versionId}".`, 'InvalidPackageVersionId');
-  }
+  assertPackageVersionId(versionId);
 
   const saveResult = (await conn.tooling.create('PackageInstallRequest', {
     SubscriberPackageVersionKey: versionId,
@@ -334,7 +422,40 @@ async function waitForInstall(
   }
 }
 
-function findInstalledPackage(pkg: LatestPackageVersion, installed: InstalledPackage[]): InstalledPackage | undefined {
+function toInstalledPackage(row: InstalledSubscriberPackageRow): InstalledPackage {
+  const version = row.SubscriberPackageVersion;
+  return {
+    name: row.SubscriberPackage?.Name ?? '',
+    subscriberPackageId: row.SubscriberPackageId,
+    versionId: version?.Id ?? '',
+    version: {
+      major: version?.MajorVersion ?? 0,
+      minor: version?.MinorVersion ?? 0,
+      patch: version?.PatchVersion ?? 0,
+      build: version?.BuildNumber ?? 0,
+    },
+  };
+}
+
+async function findLatestReleasedVersion(
+  conn: Connection,
+  history: PackageVersionHistory,
+): Promise<LatestReleasedPackageVersion> {
+  const unreleased: UnreleasedPackageVersion[] = [];
+  const knownVersionIds = history.versions.map((version) => version.versionId);
+  for (const version of history.versions) {
+    // eslint-disable-next-line no-await-in-loop
+    const releaseState = await getPackageVersionReleaseState(conn, version.versionId);
+    if (releaseState === 'Released') return { name: history.name, latest: version, unreleased, knownVersionIds };
+    unreleased.push({ ...version, releaseState });
+  }
+  return { name: history.name, unreleased, knownVersionIds };
+}
+
+function findInstalledPackage(
+  pkg: LatestReleasedPackageVersion,
+  installed: InstalledPackage[],
+): InstalledPackage | undefined {
   const knownVersionIds = new Set(pkg.knownVersionIds.map(toShortId));
   return (
     installed.find((candidate) => knownVersionIds.has(toShortId(candidate.versionId))) ??
@@ -354,29 +475,29 @@ function toShortId(id: string): string {
   return id.slice(0, 15);
 }
 
-function toInstalledPackage(row: InstalledSubscriberPackageRow): InstalledPackage {
-  const version = row.SubscriberPackageVersion;
-  return {
-    name: row.SubscriberPackage?.Name ?? '',
-    subscriberPackageId: row.SubscriberPackageId,
-    versionId: version?.Id ?? '',
-    version: {
-      major: version?.MajorVersion ?? 0,
-      minor: version?.MinorVersion ?? 0,
-      patch: version?.PatchVersion ?? 0,
-      build: version?.BuildNumber ?? 0,
-    },
-  };
+function comparisonStatus(
+  latest: PackageVersion | undefined,
+  current: InstalledPackage | undefined,
+): PackageComparisonStatus {
+  if (!current) return 'NotInstalled';
+  if (!latest) return 'NoReleasedVersion';
+  return compareVersions(current.version, latest.version) < 0 ? 'UpgradeAvailable' : 'UpToDate';
 }
 
-function toLatestPackageVersion(alias: string, versionId: unknown): LatestPackageVersion | undefined {
+/** Rejects anything but a package version ID before it is used in SOQL or an install request. */
+function assertPackageVersionId(versionId: string): void {
+  if (!PACKAGE_VERSION_ID.test(versionId)) {
+    throw new SfError(`Invalid package version ID "${versionId}".`, 'InvalidPackageVersionId');
+  }
+}
+
+function toPackageVersion(alias: string, versionId: unknown): PackageVersion | undefined {
   const groups = PACKAGE_VERSION_ALIAS.exec(alias)?.groups;
   if (!groups || typeof versionId !== 'string' || !PACKAGE_VERSION_ID.test(versionId)) return undefined;
 
   return {
     name: groups.name,
     versionId,
-    knownVersionIds: [versionId],
     version: {
       major: Number(groups.major),
       minor: Number(groups.minor),
@@ -386,11 +507,7 @@ function toLatestPackageVersion(alias: string, versionId: unknown): LatestPackag
   };
 }
 
-function isNewer(candidate: LatestPackageVersion, current: LatestPackageVersion | undefined): boolean {
-  return !current || compareVersions(candidate.version, current.version) > 0;
-}
-
-function sortByDependencyOrder(packages: LatestPackageVersion[], project: SfdxProjectLite): LatestPackageVersion[] {
+function sortByDependencyOrder(packages: PackageVersionHistory[], project: SfdxProjectLite): PackageVersionHistory[] {
   const directoryOrder = (project.packageDirectories ?? [])
     .map((dir) => dir.package)
     .filter((name): name is string => typeof name === 'string');

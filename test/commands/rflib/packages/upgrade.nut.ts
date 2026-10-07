@@ -65,7 +65,11 @@ describe('rflib packages upgrade NUTs', () => {
 
   const harness = setupNut({
     tooling: {
-      query: () => installedRows,
+      // Every package version in rflibProject is released.
+      query: (soql) =>
+        soql.includes('FROM SubscriberPackageVersion')
+          ? [{ Id: /'(?<id>04t\w+)'/.exec(soql)?.groups?.id, ReleaseState: 'Released' }]
+          : installedRows,
       create: (object, record) =>
         Promise.resolve({ success: true, id: `0Hf${String(record.SubscriberPackageVersionKey).slice(3, 15)}` }),
       retrieve: (object, id) => {
@@ -121,7 +125,9 @@ describe('rflib packages upgrade NUTs', () => {
 
     const table = uxStubs.table.firstCall.args[0];
     expect(table.data.map((row) => row.name)).to.deep.equal(['RFLIB', 'RFLIB-FS', 'RFLIB-TF']);
-    expect(logged()).to.include('RFLIB-PHAROS is not installed in the target org. The latest version is 1.0.0-5');
+    expect(logged()).to.include(
+      'RFLIB-PHAROS is not installed in the target org. The latest released version is 1.0.0-5',
+    );
     expect(logged()).to.include('Dry run: no upgrades were installed.');
   });
 
@@ -231,7 +237,7 @@ describe('rflib packages upgrade NUTs', () => {
     expect(confirmStub.called).to.equal(false);
     expect(harness.toolingCreates).to.deep.equal([]);
     expect(uxStubs.table.called).to.equal(false);
-    expect(logged()).to.include('RFLIB is not installed in the target org. The latest version is 11.3.1-1');
+    expect(logged()).to.include('RFLIB is not installed in the target org. The latest released version is 11.3.1-1');
     expect(logged()).to.include('No RFLIB packages are installed in the target org.');
   });
 

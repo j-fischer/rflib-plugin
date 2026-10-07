@@ -3,8 +3,8 @@ import * as path from 'node:path';
 import { SfCommand, Flags } from '@salesforce/sf-plugins-core';
 import { Messages, Logger } from '@salesforce/core';
 import * as prettier from 'prettier';
-import { minimatch } from 'minimatch';
 import { processWithConcurrency } from '../../../../shared/concurrency.js';
+import { isExcluded } from '../../../../shared/exclude.js';
 
 import { IfCondition, InstrumentationOptions } from '../../../../shared/types.js';
 import { writeInstrumentedFile } from '../../../../shared/formatting.js';
@@ -280,7 +280,7 @@ export default class RflibLoggingAuraInstrument extends SfCommand<RflibLoggingAu
 
     // Case 1: The sourcepath points directly to a component (inside an 'aura' folder)
     if (parentName === 'aura') {
-      if (excludePattern && minimatch(dirPath, excludePattern, { matchBase: true })) {
+      if (isExcluded(dirPath, excludePattern)) {
         this.logger.debug(`Skipping excluded path: ${dirPath}`);
         return [];
       }
@@ -297,7 +297,7 @@ export default class RflibLoggingAuraInstrument extends SfCommand<RflibLoggingAu
         .filter(entry => entry.isDirectory())
         .map(entry => {
           const cmpPath = path.join(dirPath, entry.name);
-          if (excludePattern && minimatch(cmpPath, excludePattern, { matchBase: true })) {
+          if (isExcluded(cmpPath, excludePattern)) {
             this.logger.debug(`Skipping excluded path: ${cmpPath}`);
             return null;
           }
