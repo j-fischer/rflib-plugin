@@ -15,6 +15,8 @@ import {
   compareVersions,
   formatVersion,
   getInstalledPackages,
+  getRflibVersionFromLabel,
+  RFLIB_VERSION_LABEL,
   type PackageVersionNumber,
 } from '../../../../shared/packageClient.js';
 
@@ -32,6 +34,21 @@ const RFLIB_PACKAGE_NAME = 'RFLIB';
 // First RFLIB version whose Log Message flow action has the Terminate Transaction option,
 // which the fault paths created by this command rely on
 const FAULT_PATH_MIN_RFLIB_VERSION: Readonly<PackageVersionNumber> = { major: 11, minor: 4, patch: 0, build: 0 };
+
+// Formats a version the way the RFLIB_Version label shows it, e.g. 11.4.0
+const formatLabelVersion = (version: Readonly<PackageVersionNumber>): string =>
+  `${version.major}.${version.minor}.${version.patch}`;
+
+type RflibVersion = { version: PackageVersionNumber; deployedAsSource: boolean };
+
+// Prefers the installed RFLIB package and falls back to the version label of RFLIB deployed as source
+const getRflibVersion = async (conn: Connection): Promise<RflibVersion | undefined> => {
+  const [rflibPackage] = await getInstalledPackages(conn, [RFLIB_PACKAGE_NAME]);
+  if (rflibPackage) return { version: rflibPackage.version, deployedAsSource: false };
+
+  const labelVersion = await getRflibVersionFromLabel(conn);
+  return labelVersion && { version: labelVersion, deployedAsSource: true };
+};
 
 export class FlowInstrumentationService {
   private static readonly parser = new xml2js.Parser({
@@ -897,23 +914,37 @@ export default class RflibLoggingFlowInstrument extends SfCommand<RflibLoggingFl
     return { ...this.stats };
   }
 
-  // Fault paths are only instrumented if the RFLIB package in the target org supports terminating the transaction
+  // Fault paths are only instrumented if the RFLIB version in the target org supports terminating the transaction.
+  // The version comes from the installed RFLIB package or, in orgs where RFLIB was deployed as source, from its
+  // version label. Failing to determine it skips the fault paths rather than failing the command.
   private async isFaultPathLoggingSupported(conn: Connection): Promise<boolean> {
-    const minVersion = `${FAULT_PATH_MIN_RFLIB_VERSION.major}.${FAULT_PATH_MIN_RFLIB_VERSION.minor}.${FAULT_PATH_MIN_RFLIB_VERSION.patch}`;
-    const [rflib] = await getInstalledPackages(conn, [RFLIB_PACKAGE_NAME]);
+    const minVersion = formatLabelVersion(FAULT_PATH_MIN_RFLIB_VERSION);
+
+    let rflib: RflibVersion | undefined;
+    try {
+      rflib = await getRflibVersion(conn);
+    } catch (error) {
+      const reason = error instanceof Error ? error.message : String(error);
+      this.warn(messages.getMessage('warning.faultPaths.versionCheckFailed', [reason, minVersion]));
+      return false;
+    }
 
     if (!rflib) {
-      this.warn(messages.getMessage('warning.faultPaths.rflibNotInstalled', [minVersion]));
+      this.warn(messages.getMessage('warning.faultPaths.rflibNotInstalled', [RFLIB_VERSION_LABEL, minVersion]));
       return false;
     }
 
-    const installedVersion = formatVersion(rflib.version);
+    const version = rflib.deployedAsSource ? formatLabelVersion(rflib.version) : formatVersion(rflib.version);
     if (compareVersions(rflib.version, FAULT_PATH_MIN_RFLIB_VERSION) < 0) {
-      this.warn(messages.getMessage('warning.faultPaths.rflibOutdated', [installedVersion, minVersion]));
+      this.warn(
+        rflib.deployedAsSource
+          ? messages.getMessage('warning.faultPaths.rflibSourceOutdated', [version, RFLIB_VERSION_LABEL, minVersion])
+          : messages.getMessage('warning.faultPaths.rflibOutdated', [version, minVersion])
+      );
       return false;
     }
 
-    this.logger.debug(`RFLIB ${installedVersion} supports fault path logging`);
+    this.logger.debug(`RFLIB ${version}${rflib.deployedAsSource ? ' (deployed as source)' : ''} supports fault path logging`);
     return true;
   }
 

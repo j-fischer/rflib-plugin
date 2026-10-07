@@ -91,18 +91,26 @@ const installedRflib = (major: number, minor: number, patch: number, build: numb
 
 describe('rflib logging flow instrument NUTs', () => {
   let installedPackages: Array<Record<string, unknown>> = [];
+  // RFLIB_Version custom label rows, which exist in orgs where RFLIB was deployed as source
+  let versionLabels: Array<Record<string, unknown>> = [];
+  let toolingError: Error | undefined;
   let tempDir: string;
   let srcDir: string;
   let uxStubs: ReturnType<typeof stubSfCommandUx>;
 
   const harness = setupNut({
     tooling: {
-      query: () => installedPackages,
+      query: (soql) => {
+        if (toolingError) throw toolingError;
+        return soql.includes('FROM ExternalString') ? versionLabels : installedPackages;
+      },
     },
   });
 
   beforeEach(() => {
     installedPackages = [installedRflib(11, 4, 0, 1)];
+    versionLabels = [];
+    toolingError = undefined;
     uxStubs = stubSfCommandUx(harness.$$.SANDBOX);
   });
 
@@ -463,14 +471,56 @@ describe('rflib logging flow instrument NUTs', () => {
     await expectFaultPathsSkipped(faultFlowPath);
   });
 
-  it('should skip fault paths with a warning if RFLIB is not installed as a package in the target org', async () => {
+  it('should skip fault paths with a warning if RFLIB is neither installed as a package nor deployed as source', async () => {
     installedPackages = [];
     const faultFlowPath = await copyFaultPathSample();
 
     await instrument();
 
+    expect(harness.toolingQueries).to.have.lengthOf(2);
+    expect(harness.toolingQueries[1]).to.include("FROM ExternalString WHERE Name = 'RFLIB_Version'");
     expect(warnings()).to.have.lengthOf(1);
-    expect(warnings()[0]).to.include('RFLIB is not installed as a package in the target org');
+    expect(warnings()[0]).to.include('RFLIB was not found in the target org');
+    await expectFaultPathsSkipped(faultFlowPath);
+  });
+
+  it('should instrument fault paths if RFLIB 11.4.0 or later was deployed as source', async () => {
+    installedPackages = [];
+    versionLabels = [{ Value: '11.4.0' }];
+    const faultFlowPath = await copyFaultPathSample();
+
+    await instrument();
+
+    expect(harness.toolingQueries[0]).to.include('FROM InstalledSubscriberPackage');
+    expect(harness.toolingQueries[1]).to.include('FROM ExternalString');
+    expect(warnings()).to.deep.equal([]);
+
+    const modifiedFlow = await parseXml(await fs.promises.readFile(faultFlowPath, 'utf8'));
+    expect(modifiedFlow.Flow.recordCreates?.faultConnector?.targetReference).to.match(/^RFLIB_Flow_Logger_Fault_/);
+  });
+
+  it('should skip fault paths with a warning if the RFLIB source deployed to the target org is before 11.4.0', async () => {
+    installedPackages = [];
+    versionLabels = [{ Value: '11.3.1' }];
+    const faultFlowPath = await copyFaultPathSample();
+
+    await instrument();
+
+    expect(warnings()).to.have.lengthOf(1);
+    expect(warnings()[0]).to.include('the RFLIB source deployed to the target org is version 11.3.1');
+    expect(warnings()[0]).to.include('requires RFLIB 11.4.0 or later');
+    await expectFaultPathsSkipped(faultFlowPath);
+  });
+
+  it('should skip fault paths with a warning instead of failing if the RFLIB version cannot be determined', async () => {
+    toolingError = new Error('INVALID_TYPE: sObject type is not supported');
+    const faultFlowPath = await copyFaultPathSample();
+
+    await instrument();
+
+    expect(warnings()).to.have.lengthOf(1);
+    expect(warnings()[0]).to.include('the RFLIB version of the target org could not be determined');
+    expect(warnings()[0]).to.include('INVALID_TYPE: sObject type is not supported');
     await expectFaultPathsSkipped(faultFlowPath);
   });
 
