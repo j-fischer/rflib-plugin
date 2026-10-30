@@ -1,3 +1,12 @@
+## [0.21.5](https://github.com/j-fischer/rflib-plugin/compare/0.21.4...0.21.5) (2026-10-30)
+
+
+### Bug Fixes
+
+* **deps:** bump source-map-js from 1.2.1 to 1.2.2 ([#277](https://github.com/j-fischer/rflib-plugin/issues/277)) ([9a9b42c](https://github.com/j-fischer/rflib-plugin/commit/9a9b42ca439d4b1eb38678289f171db32d6a53da))
+
+
+
 ## [0.21.4](https://github.com/j-fischer/rflib-plugin/compare/0.21.3...0.21.4) (2026-10-30)
 
 
