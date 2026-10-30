@@ -1,3 +1,12 @@
+## [0.21.7](https://github.com/j-fischer/rflib-plugin/compare/0.21.6...0.21.7) (2026-10-30)
+
+
+### Bug Fixes
+
+* **deps:** bump markdown-it from 14.3.1 to 14.3.3 ([#280](https://github.com/j-fischer/rflib-plugin/issues/280)) ([76014ca](https://github.com/j-fischer/rflib-plugin/commit/76014cae321ee179cc42ca88e5026d2bb2041ce1))
+
+
+
 ## [0.21.6](https://github.com/j-fischer/rflib-plugin/compare/0.21.5...0.21.6) (2026-10-30)
 
 
