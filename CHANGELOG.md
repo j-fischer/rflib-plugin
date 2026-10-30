@@ -1,3 +1,12 @@
+## [0.21.9](https://github.com/j-fischer/rflib-plugin/compare/0.21.8...0.21.9) (2026-10-30)
+
+
+### Bug Fixes
+
+* **deps:** bump fast-uri from 3.1.7 to 3.1.9 ([#284](https://github.com/j-fischer/rflib-plugin/issues/284)) ([39fad0f](https://github.com/j-fischer/rflib-plugin/commit/39fad0fd0df8930bb006d08dc9b1e71f4be60ea9))
+
+
+
 ## [0.21.8](https://github.com/j-fischer/rflib-plugin/compare/0.21.7...0.21.8) (2026-10-30)
 
 
