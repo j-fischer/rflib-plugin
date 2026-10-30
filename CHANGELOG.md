@@ -1,3 +1,12 @@
+## [0.21.8](https://github.com/j-fischer/rflib-plugin/compare/0.21.7...0.21.8) (2026-10-30)
+
+
+### Bug Fixes
+
+* **deps:** bump undici from 8.10.0 to 8.12.3 ([#282](https://github.com/j-fischer/rflib-plugin/issues/282)) ([ec19ea8](https://github.com/j-fischer/rflib-plugin/commit/ec19ea837ca6cebb15b31673a7efd156fd13720a))
+
+
+
 ## [0.21.7](https://github.com/j-fischer/rflib-plugin/compare/0.21.6...0.21.7) (2026-10-30)
 
 
