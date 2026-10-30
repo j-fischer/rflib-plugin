@@ -1,3 +1,12 @@
+## [0.21.10](https://github.com/j-fischer/rflib-plugin/compare/0.21.9...0.21.10) (2026-10-30)
+
+
+### Bug Fixes
+
+* **packages:** recognize RFLIB-TF installed as RFLIB_TF; detect RFLIB deployed as source ([#271](https://github.com/j-fischer/rflib-plugin/issues/271)) ([6343bd6](https://github.com/j-fischer/rflib-plugin/commit/6343bd61b13c513b902ca5011a92e2e9d69b15ef))
+
+
+
 ## [0.21.9](https://github.com/j-fischer/rflib-plugin/compare/0.21.8...0.21.9) (2026-10-30)
 
 
