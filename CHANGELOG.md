@@ -1,3 +1,12 @@
+## [0.23.4](https://github.com/j-fischer/rflib-plugin/compare/0.23.3...0.23.4) (2026-10-30)
+
+
+### Bug Fixes
+
+* **deps:** bump picomatch from 2.3.1 to 2.3.2 ([#289](https://github.com/j-fischer/rflib-plugin/issues/289)) ([8424cb5](https://github.com/j-fischer/rflib-plugin/commit/8424cb5b105f6eb4545163898b72fda8800cfba9))
+
+
+
 ## [0.23.3](https://github.com/j-fischer/rflib-plugin/compare/0.23.2...0.23.3) (2026-10-30)
 
 
