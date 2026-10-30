@@ -1,3 +1,12 @@
+# [0.23.0](https://github.com/j-fischer/rflib-plugin/compare/0.22.0...0.23.0) (2026-10-30)
+
+
+### Features
+
+* **debug:** add whohas, compare, recordaccess, and effective permissions ([#285](https://github.com/j-fischer/rflib-plugin/issues/285)) ([d69abdf](https://github.com/j-fischer/rflib-plugin/commit/d69abdf6d82e9a85c8b2c2b34197290d0870db4c))
+
+
+
 # [0.22.0](https://github.com/j-fischer/rflib-plugin/compare/0.21.10...0.22.0) (2026-10-30)
 
 
