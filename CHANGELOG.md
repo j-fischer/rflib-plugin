@@ -1,3 +1,12 @@
+## [0.21.4](https://github.com/j-fischer/rflib-plugin/compare/0.21.3...0.21.4) (2026-10-30)
+
+
+### Bug Fixes
+
+* **deps:** bump fast-copy from 3.0.2 to 3.1.0 ([#276](https://github.com/j-fischer/rflib-plugin/issues/276)) ([11888ec](https://github.com/j-fischer/rflib-plugin/commit/11888ecb7c047c568addbd7c3f797a17c40a120d))
+
+
+
 ## [0.21.3](https://github.com/j-fischer/rflib-plugin/compare/0.21.2...0.21.3) (2026-10-30)
 
 
