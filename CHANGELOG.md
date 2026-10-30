@@ -1,3 +1,12 @@
+## [0.23.1](https://github.com/j-fischer/rflib-plugin/compare/0.23.0...0.23.1) (2026-10-30)
+
+
+### Bug Fixes
+
+* **deps:** bump zod from 4.2.1 to 4.6.7 ([#286](https://github.com/j-fischer/rflib-plugin/issues/286)) ([615da95](https://github.com/j-fischer/rflib-plugin/commit/615da959d50c5b7ce1f115a0e149d1366b6145eb))
+
+
+
 # [0.23.0](https://github.com/j-fischer/rflib-plugin/compare/0.22.0...0.23.0) (2026-10-30)
 
 
