@@ -102,6 +102,8 @@ export type UpdateLoggerSettingResult = {
 
 export { getUserPermissions };
 export type { GetUserPermissionsArgs, PermissionType } from './permissionAggregator.js';
+export { ACCESS_LEVELS, checkUserPermission } from './permissionCheck.js';
+export type { CheckUserPermissionArgs, CheckUserPermissionResult, PermissionSource } from './permissionCheck.js';
 
 function escapeSingleQuotes(value: string): string {
   return value.replace(/\\/g, '\\\\').replace(/'/g, "\\'");
@@ -150,10 +152,7 @@ function wrapMissingObject<T>(error: unknown, objectName: string): T {
   throw new Error(typeof error === 'string' ? error : JSON.stringify(error));
 }
 
-export async function queryLogArchives(
-  conn: Connection,
-  args: QueryLogArchivesArgs = {},
-): Promise<LogArchivesResult> {
+export async function queryLogArchives(conn: Connection, args: QueryLogArchivesArgs = {}): Promise<LogArchivesResult> {
   const now = new Date();
   const oneDayAgo = new Date(now.getTime() - 24 * 60 * 60 * 1000);
   const startDate = parseDateTime(args.startDate, oneDayAgo)!;
@@ -292,11 +291,7 @@ export async function getLoggerSettings(conn: Connection): Promise<LoggerSetting
   }
 
   const settings: LoggerSettingRecord[] = rawRecords.map((row) => {
-    const scope = detectScope(
-      row.SetupOwnerId,
-      (id) => profileMap.get(id),
-      row.SetupOwner?.Name,
-    );
+    const scope = detectScope(row.SetupOwnerId, (id) => profileMap.get(id), row.SetupOwner?.Name);
     const fieldValues: Record<string, unknown> = {};
     for (const fieldName of customFieldNames) {
       const value = row[fieldName];
