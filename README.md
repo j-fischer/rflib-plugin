@@ -269,6 +269,59 @@ sf rflib debug userpermissions get --target-org myOrg --user-id 0057000000XXXXXX
 
 ---
 
+### `sf rflib debug userpermissions check`
+
+Check whether a user has one specific permission, and which profile, permission sets, and permission set groups grant it. Where `userpermissions get` returns the raw permission records, `check` answers a single question with a verdict, which makes it a good fit for scripts and AI agents.
+
+```bash
+# Can the user edit a field?
+sf rflib debug userpermissions check --target-org myOrg --user jane@example.com --field Account.AnnualRevenue --access edit
+
+# Can the user delete Opportunity records?
+sf rflib debug userpermissions check --target-org myOrg --user 0057000000XXXXXX --object Opportunity --access delete
+
+# Apex class, Visualforce page, custom permission, and system permission access
+sf rflib debug userpermissions check --target-org myOrg --user jane@example.com --apex-class OrderController
+sf rflib debug userpermissions check --target-org myOrg --user jane@example.com --apex-page OrderPage
+sf rflib debug userpermissions check --target-org myOrg --user jane@example.com --custom-permission Approve_Discounts
+sf rflib debug userpermissions check --target-org myOrg --user jane@example.com --system-permission ModifyAllData
+```
+
+Example output:
+
+```text
+NOT GRANTED: jane@example.com doesn't have Edit access on Account.AnnualRevenue.
+Granted by:
+  Permission Set "Sales Reports" (PermissionsEdit)
+Note: The user has field-level access, but no Edit permission on Account, so the field isn't accessible.
+```
+
+With `--json`, the result contains `granted`, a one-line `summary`, the granting `sources`, and `notes`. Field checks also return `fieldPermissionGranted` and the user's Read and Edit access on the object (`objectAccess`).
+
+The check follows the Salesforce permission rules:
+
+- A field is only accessible when the user also has the matching permission on the object. View All Fields on the object grants Read on all of its fields. Fields without field-level security (such as `Id` or `Name`) follow the object permission, and formula and auto-number fields can't be edited.
+- Access to Apex classes and Visualforce pages includes access granted by the Author Apex and Customize Application system permissions.
+- Inactive users are reported in the notes.
+- Sharing and record-level access aren't checked.
+
+The command only reads standard setup objects, so the RFLIB package doesn't need to be installed. The running user needs the View Setup and Configuration permission.
+
+#### Command Options
+
+- `--target-org (-o)`: Username or alias of the target org *(required)*
+- `--user (-u)`: User ID (15 or 18 character) or username *(required)*
+- Exactly one of:
+  - `--object (-b)`: Object API name, e.g. `Account`
+  - `--field (-f)`: Field in the form `Object.Field`, e.g. `Account.AnnualRevenue`
+  - `--apex-class`: Apex class name; use `namespace__Name` or `namespace.Name` for managed classes
+  - `--apex-page`: Visualforce page name; use `namespace__Name` for managed pages
+  - `--custom-permission`: Custom permission API name
+  - `--system-permission`: System permission API name, e.g. `ModifyAllData`, `ViewSetup`, `ApiEnabled`
+- `--access (-a)`: Access level for `--object` or `--field` (default: `read`). Objects: `read`, `create`, `edit`, `delete`, `viewall`, `modifyall`, `viewallfields`. Fields: `read`, `edit`.
+
+---
+
 ## RFLIB Package Commands
 
 ### `sf rflib packages upgrade`

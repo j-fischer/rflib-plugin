@@ -29,7 +29,7 @@ const APEX_ORDER = ' ORDER BY Parent.Profile.Name, Parent.Label';
 
 const APEX_CONDITIONS = " AND (SetupEntityType = 'ApexClass' OR SetupEntityType = 'ApexPage')";
 
-const ID_PATTERN = /^(?:[a-zA-Z0-9]{15}|[a-zA-Z0-9]{18})$/;
+export const ID_PATTERN = /^(?:[a-zA-Z0-9]{15}|[a-zA-Z0-9]{18})$/;
 const SOBJECT_PATTERN = /^[A-Za-z][A-Za-z0-9_]*$/;
 
 export type PermissionType = 'FLS' | 'OLS' | 'APEX' | 'ALL';
@@ -40,12 +40,16 @@ export type GetUserPermissionsArgs = {
   sobjectType?: string;
 };
 
-type UserPermDetails = {
+/** The profile, permission sets, and permission set groups that grant a user's permissions. */
+export type PermissionSourceIds = {
   profileId: string;
-  profileName: string;
-  permissionSetNames: string;
   permissionSetIds: string[];
   permissionSetGroupIds: string[];
+};
+
+type UserPermDetails = PermissionSourceIds & {
+  profileName: string;
+  permissionSetNames: string;
 };
 
 type UserRow = { Id: string; ProfileId: string; Profile?: { Name?: string } } & Record<string, unknown>;
@@ -61,13 +65,13 @@ function validateId(value: string, label: string): void {
   }
 }
 
-function escapeSingleQuotes(value: string): string {
+export function escapeSingleQuotes(value: string): string {
   return value.replace(/\\/g, '\\\\').replace(/'/g, "\\'");
 }
 
-type QueryAllResult<T> = { records: T[]; truncated: boolean };
+export type QueryAllResult<T> = { records: T[]; truncated: boolean };
 
-async function queryAll<T extends Record<string, unknown>>(
+export async function queryAll<T extends Record<string, unknown>>(
   conn: Connection,
   soql: string,
 ): Promise<QueryAllResult<T>> {
@@ -130,11 +134,11 @@ async function getUserPermDetails(conn: Connection, userId: string): Promise<Use
   };
 }
 
-function buildIdList(ids: readonly string[]): string {
+export function buildIdList(ids: readonly string[]): string {
   return "('" + ids.map(escapeSingleQuotes).join("','") + "')";
 }
 
-function buildUserCondition(details: UserPermDetails): string {
+export function buildUserCondition(details: PermissionSourceIds): string {
   // FieldPermissions / ObjectPermissions / SetupEntityAccess rows are always keyed by
   // ParentId = PermissionSet. Permission Set Groups don't show up under ParentId — the
   // group's effective grants live on an auto-generated PermissionSet whose
