@@ -1,3 +1,12 @@
+# [0.22.0](https://github.com/j-fischer/rflib-plugin/compare/0.21.10...0.22.0) (2026-10-30)
+
+
+### Features
+
+* **debug:** add userpermissions check command ([#283](https://github.com/j-fischer/rflib-plugin/issues/283)) ([29c4dbb](https://github.com/j-fischer/rflib-plugin/commit/29c4dbbfb7550b237e697a74701f0e25f810b050))
+
+
+
 ## [0.21.10](https://github.com/j-fischer/rflib-plugin/compare/0.21.9...0.21.10) (2026-10-30)
 
 
