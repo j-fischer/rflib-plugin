@@ -1,7 +1,8 @@
 import { SfCommand, Flags } from '@salesforce/sf-plugins-core';
 import { Messages } from '@salesforce/core';
-import { getUserPermissions, type PermissionType } from '../../../../shared/orgClient.js';
+import { getEffectivePermissions, getUserPermissions, type PermissionType } from '../../../../shared/orgClient.js';
 
+// With --effective, the result has the shape of EffectivePermissions.
 export type RflibDebugUserPermissionsGetResult = Record<string, unknown>;
 
 Messages.importMessagesDirectoryFromMetaUrl(import.meta.url);
@@ -37,6 +38,12 @@ export default class RflibDebugUserPermissionsGet extends SfCommand<RflibDebugUs
       description: messages.getMessage('flags.sobject-type.description'),
       char: 'b',
     }),
+    effective: Flags.boolean({
+      summary: messages.getMessage('flags.effective.summary'),
+      description: messages.getMessage('flags.effective.description'),
+      char: 'e',
+      default: false,
+    }),
   };
 
   public async run(): Promise<RflibDebugUserPermissionsGetResult> {
@@ -44,11 +51,18 @@ export default class RflibDebugUserPermissionsGet extends SfCommand<RflibDebugUs
     const conn = flags['target-org'].getConnection(undefined);
 
     this.spinner.start('Retrieving user permissions...');
-    const payload = await getUserPermissions(conn, {
-      userId: flags['user-id'],
-      permissionType: flags['permission-type'] as PermissionType,
-      sobjectType: flags['sobject-type'],
-    });
+    const permissionType = flags['permission-type'] as PermissionType;
+    const payload = flags.effective
+      ? await getEffectivePermissions(conn, {
+          user: flags['user-id'],
+          permissionType,
+          sobjectType: flags['sobject-type'],
+        })
+      : await getUserPermissions(conn, {
+          userId: flags['user-id'],
+          permissionType,
+          sobjectType: flags['sobject-type'],
+        });
     this.spinner.stop();
 
     // For human invocations, render the payload as JSON. Under --json, SfCommand
