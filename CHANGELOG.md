@@ -1,3 +1,12 @@
+## [0.23.3](https://github.com/j-fischer/rflib-plugin/compare/0.23.2...0.23.3) (2026-10-30)
+
+
+### Bug Fixes
+
+* **deps:** bump js-yaml from 3.15.1 to 3.15.2 ([#288](https://github.com/j-fischer/rflib-plugin/issues/288)) ([9938eb6](https://github.com/j-fischer/rflib-plugin/commit/9938eb65e43e3d2916cfac5ff8868bd723a717ff))
+
+
+
 ## [0.23.2](https://github.com/j-fischer/rflib-plugin/compare/0.23.1...0.23.2) (2026-10-30)
 
 
