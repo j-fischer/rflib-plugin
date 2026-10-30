@@ -258,7 +258,25 @@ sf rflib debug userpermissions get --target-org myOrg --user-id 0057000000XXXXXX
 
 # Check Apex class/page access
 sf rflib debug userpermissions get --target-org myOrg --user-id 0057000000XXXXXX --permission-type APEX
+
+# Get the combined permissions of a user, including custom and system permissions
+sf rflib debug userpermissions get --target-org myOrg --user-id 0057000000XXXXXX --permission-type ALL --effective
 ```
+
+By default, the command returns the raw permission records of each profile, permission set, and permission set group. With `--effective`, it merges them into the user's combined permissions instead:
+
+```json
+{
+  "objects": { "Account": ["read", "create", "edit", "delete"] },
+  "fields": { "Account.AnnualRevenue": ["read", "edit"] },
+  "apexClasses": ["OrderController", "rflib__Logger"],
+  "apexPages": [],
+  "customPermissions": ["Approve_Discounts"],
+  "systemPermissions": ["ApiEnabled", "ViewSetup"]
+}
+```
+
+Field access is only listed where the user also has that access on the object. Fields without field-level security, such as `Id` or required fields, aren't listed because they follow the object permission. Custom and system permissions are only included for `--permission-type ALL`. With `--effective`, `--user-id` also accepts a username.
 
 #### Command Options
 
@@ -266,6 +284,7 @@ sf rflib debug userpermissions get --target-org myOrg --user-id 0057000000XXXXXX
 - `--user-id (-u)`: Salesforce User ID (15 or 18 character) *(required)*
 - `--permission-type (-t)`: Type of permissions: `FLS`, `OLS`, `APEX`, or `ALL` *(required)*
 - `--sobject-type (-b)`: Optional SObject API name to filter FLS or OLS results (e.g. `Account`)
+- `--effective (-e)`: Return the combined permissions instead of the raw permission records
 
 ---
 
@@ -319,6 +338,91 @@ The command only reads standard setup objects, so the RFLIB package doesn't need
   - `--custom-permission`: Custom permission API name
   - `--system-permission`: System permission API name, e.g. `ModifyAllData`, `ViewSetup`, `ApiEnabled`
 - `--access (-a)`: Access level for `--object` or `--field` (default: `read`). Objects: `read`, `create`, `edit`, `delete`, `viewall`, `modifyall`, `viewallfields`. Fields: `read`, `edit`.
+
+---
+
+### `sf rflib debug userpermissions whohas`
+
+The reverse of `userpermissions check`: find the users who have a specific permission, and the profiles, permission sets, and permission set groups that grant it.
+
+```bash
+# Who can edit a field?
+sf rflib debug userpermissions whohas --target-org myOrg --field Account.AnnualRevenue --access edit
+
+# Who has Modify All Data?
+sf rflib debug userpermissions whohas --target-org myOrg --system-permission ModifyAllData
+
+# Who can access an Apex class, including inactive users?
+sf rflib debug userpermissions whohas --target-org myOrg --apex-class OrderController --include-inactive
+```
+
+The same permission rules as `userpermissions check` apply. For example, a field check only includes users who also have the matching access on the object, and an Apex class check includes users with Author Apex. The result lists the granting sources with the number of matching users for each, and the users with the sources that give them the access. Sources that grant the access but have no matching users are only counted (`unassignedSourceCount`).
+
+#### Command Options
+
+- `--target-org (-o)`: Username or alias of the target org *(required)*
+- Exactly one of `--object (-b)`, `--field (-f)`, `--apex-class`, `--apex-page`, `--custom-permission`, or `--system-permission`, as for `userpermissions check`
+- `--access (-a)`: Access level for `--object` or `--field` (default: `read`)
+- `--include-inactive`: Include inactive users (default: only active users)
+- `--user-limit (-l)`: Maximum number of users to return, 1–2000 (default: 200). The total is always returned in `userCount`.
+
+---
+
+### `sf rflib debug userpermissions compare`
+
+Compare the permissions of two users and show only the differences, for example to find out why something works for one user but not for another.
+
+```bash
+# Compare all permissions
+sf rflib debug userpermissions compare --target-org myOrg --user jane@example.com --other-user bob@example.com
+
+# Compare object and field access on Account
+sf rflib debug userpermissions compare --target-org myOrg --user jane@example.com --other-user bob@example.com --permission-type FLS --sobject-type Account
+```
+
+Example output:
+
+```text
+Comparing jane@example.com with bob@example.com
+Objects:
+  Account: only bob@example.com has delete, viewall
+Fields:
+  Account.AnnualRevenue: only bob@example.com has edit
+System permissions:
+  only bob@example.com has ModifyAllData
+```
+
+The comparison uses the same combined permissions as `userpermissions get --effective`. In large orgs, use `--sobject-type` to keep the field comparison below the query row limit.
+
+#### Command Options
+
+- `--target-org (-o)`: Username or alias of the target org *(required)*
+- `--user (-u)`: User ID or username of the first user *(required)*
+- `--other-user (-w)`: User ID or username of the second user *(required)*
+- `--permission-type (-t)`: `FLS`, `OLS`, `APEX`, or `ALL` (default: `ALL`, which also compares custom and system permissions)
+- `--sobject-type (-b)`: Optional SObject API name to limit the object and field comparison to
+
+---
+
+### `sf rflib debug recordaccess get`
+
+Check a user's access to specific records, including sharing (org-wide defaults, role hierarchy, sharing rules, teams, and manual shares), with `UserRecordAccess`.
+
+```bash
+sf rflib debug recordaccess get --target-org myOrg --user jane@example.com --record-id 001XXXXXXXXXXXXXXX --record-id 006XXXXXXXXXXXXXXX
+```
+
+For each record, the result contains the read, edit, delete, transfer, and full access flags, the highest access level, and the user's object permissions on the record's object. The notes tell apart missing object permissions from missing sharing, for example:
+
+```text
+001XXXXXXXXXXXXXXX: The user has Read on Account, but sharing doesn't give them access to this record. Check the org-wide default, role hierarchy, sharing rules, teams, and manual shares.
+```
+
+#### Command Options
+
+- `--target-org (-o)`: Username or alias of the target org *(required)*
+- `--user (-u)`: User ID or username *(required)*
+- `--record-id (-r)`: ID of a record to check; specify up to 200 times *(required)*
 
 ---
 

@@ -24,6 +24,7 @@ export type MockConnectionOptions = {
   query?: QueryHandler;
   queryMore?: QueryMoreHandler;
   describe?: DescribeHandler;
+  describeGlobal?: () => unknown;
   create?: SaveHandler;
   update?: SaveHandler;
   tooling?: ToolingHandlers;
@@ -70,6 +71,7 @@ export function buildMockConnection(opts: MockConnectionOptions): { conn: Connec
       const value = opts.queryMore?.(url) ?? [];
       return Promise.resolve(wrapQueryResult<T>(value));
     },
+    describeGlobal: (): Promise<unknown> => Promise.resolve(opts.describeGlobal?.() ?? { sobjects: [] }),
     sobject: (objectName: string) => ({
       describe: (): Promise<unknown> => {
         calls.describes.push(objectName);

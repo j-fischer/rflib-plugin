@@ -104,6 +104,17 @@ export { getUserPermissions };
 export type { GetUserPermissionsArgs, PermissionType } from './permissionAggregator.js';
 export { ACCESS_LEVELS, checkUserPermission } from './permissionCheck.js';
 export type { CheckUserPermissionArgs, CheckUserPermissionResult, PermissionSource } from './permissionCheck.js';
+export { comparePermissions, getEffectivePermissions } from './permissionEffective.js';
+export type {
+  ComparePermissionsArgs,
+  ComparePermissionsResult,
+  EffectivePermissions,
+  EffectivePermissionsArgs,
+} from './permissionEffective.js';
+export { whoHasPermission } from './permissionWhoHas.js';
+export type { WhoHasPermissionArgs, WhoHasPermissionResult } from './permissionWhoHas.js';
+export { getRecordAccess } from './recordAccess.js';
+export type { RecordAccessArgs, RecordAccessResult } from './recordAccess.js';
 
 function escapeSingleQuotes(value: string): string {
   return value.replace(/\\/g, '\\\\').replace(/'/g, "\\'");

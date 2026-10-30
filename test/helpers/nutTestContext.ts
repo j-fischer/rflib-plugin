@@ -4,9 +4,7 @@ import type { SinonStub } from 'sinon';
 
 export type StubbedDescribe = () => unknown;
 export type StubbedSave = (record: Record<string, unknown>) => Promise<{ success: boolean; id?: string }>;
-export type QueryShape =
-  | unknown[]
-  | { records: unknown[]; done: boolean; totalSize: number; nextRecordsUrl?: string };
+export type QueryShape = unknown[] | { records: unknown[]; done: boolean; totalSize: number; nextRecordsUrl?: string };
 export type StubbedQuery = (soql: string) => QueryShape;
 export type StubbedQueryMore = (url: string) => QueryShape;
 export type StubbedToolingSave = (
@@ -24,6 +22,7 @@ export type NutStubs = {
   query?: StubbedQuery;
   queryMore?: StubbedQueryMore;
   describe?: Record<string, StubbedDescribe>;
+  describeGlobal?: () => unknown;
   create?: Record<string, StubbedSave>;
   update?: Record<string, StubbedSave>;
   /** When provided, Connection#tooling is replaced by a fake backed by these handlers. */
@@ -141,7 +140,7 @@ export function setupNut(stubs: NutStubs): NutHarness {
       },
     }));
 
-    if (stubs.tooling) stubTooling(harness, stubs.tooling);
+    if (stubs.tooling || stubs.describeGlobal) stubConnectionProperties(harness, stubs);
   });
 
   afterEach(() => {
@@ -152,11 +151,12 @@ export function setupNut(stubs: NutStubs): NutHarness {
 }
 
 /**
- * Replaces the Tooling API of every connection handed out by Org#getConnection with a fake
- * that records calls and delegates to the provided handlers. jsforce defines `tooling` as an
- * own property of each Connection instance, so it can't be stubbed on the prototype.
+ * Replaces the Tooling API and describeGlobal of every connection handed out by Org#getConnection
+ * with fakes that delegate to the provided handlers. jsforce defines `tooling` and `describeGlobal`
+ * as own properties of each Connection instance, so they can't be stubbed on the prototype.
  */
-function stubTooling(harness: NutHarness, stubs: ToolingStubs): void {
+function stubConnectionProperties(harness: NutHarness, connectionStubs: NutStubs): void {
+  const stubs: ToolingStubs = connectionStubs.tooling ?? {};
   const tooling = {
     query: async (soql: string) => {
       harness.toolingQueries.push(soql);
@@ -181,7 +181,16 @@ function stubTooling(harness: NutHarness, stubs: ToolingStubs): void {
   const getConnectionStub = harness.$$.SANDBOX.stub(Org.prototype, 'getConnection') as unknown as SinonStub;
   getConnectionStub.callsFake(function (this: Org, apiVersion?: string) {
     const conn = getConnection.call(this, apiVersion);
-    Object.defineProperty(conn, 'tooling', { get: () => tooling, configurable: true });
+    if (connectionStubs.tooling) {
+      Object.defineProperty(conn, 'tooling', { get: () => tooling, configurable: true });
+    }
+    const describeGlobal = connectionStubs.describeGlobal;
+    if (describeGlobal) {
+      Object.defineProperty(conn, 'describeGlobal', {
+        value: async () => Promise.resolve(describeGlobal()),
+        configurable: true,
+      });
+    }
     return conn;
   });
 }

@@ -11,14 +11,14 @@ import {
 const NAME_PATTERN = /^[A-Za-z][A-Za-z0-9_]*$/;
 const FIELD_PATTERN = /^([A-Za-z][A-Za-z0-9_]*)\.([A-Za-z][A-Za-z0-9_]*)$/;
 
-const PARENT_FIELDS =
+export const PARENT_FIELDS =
   'Parent.Name, Parent.Label, Parent.IsOwnedByProfile, Parent.Profile.Name, Parent.PermissionSetGroupId';
-const PERMISSION_SET_FIELDS = 'Id, Name, Label, IsOwnedByProfile, Profile.Name, PermissionSetGroupId';
+export const PERMISSION_SET_FIELDS = 'Id, Name, Label, IsOwnedByProfile, Profile.Name, PermissionSetGroupId';
 
 export type ObjectAccess = 'read' | 'create' | 'edit' | 'delete' | 'viewall' | 'modifyall' | 'viewallfields';
 export type FieldAccess = 'read' | 'edit';
 
-const OBJECT_ACCESS: Record<ObjectAccess, { field: string; label: string }> = {
+export const OBJECT_ACCESS: Record<ObjectAccess, { field: string; label: string }> = {
   read: { field: 'PermissionsRead', label: 'Read' },
   create: { field: 'PermissionsCreate', label: 'Create' },
   edit: { field: 'PermissionsEdit', label: 'Edit' },
@@ -27,7 +27,7 @@ const OBJECT_ACCESS: Record<ObjectAccess, { field: string; label: string }> = {
   modifyall: { field: 'PermissionsModifyAllRecords', label: 'Modify All Records' },
   viewallfields: { field: 'PermissionsViewAllFields', label: 'View All Fields' },
 };
-const OBJECT_PERMISSION_FIELDS = Object.values(OBJECT_ACCESS)
+export const OBJECT_PERMISSION_FIELDS = Object.values(OBJECT_ACCESS)
   .map((access) => access.field)
   .join(', ');
 
@@ -35,9 +35,9 @@ const OBJECT_PERMISSION_FIELDS = Object.values(OBJECT_ACCESS)
 export const ACCESS_LEVELS = Object.keys(OBJECT_ACCESS) as ObjectAccess[];
 const FIELD_ACCESS_LEVELS: FieldAccess[] = ['read', 'edit'];
 
-type SetupEntityType = 'apexClass' | 'apexPage' | 'customPermission';
+export type SetupEntityType = 'apexClass' | 'apexPage' | 'customPermission';
 
-type SetupEntityConfig = {
+export type SetupEntityConfig = {
   table: string;
   nameField: string;
   label: string;
@@ -45,7 +45,7 @@ type SetupEntityConfig = {
   impliedBy?: { field: string; note: string };
 };
 
-const SETUP_ENTITIES: Record<SetupEntityType, SetupEntityConfig> = {
+export const SETUP_ENTITIES: Record<SetupEntityType, SetupEntityConfig> = {
   apexClass: {
     table: 'ApexClass',
     nameField: 'Name',
@@ -67,9 +67,8 @@ const SETUP_ENTITIES: Record<SetupEntityType, SetupEntityConfig> = {
   customPermission: { table: 'CustomPermission', nameField: 'DeveloperName', label: 'custom permission' },
 };
 
-export type CheckUserPermissionArgs = {
-  /** User ID (15 or 18 characters) or username. */
-  user: string;
+/** Exactly one of these identifies the permission to check. */
+export type PermissionTargetArgs = {
   object?: string;
   /** Field in the form `Object.Field`. */
   field?: string;
@@ -78,6 +77,11 @@ export type CheckUserPermissionArgs = {
   apexPage?: string;
   customPermission?: string;
   systemPermission?: string;
+};
+
+export type CheckUserPermissionArgs = PermissionTargetArgs & {
+  /** User ID (15 or 18 characters) or username. */
+  user: string;
 };
 
 export type PermissionCheckType = 'object' | 'field' | SetupEntityType | 'systemPermission';
@@ -90,8 +94,10 @@ export type PermissionSource = {
   permission: string;
 };
 
+export type UserSummary = { id: string; username: string; name: string; isActive: boolean; profileName: string };
+
 export type CheckUserPermissionResult = {
-  user: { id: string; username: string; name: string; isActive: boolean; profileName: string };
+  user: UserSummary;
   check: { type: PermissionCheckType; target: string; access?: string };
   granted: boolean;
   summary: string;
@@ -103,7 +109,7 @@ export type CheckUserPermissionResult = {
   objectAccess?: { read: boolean; edit: boolean };
 };
 
-type CheckTarget =
+export type PermissionTarget =
   | { type: 'object'; object: string; access: ObjectAccess }
   | { type: 'field'; object: string; field: string; access: FieldAccess }
   | { type: SetupEntityType; namespace?: string; name: string }
@@ -115,7 +121,7 @@ type CheckOutcome = Pick<CheckUserPermissionResult, 'granted' | 'sources' | 'not
     description: string;
   };
 
-type PermissionSetRecord = {
+export type PermissionSetRecord = {
   Name?: string;
   Label?: string;
   IsOwnedByProfile?: boolean;
@@ -123,9 +129,9 @@ type PermissionSetRecord = {
   PermissionSetGroupId?: string | null;
 };
 
-type GrantRow = { Parent?: PermissionSetRecord } & Record<string, unknown>;
+export type GrantRow = { Parent?: PermissionSetRecord } & Record<string, unknown>;
 
-type UserRow = {
+export type UserRow = {
   Id: string;
   Username: string;
   Name: string;
@@ -141,16 +147,16 @@ type AssignmentRow = {
   PermissionSetGroup?: { MasterLabel?: string; DeveloperName?: string } | null;
 };
 
-type DescribeField = {
+export type DescribeField = {
   name: string;
   type?: string;
   permissionable?: boolean;
   calculated?: boolean;
   autoNumber?: boolean;
 };
-type DescribeResult = { name?: string; fields: DescribeField[] };
+export type DescribeResult = { name?: string; fields: DescribeField[] };
 
-type CheckContext = {
+export type CheckContext = {
   conn: Connection;
   sourceIds: PermissionSourceIds;
   groupLabels: Map<string, string>;
@@ -186,7 +192,7 @@ function parseQualifiedName(value: string, label: string): { namespace?: string;
 }
 
 /** Validates the arguments and works out which permission to check, before any query is sent. */
-function parseTarget(args: CheckUserPermissionArgs): CheckTarget {
+export function parseTarget(args: PermissionTargetArgs): PermissionTarget {
   const given = [
     args.object,
     args.field,
@@ -236,7 +242,7 @@ function parseTarget(args: CheckUserPermissionArgs): CheckTarget {
   };
 }
 
-async function resolveUser(conn: Connection, user: string): Promise<UserRow> {
+export async function resolveUser(conn: Connection, user: string): Promise<UserRow> {
   const isId = ID_PATTERN.test(user);
   if (!isId && !user.includes('@')) {
     throw new Error(`Invalid user "${user}". Expected a 15 or 18 character User ID or a username.`);
@@ -251,7 +257,17 @@ async function resolveUser(conn: Connection, user: string): Promise<UserRow> {
   return rows.records[0];
 }
 
-async function loadContext(conn: Connection, user: UserRow): Promise<CheckContext> {
+export function toUserSummary(user: UserRow): UserSummary {
+  return {
+    id: user.Id,
+    username: user.Username,
+    name: user.Name,
+    isActive: user.IsActive,
+    profileName: user.Profile?.Name ?? '',
+  };
+}
+
+export async function loadContext(conn: Connection, user: UserRow): Promise<CheckContext> {
   const assignments = (
     await queryAll<AssignmentRow>(
       conn,
@@ -280,23 +296,29 @@ async function loadContext(conn: Connection, user: UserRow): Promise<CheckContex
   return { conn, sourceIds, groupLabels };
 }
 
-function toSource(ps: PermissionSetRecord | undefined, permission: string, ctx: CheckContext): PermissionSource {
+export function toSource(
+  ps: PermissionSetRecord | undefined,
+  permission: string,
+  groupLabels: ReadonlyMap<string, string>,
+): PermissionSource {
   if (ps?.IsOwnedByProfile) {
     return { type: 'Profile', name: ps.Profile?.Name ?? ps.Label ?? '', permission };
   }
   if (ps?.PermissionSetGroupId) {
-    const name = ctx.groupLabels.get(ps.PermissionSetGroupId) ?? ps.PermissionSetGroupId;
+    const name = groupLabels.get(ps.PermissionSetGroupId) ?? ps.PermissionSetGroupId;
     return { type: 'PermissionSetGroup', name, permission };
   }
-  return { type: 'PermissionSet', name: ps?.Label ?? ps?.Name ?? '', apiName: ps?.Name, permission };
+  // Some system permission sets have an empty label.
+  const name = ps?.Label ? ps.Label : (ps?.Name ?? '');
+  return { type: 'PermissionSet', name, apiName: ps?.Name, permission };
 }
 
 /** Returns a source for every row whose `permission` field is true. */
 function grantsFrom(rows: readonly GrantRow[], permission: string, ctx: CheckContext): PermissionSource[] {
-  return rows.filter((row) => row[permission] === true).map((row) => toSource(row.Parent, permission, ctx));
+  return rows.filter((row) => row[permission] === true).map((row) => toSource(row.Parent, permission, ctx.groupLabels));
 }
 
-function uniqueSources(sources: readonly PermissionSource[]): PermissionSource[] {
+export function uniqueSources(sources: readonly PermissionSource[]): PermissionSource[] {
   const seen = new Set<string>();
   return sources.filter((source) => {
     const key = `${source.type}|${source.name}|${source.permission}`;
@@ -306,7 +328,7 @@ function uniqueSources(sources: readonly PermissionSource[]): PermissionSource[]
   });
 }
 
-async function describeSObject(conn: Connection, name: string): Promise<DescribeResult> {
+export async function describeSObject(conn: Connection, name: string): Promise<DescribeResult> {
   try {
     return await conn.sobject(name).describe();
   } catch (error) {
@@ -315,20 +337,25 @@ async function describeSObject(conn: Connection, name: string): Promise<Describe
   }
 }
 
-async function queryObjectPermissions(ctx: CheckContext, sobjectType: string): Promise<GrantRow[]> {
+export async function queryObjectPermissions(ctx: CheckContext, sobjectType: string): Promise<GrantRow[]> {
   const soql =
     `SELECT ${PARENT_FIELDS}, SobjectType, ${OBJECT_PERMISSION_FIELDS} FROM ObjectPermissions` +
     `${buildUserCondition(ctx.sourceIds)} AND SobjectType = '${escapeSingleQuotes(sobjectType)}'`;
   return (await queryAll<GrantRow>(ctx.conn, soql)).records;
 }
 
-/** Returns the user's permission sets (including their profile's) that have `permissionField` enabled. */
-async function queryPermissionSets(ctx: CheckContext, permissionField: string): Promise<PermissionSetRecord[]> {
-  const { profileId, permissionSetIds, permissionSetGroupIds } = ctx.sourceIds;
+/** Builds a PermissionSet WHERE clause that matches the user's profile, permission sets, and groups. */
+export function buildPermissionSetCondition(sourceIds: PermissionSourceIds): string {
+  const { profileId, permissionSetIds, permissionSetGroupIds } = sourceIds;
   const clauses = [`ProfileId = '${escapeSingleQuotes(profileId)}'`];
   if (permissionSetIds.length > 0) clauses.push(`Id IN ${buildIdList(permissionSetIds)}`);
   if (permissionSetGroupIds.length > 0) clauses.push(`PermissionSetGroupId IN ${buildIdList(permissionSetGroupIds)}`);
-  const soql = `SELECT ${PERMISSION_SET_FIELDS} FROM PermissionSet WHERE (${clauses.join(' OR ')}) AND ${permissionField} = true`;
+  return ` WHERE (${clauses.join(' OR ')})`;
+}
+
+/** Returns the user's permission sets (including their profile's) that have `permissionField` enabled. */
+export async function queryPermissionSets(ctx: CheckContext, permissionField: string): Promise<PermissionSetRecord[]> {
+  const soql = `SELECT ${PERMISSION_SET_FIELDS} FROM PermissionSet${buildPermissionSetCondition(ctx.sourceIds)} AND ${permissionField} = true`;
   return (await queryAll<PermissionSetRecord & Record<string, unknown>>(ctx.conn, soql)).records;
 }
 
@@ -346,17 +373,27 @@ async function checkObject(ctx: CheckContext, target: { object: string; access: 
   };
 }
 
-async function checkField(
-  ctx: CheckContext,
-  target: { object: string; field: string; access: FieldAccess },
-): Promise<CheckOutcome> {
-  const describe = await describeSObject(ctx.conn, target.object);
+export type ResolvedField = { objectName: string; field: DescribeField; fieldName: string };
+
+/** Describes the field's object and returns the field with its canonical `Object.Field` name. */
+export async function resolveField(
+  conn: Connection,
+  target: { object: string; field: string },
+): Promise<ResolvedField> {
+  const describe = await describeSObject(conn, target.object);
   const objectName = describe.name ?? target.object;
   const field = describe.fields.find((candidate) => candidate.name.toLowerCase() === target.field.toLowerCase());
   if (!field) {
     throw new Error(`Field "${target.field}" was not found on ${objectName}.`);
   }
-  const fieldName = `${objectName}.${field.name}`;
+  return { objectName, field, fieldName: `${objectName}.${field.name}` };
+}
+
+async function checkField(
+  ctx: CheckContext,
+  target: { object: string; field: string; access: FieldAccess },
+): Promise<CheckOutcome> {
+  const { objectName, field, fieldName } = await resolveField(ctx.conn, target);
   const { field: permission, label } = OBJECT_ACCESS[target.access];
   const notes: string[] = [];
 
@@ -411,15 +448,18 @@ async function checkField(
   };
 }
 
-async function checkSetupEntity(
-  ctx: CheckContext,
+export type ResolvedSetupEntity = { id: string; targetName: string; config: SetupEntityConfig };
+
+/** Finds the Apex class, Visualforce page, or custom permission by name. */
+export async function resolveSetupEntity(
+  conn: Connection,
   target: { type: SetupEntityType; namespace?: string; name: string },
-): Promise<CheckOutcome> {
+): Promise<ResolvedSetupEntity> {
   const config = SETUP_ENTITIES[target.type];
   const namespaceFilter =
     target.namespace === undefined ? '' : ` AND NamespacePrefix = '${escapeSingleQuotes(target.namespace)}'`;
   const matches = (
-    await ctx.conn.query<{ Id: string; NamespacePrefix?: string | null }>(
+    await conn.query<{ Id: string; NamespacePrefix?: string | null }>(
       `SELECT Id, ${config.nameField}, NamespacePrefix FROM ${config.table}` +
         ` WHERE ${config.nameField} = '${escapeSingleQuotes(target.name)}'${namespaceFilter}`,
     )
@@ -439,20 +479,27 @@ async function checkSetupEntity(
   }
   const entity = candidates[0];
   const targetName = entity.NamespacePrefix ? `${entity.NamespacePrefix}__${target.name}` : target.name;
+  return { id: entity.Id, targetName, config };
+}
 
+async function checkSetupEntity(
+  ctx: CheckContext,
+  target: { type: SetupEntityType; namespace?: string; name: string },
+): Promise<CheckOutcome> {
+  const { id, targetName, config } = await resolveSetupEntity(ctx.conn, target);
   const rows = (
     await queryAll<GrantRow>(
       ctx.conn,
       `SELECT ${PARENT_FIELDS}, SetupEntityId FROM SetupEntityAccess${buildUserCondition(ctx.sourceIds)}` +
-        ` AND SetupEntityId = '${escapeSingleQuotes(entity.Id)}'`,
+        ` AND SetupEntityId = '${escapeSingleQuotes(id)}'`,
     )
   ).records;
-  const sources = rows.map((row) => toSource(row.Parent, 'SetupEntityAccess', ctx));
+  const sources = rows.map((row) => toSource(row.Parent, 'SetupEntityAccess', ctx.groupLabels));
   const notes: string[] = [];
 
   if (config.impliedBy) {
     const implied = (await queryPermissionSets(ctx, config.impliedBy.field)).map((ps) =>
-      toSource(ps, config.impliedBy!.field, ctx),
+      toSource(ps, config.impliedBy!.field, ctx.groupLabels),
     );
     if (implied.length > 0) {
       sources.push(...implied);
@@ -469,8 +516,12 @@ async function checkSetupEntity(
   };
 }
 
-async function checkSystemPermission(ctx: CheckContext, target: { name: string }): Promise<CheckOutcome> {
-  const describe = await describeSObject(ctx.conn, 'PermissionSet');
+/** Returns the PermissionSet field of a system permission, e.g. PermissionsModifyAllData for ModifyAllData. */
+export async function resolveSystemPermission(
+  conn: Connection,
+  target: { name: string },
+): Promise<{ field: string; name: string }> {
+  const describe = await describeSObject(conn, 'PermissionSet');
   const expected = `permissions${target.name}`.toLowerCase();
   const field = describe.fields.find(
     (candidate) => candidate.name.toLowerCase() === expected && candidate.type === 'boolean',
@@ -480,8 +531,12 @@ async function checkSystemPermission(ctx: CheckContext, target: { name: string }
       `Unknown system permission "${target.name}". Use the API name without the "Permissions" prefix, e.g. ModifyAllData or ViewSetup.`,
     );
   }
-  const name = field.name.slice('Permissions'.length);
-  const sources = (await queryPermissionSets(ctx, field.name)).map((ps) => toSource(ps, field.name, ctx));
+  return { field: field.name, name: field.name.slice('Permissions'.length) };
+}
+
+async function checkSystemPermission(ctx: CheckContext, target: { name: string }): Promise<CheckOutcome> {
+  const { field, name } = await resolveSystemPermission(ctx.conn, target);
+  const sources = (await queryPermissionSets(ctx, field)).map((ps) => toSource(ps, field, ctx.groupLabels));
   return {
     target: name,
     description: `the ${name} system permission`,
@@ -491,7 +546,7 @@ async function checkSystemPermission(ctx: CheckContext, target: { name: string }
   };
 }
 
-async function runCheck(ctx: CheckContext, target: CheckTarget): Promise<CheckOutcome> {
+async function runCheck(ctx: CheckContext, target: PermissionTarget): Promise<CheckOutcome> {
   switch (target.type) {
     case 'object':
       return checkObject(ctx, target);
@@ -530,13 +585,7 @@ export async function checkUserPermission(
   const access = target.type === 'object' || target.type === 'field' ? target.access : undefined;
 
   const result: CheckUserPermissionResult = {
-    user: {
-      id: user.Id,
-      username: user.Username,
-      name: user.Name,
-      isActive: user.IsActive,
-      profileName: user.Profile?.Name ?? '',
-    },
+    user: toUserSummary(user),
     check: { type: target.type, target: outcome.target, ...(access ? { access } : {}) },
     granted: outcome.granted,
     summary: `${user.Username} ${outcome.granted ? 'has' : "doesn't have"} ${outcome.description}.`,

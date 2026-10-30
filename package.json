@@ -96,6 +96,9 @@
               },
               "userpermissions": {
                 "description": "Commands related to Salesforce user permissions"
+              },
+              "recordaccess": {
+                "description": "Commands related to Salesforce record access and sharing"
               }
             }
           },

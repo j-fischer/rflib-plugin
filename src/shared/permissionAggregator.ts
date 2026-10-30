@@ -138,6 +138,29 @@ export function buildIdList(ids: readonly string[]): string {
   return "('" + ids.map(escapeSingleQuotes).join("','") + "')";
 }
 
+// Keeps each IN list well below the SOQL statement length limit.
+const ID_CHUNK_SIZE = 300;
+
+/**
+ * Runs `buildSoql` once per chunk of `ids` (passed as a SOQL IN list) and combines the results.
+ * Returns no records, without querying, when `ids` is empty.
+ */
+export async function queryByIds<T extends Record<string, unknown>>(
+  conn: Connection,
+  ids: readonly string[],
+  buildSoql: (idList: string) => string,
+): Promise<QueryAllResult<T>> {
+  let records: T[] = [];
+  let truncated = false;
+  for (let start = 0; start < ids.length; start += ID_CHUNK_SIZE) {
+    // eslint-disable-next-line no-await-in-loop
+    const chunk = await queryAll<T>(conn, buildSoql(buildIdList(ids.slice(start, start + ID_CHUNK_SIZE))));
+    records = records.concat(chunk.records);
+    truncated = truncated || chunk.truncated;
+  }
+  return { records, truncated };
+}
+
 export function buildUserCondition(details: PermissionSourceIds): string {
   // FieldPermissions / ObjectPermissions / SetupEntityAccess rows are always keyed by
   // ParentId = PermissionSet. Permission Set Groups don't show up under ParentId — the
@@ -153,7 +176,7 @@ export function buildUserCondition(details: PermissionSourceIds): string {
   return ` WHERE (${clauses.join(' OR ')})`;
 }
 
-function buildSObjectFilter(sobjectType: string | undefined): string {
+export function buildSObjectFilter(sobjectType: string | undefined): string {
   if (!sobjectType) return '';
   if (!SOBJECT_PATTERN.test(sobjectType)) {
     throw new Error(`Invalid sobjectType "${sobjectType}". Use a standard SObject API name (e.g. Account, Order__c).`);
