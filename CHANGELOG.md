@@ -1,3 +1,12 @@
+## [0.21.6](https://github.com/j-fischer/rflib-plugin/compare/0.21.5...0.21.6) (2026-10-30)
+
+
+### Bug Fixes
+
+* **deps:** bump follow-redirects from 1.16.0 to 1.16.1 ([#279](https://github.com/j-fischer/rflib-plugin/issues/279)) ([f482414](https://github.com/j-fischer/rflib-plugin/commit/f482414f7fb9cafb1cc2d6b2897a083bc108cfa1))
+
+
+
 ## [0.21.5](https://github.com/j-fischer/rflib-plugin/compare/0.21.4...0.21.5) (2026-10-30)
 
 
