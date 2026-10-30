@@ -11,8 +11,15 @@ export const RFLIB_REPOSITORY_URL = 'https://github.com/j-fischer/rflib';
  */
 export const RFLIB_PROJECT_URL = 'https://raw.githubusercontent.com/j-fischer/rflib/master/sfdx-project.json';
 
+/**
+ * Custom label holding the RFLIB version, e.g. `11.4.0`. RFLIB ships it with its source, so it also
+ * exists in orgs where RFLIB was deployed as unpackaged source rather than installed as a package.
+ */
+export const RFLIB_VERSION_LABEL = 'RFLIB_Version';
+
 const PACKAGE_VERSION_ALIAS = /^(?<name>.+)@(?<major>\d+)\.(?<minor>\d+)\.(?<patch>\d+)-(?<build>\d+)$/;
 const PACKAGE_VERSION_ID = /^04t(?:[a-zA-Z0-9]{12}|[a-zA-Z0-9]{15})$/;
+const VERSION_LABEL_VALUE = /^\s*v?(?<major>\d+)\.(?<minor>\d+)\.(?<patch>\d+)(?:[.-](?<build>\d+))?\s*$/i;
 const DEFAULT_POLL_INTERVAL_MS = 5000;
 
 const INSTALLED_PACKAGES_QUERY =
@@ -22,6 +29,8 @@ const INSTALLED_PACKAGES_QUERY =
   'FROM InstalledSubscriberPackage';
 
 const RELEASE_STATE_QUERY = 'SELECT Id, ReleaseState FROM SubscriberPackageVersion WHERE Id = ';
+
+const RFLIB_VERSION_LABEL_QUERY = `SELECT Value FROM ExternalString WHERE Name = '${RFLIB_VERSION_LABEL}'`;
 
 export type PackageVersionNumber = {
   major: number;
@@ -58,6 +67,8 @@ export type LatestReleasedPackageVersion = {
   latest?: PackageVersion;
   /** Versions newer than `latest` that were skipped because they aren't released, newest first. */
   unreleased: UnreleasedPackageVersion[];
+  /** Every version ID the project lists for this package, used to recognize the package once installed. */
+  knownVersionIds: string[];
 };
 
 export type InstalledPackage = {
@@ -124,6 +135,10 @@ type InstalledSubscriberPackageRow = {
 type SubscriberPackageVersionRow = {
   Id: string;
   ReleaseState?: string;
+};
+
+type ExternalStringRow = {
+  Value?: string | null;
 };
 
 type ToolingSaveResult = {
@@ -261,8 +276,9 @@ export async function findLatestReleasedVersions(
  * present before running) should reuse this function rather than querying the org themselves.
  *
  * @param conn connection to the org to inspect.
- * @param packageNames optional package names (case-insensitive) to limit the result to, such as the
- * names returned by fetchPackageVersions(). Every installed package is returned when omitted.
+ * @param packageNames optional package names to limit the result to, such as the names returned by
+ * fetchPackageVersions(). Names are compared with packageNamesMatch(). Every installed package is
+ * returned when omitted.
  */
 export async function getInstalledPackages(
   conn: Connection,
@@ -274,21 +290,58 @@ export async function getInstalledPackages(
   const packages = result.records.map(toInstalledPackage);
   if (!packageNames) return packages;
 
-  const wanted = new Set(packageNames.map((name) => name.toLowerCase()));
-  return packages.filter((pkg) => wanted.has(pkg.name.toLowerCase()));
+  const wanted = new Set(packageNames.map(normalizePackageName));
+  return packages.filter((pkg) => wanted.has(normalizePackageName(pkg.name)));
 }
 
 /**
- * Matches the latest released version of each package to the installed package of the same name.
+ * Reads the RFLIB version from the RFLIB_Version custom label deployed to an org, using the Tooling
+ * API. Use it as a fallback for orgs where RFLIB is not installed as a package, such as development
+ * orgs that RFLIB was deployed to as source.
+ *
+ * @returns the version, with build number 0 unless the label includes one, or undefined if the label
+ * does not exist or does not contain a version number.
+ */
+export async function getRflibVersionFromLabel(conn: Connection): Promise<PackageVersionNumber | undefined> {
+  const result = await conn.tooling.query<ExternalStringRow>(RFLIB_VERSION_LABEL_QUERY);
+  return result.records.map((row) => parseVersionLabel(row.Value ?? '')).find((version) => version !== undefined);
+}
+
+/**
+ * Parses a version label such as `11.4.0`, `v11.4.0`, or `11.4.0.1`.
+ */
+export function parseVersionLabel(value: string): PackageVersionNumber | undefined {
+  const groups = VERSION_LABEL_VALUE.exec(value)?.groups;
+  if (!groups) return undefined;
+
+  return {
+    major: Number(groups.major),
+    minor: Number(groups.minor),
+    patch: Number(groups.patch),
+    build: Number(groups.build ?? 0),
+  };
+}
+
+/**
+ * Tells whether two package names refer to the same package. The comparison ignores case and treats
+ * hyphens, underscores, and whitespace as the same separator, because the subscriber package name in
+ * an org does not always match the package alias in sfdx-project.json (RFLIB-TF installs as RFLIB_TF).
+ */
+export function packageNamesMatch(a: string, b: string): boolean {
+  return normalizePackageName(a) === normalizePackageName(b);
+}
+
+/**
+ * Matches the latest released version of each package to its installed package. An installed version
+ * whose ID the project lists for the package identifies it reliably; otherwise the package names are
+ * compared with packageNamesMatch().
  */
 export function comparePackages(
   latest: LatestReleasedPackageVersion[],
   installed: InstalledPackage[],
 ): PackageComparison[] {
-  const installedByName = new Map(installed.map((pkg) => [pkg.name.toLowerCase(), pkg]));
-
   return latest.map((pkg): PackageComparison => {
-    const current = installedByName.get(pkg.name.toLowerCase());
+    const current = findInstalledPackage(pkg, installed);
     const comparison: PackageComparison = { name: pkg.name, status: comparisonStatus(pkg.latest, current) };
     if (pkg.latest) {
       comparison.latestVersion = formatVersion(pkg.latest.version);
@@ -389,13 +442,37 @@ async function findLatestReleasedVersion(
   history: PackageVersionHistory,
 ): Promise<LatestReleasedPackageVersion> {
   const unreleased: UnreleasedPackageVersion[] = [];
+  const knownVersionIds = history.versions.map((version) => version.versionId);
   for (const version of history.versions) {
     // eslint-disable-next-line no-await-in-loop
     const releaseState = await getPackageVersionReleaseState(conn, version.versionId);
-    if (releaseState === 'Released') return { name: history.name, latest: version, unreleased };
+    if (releaseState === 'Released') return { name: history.name, latest: version, unreleased, knownVersionIds };
     unreleased.push({ ...version, releaseState });
   }
-  return { name: history.name, unreleased };
+  return { name: history.name, unreleased, knownVersionIds };
+}
+
+function findInstalledPackage(
+  pkg: LatestReleasedPackageVersion,
+  installed: InstalledPackage[],
+): InstalledPackage | undefined {
+  const knownVersionIds = new Set(pkg.knownVersionIds.map(toShortId));
+  return (
+    installed.find((candidate) => knownVersionIds.has(toShortId(candidate.versionId))) ??
+    installed.find((candidate) => packageNamesMatch(candidate.name, pkg.name))
+  );
+}
+
+function normalizePackageName(name: string): string {
+  return name
+    .trim()
+    .toLowerCase()
+    .replace(/[\s_-]+/g, '-');
+}
+
+/** Salesforce IDs are case-sensitive in their 15-character form; the 18-character form only adds a checksum. */
+function toShortId(id: string): string {
+  return id.slice(0, 15);
 }
 
 function comparisonStatus(

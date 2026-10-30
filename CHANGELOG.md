@@ -1,3 +1,84 @@
+# [0.22.0](https://github.com/j-fischer/rflib-plugin/compare/0.21.10...0.22.0) (2026-10-30)
+
+
+### Features
+
+* **debug:** add userpermissions check command ([#283](https://github.com/j-fischer/rflib-plugin/issues/283)) ([29c4dbb](https://github.com/j-fischer/rflib-plugin/commit/29c4dbbfb7550b237e697a74701f0e25f810b050))
+
+
+
+## [0.21.10](https://github.com/j-fischer/rflib-plugin/compare/0.21.9...0.21.10) (2026-10-30)
+
+
+### Bug Fixes
+
+* **packages:** recognize RFLIB-TF installed as RFLIB_TF; detect RFLIB deployed as source ([#271](https://github.com/j-fischer/rflib-plugin/issues/271)) ([6343bd6](https://github.com/j-fischer/rflib-plugin/commit/6343bd61b13c513b902ca5011a92e2e9d69b15ef))
+
+
+
+## [0.21.9](https://github.com/j-fischer/rflib-plugin/compare/0.21.8...0.21.9) (2026-10-30)
+
+
+### Bug Fixes
+
+* **deps:** bump fast-uri from 3.1.7 to 3.1.9 ([#284](https://github.com/j-fischer/rflib-plugin/issues/284)) ([39fad0f](https://github.com/j-fischer/rflib-plugin/commit/39fad0fd0df8930bb006d08dc9b1e71f4be60ea9))
+
+
+
+## [0.21.8](https://github.com/j-fischer/rflib-plugin/compare/0.21.7...0.21.8) (2026-10-30)
+
+
+### Bug Fixes
+
+* **deps:** bump undici from 8.10.0 to 8.12.3 ([#282](https://github.com/j-fischer/rflib-plugin/issues/282)) ([ec19ea8](https://github.com/j-fischer/rflib-plugin/commit/ec19ea837ca6cebb15b31673a7efd156fd13720a))
+
+
+
+## [0.21.7](https://github.com/j-fischer/rflib-plugin/compare/0.21.6...0.21.7) (2026-10-30)
+
+
+### Bug Fixes
+
+* **deps:** bump markdown-it from 14.3.1 to 14.3.3 ([#280](https://github.com/j-fischer/rflib-plugin/issues/280)) ([76014ca](https://github.com/j-fischer/rflib-plugin/commit/76014cae321ee179cc42ca88e5026d2bb2041ce1))
+
+
+
+## [0.21.6](https://github.com/j-fischer/rflib-plugin/compare/0.21.5...0.21.6) (2026-10-30)
+
+
+### Bug Fixes
+
+* **deps:** bump follow-redirects from 1.16.0 to 1.16.1 ([#279](https://github.com/j-fischer/rflib-plugin/issues/279)) ([f482414](https://github.com/j-fischer/rflib-plugin/commit/f482414f7fb9cafb1cc2d6b2897a083bc108cfa1))
+
+
+
+## [0.21.5](https://github.com/j-fischer/rflib-plugin/compare/0.21.4...0.21.5) (2026-10-30)
+
+
+### Bug Fixes
+
+* **deps:** bump source-map-js from 1.2.1 to 1.2.2 ([#277](https://github.com/j-fischer/rflib-plugin/issues/277)) ([9a9b42c](https://github.com/j-fischer/rflib-plugin/commit/9a9b42ca439d4b1eb38678289f171db32d6a53da))
+
+
+
+## [0.21.4](https://github.com/j-fischer/rflib-plugin/compare/0.21.3...0.21.4) (2026-10-30)
+
+
+### Bug Fixes
+
+* **deps:** bump fast-copy from 3.0.2 to 3.1.0 ([#276](https://github.com/j-fischer/rflib-plugin/issues/276)) ([11888ec](https://github.com/j-fischer/rflib-plugin/commit/11888ecb7c047c568addbd7c3f797a17c40a120d))
+
+
+
+## [0.21.3](https://github.com/j-fischer/rflib-plugin/compare/0.21.2...0.21.3) (2026-10-30)
+
+
+### Bug Fixes
+
+* **deps:** bump joi from 18.2.5 to 18.2.9 ([#267](https://github.com/j-fischer/rflib-plugin/issues/267)) ([73b4e10](https://github.com/j-fischer/rflib-plugin/commit/73b4e103b63fc06f6c4c8564448e83d7b02e829c))
+
+
+
 ## [0.21.2](https://github.com/j-fischer/rflib-plugin/compare/0.21.1...0.21.2) (2026-10-07)
 
 
