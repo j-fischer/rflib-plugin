@@ -1,3 +1,12 @@
+## [0.23.2](https://github.com/j-fischer/rflib-plugin/compare/0.23.1...0.23.2) (2026-10-30)
+
+
+### Bug Fixes
+
+* **deps:** bump brace-expansion from 1.1.18 to 1.1.21 ([#287](https://github.com/j-fischer/rflib-plugin/issues/287)) ([5c361fe](https://github.com/j-fischer/rflib-plugin/commit/5c361fe49028d66502d3199ad02608dfa41a11f4))
+
+
+
 ## [0.23.1](https://github.com/j-fischer/rflib-plugin/compare/0.23.0...0.23.1) (2026-10-30)
 
 
