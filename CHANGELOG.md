@@ -1,3 +1,12 @@
+## [0.23.8](https://github.com/j-fischer/rflib-plugin/compare/0.23.7...0.23.8) (2026-11-23)
+
+
+### Bug Fixes
+
+* **deps:** bump joi from 18.2.9 to 18.3.2 ([#299](https://github.com/j-fischer/rflib-plugin/issues/299)) ([9d5d265](https://github.com/j-fischer/rflib-plugin/commit/9d5d265f0af693c4579df6b722f806c5164856ee))
+
+
+
 ## [0.23.7](https://github.com/j-fischer/rflib-plugin/compare/0.23.6...0.23.7) (2026-11-23)
 
 
