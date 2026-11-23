@@ -1,3 +1,12 @@
+## [0.23.5](https://github.com/j-fischer/rflib-plugin/compare/0.23.4...0.23.5) (2026-11-23)
+
+
+### Bug Fixes
+
+* **deps:** bump yargs 16/17 for Node 26 compatibility ([#297](https://github.com/j-fischer/rflib-plugin/issues/297)) ([3bc7975](https://github.com/j-fischer/rflib-plugin/commit/3bc7975aa3e6888426c8bcb41f4e3e5843c2dd2b))
+
+
+
 ## [0.23.4](https://github.com/j-fischer/rflib-plugin/compare/0.23.3...0.23.4) (2026-10-30)
 
 
