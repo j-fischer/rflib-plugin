@@ -1,3 +1,12 @@
+## [0.23.9](https://github.com/j-fischer/rflib-plugin/compare/0.23.8...0.23.9) (2026-11-23)
+
+
+### Bug Fixes
+
+* **deps:** bump minimatch from 10.2.6 to 11.0.1 ([#298](https://github.com/j-fischer/rflib-plugin/issues/298)) ([cdc98aa](https://github.com/j-fischer/rflib-plugin/commit/cdc98aa36657b0d34807d9a8e2ccbdca6caa98e6))
+
+
+
 ## [0.23.8](https://github.com/j-fischer/rflib-plugin/compare/0.23.7...0.23.8) (2026-11-23)
 
 
